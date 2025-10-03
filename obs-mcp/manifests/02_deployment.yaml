@@ -1,0 +1,41 @@
+# creats a 1 pod deployment for the cluster-health-analyzer
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: genie-obs-mcp
+  name: genie-obs-mcp
+  namespace: openshift-lightspeed
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: genie-obs-mcp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: genie-obs-mcp
+    spec:
+      serviceAccountName: genie-obs-mcp-thanos-querier
+      automountServiceAccountToken: true
+      containers:
+        - name: cluster-health-mcp-server
+          image: "quay.io/inecas_rh/obc-mcp:latest"
+          imagePullPolicy: Always
+          args:
+            - --listen
+            - :8085
+          env:
+            - name: PROMETHEUS_URL
+              value: "https://thanos-querier.openshift-monitoring.svc.cluster.local:9091/"
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          ports:
+            - containerPort: 8085
+              name: mcp
+          terminationMessagePolicy: FallbackToLogsOnError

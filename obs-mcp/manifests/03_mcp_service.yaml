@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: genie-obs-mcp
+  name: genie-obs-mcp-server
+  namespace: openshift-lightspeed
+spec:
+  ports:
+    - name: mcp
+      port: 8085
+      targetPort: mcp
+  selector:
+    app.kubernetes.io/name: genie-obs-mcp
