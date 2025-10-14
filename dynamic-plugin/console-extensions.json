@@ -1,31 +1,5 @@
 [
   {
-    "type": "console.page/route",
-    "properties": {
-      "exact": true,
-      "path": "/example",
-      "component": { "$codeRef": "ExamplePage" }
-    }
-  },
-  {
-    "type": "console.navigation/href",
-    "properties": {
-      "id": "example",
-      "name": "%plugin__genie-plugin~Plugin Example%",
-      "href": "/example",
-      "perspective": "admin",
-      "section": "home"
-    }
-  },
-  {
-    "type": "console.page/route/standalone",
-    "properties": {
-      "exact": true,
-      "path": "/genie",
-      "component": { "$codeRef": "GeniePage" }
-    }
-  },
-  {
     "type": "console.page/route/standalone",
     "properties": {
       "exact": true,

@@ -44,7 +44,7 @@
     "@perses-dev/timeseries-table-plugin": "^0.9.0",
     "@redhat-cloud-services/ai-client-state": "^0.15.0",
     "@redhat-cloud-services/ai-react-state": "^0.15.0",
-    "@redhat-cloud-services/lightspeed-client": "^0.14.2",
+    "@redhat-cloud-services/lightspeed-client": "^0.14.3",
     "@tanstack/react-query": "^4.0.0",
     "react-grid-layout": "^1.5.2",
     "use-resize-observer": "^9.1.0"
@@ -52,7 +52,8 @@
   "overrides": {
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
-    "framer-motion": "^6.5.1"
+    "framer-motion": "^6.5.1",
+    "react-markdown": "8.0.7"
   },
   "devDependencies": {
     "@cypress/webpack-preprocessor": "^5.15.5",
@@ -105,8 +106,6 @@
     "displayName": "OpenShift Console Plugin Template",
     "description": "Template project for OpenShift Console plugins. Edit package.json to change this message and the plugin name.",
     "exposedModules": {
-      "ExamplePage": "./components/ExamplePage",
-      "GeniePage": "./components/GeniePage",
       "GenieWidgetsPage": "./components/GenieWidgetsPage",
       "GenieLibraryPage": "./components/GenieLibraryPage"
     },

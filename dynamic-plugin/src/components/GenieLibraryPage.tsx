@@ -10,7 +10,9 @@ export default function GenieLibraryPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const client = new DashboardMCPClient('http://localhost:9081/mcp');
+    const client = new DashboardMCPClient(
+      `${window.location.origin}/api/proxy/plugin/genie-plugin/dashboard-mcp/`,
+    );
     client
       .listDashboards()
       .then(({ layouts }) => {

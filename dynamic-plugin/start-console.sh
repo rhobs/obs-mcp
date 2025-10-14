@@ -7,7 +7,7 @@ CONSOLE_PORT=${CONSOLE_PORT:=9000}
 CONSOLE_IMAGE_PLATFORM=${CONSOLE_IMAGE_PLATFORM:="linux/amd64"}
 
 # Plugin metadata is declared in package.json
-PLUGIN_NAME=${npm_package_consolePlugin_name}
+PLUGIN_NAME="genie-plugin"
 
 echo "Starting local OpenShift console..."
 
@@ -38,21 +38,36 @@ echo "Console Image: $CONSOLE_IMAGE"
 echo "Console URL: http://localhost:${CONSOLE_PORT}"
 echo "Console Platform: $CONSOLE_IMAGE_PLATFORM"
 
-# Prefer podman if installed. Otherwise, fall back to docker.
+# Determine the host endpoint based on container engine and OS
 if [ -x "$(command -v podman)" ]; then
     if [ "$(uname -s)" = "Linux" ]; then
         # Use host networking on Linux since host.containers.internal is unreachable in some environments.
-        BRIDGE_PLUGINS="${PLUGIN_NAME}=http://localhost:9001"
-        BRIDGE_PLUGIN_PROXY="{\"services\": [{\"consoleAPIPath\": \"/api/proxy/plugin/monitoring-console-plugin/perses/\", \"endpoint\":\"http://localhost:9090\",\"authorize\":true}]}" \
+        HOST_ENDPOINT="localhost"
+    else
+        # Use host.containers.internal for Podman on macOS/Windows
+        HOST_ENDPOINT="host.containers.internal"
+    fi
+else
+    # Use host.docker.internal for Docker
+    HOST_ENDPOINT="host.docker.internal"
+fi
+
+# Set BRIDGE_PLUGINS using the determined host endpoint
+BRIDGE_PLUGINS="${PLUGIN_NAME}=http://${HOST_ENDPOINT}:9001"
+
+# Build BRIDGE_PLUGIN_PROXY dynamically based on the determined host endpoint
+BRIDGE_PLUGIN_PROXY="{\"services\": [{\"consoleAPIPath\": \"/api/proxy/plugin/monitoring-console-plugin/perses/\", \"endpoint\": \"http://${HOST_ENDPOINT}:9090\", \"authorize\": true}, {\"consoleAPIPath\": \"/api/proxy/plugin/genie-plugin/lightspeed/\", \"endpoint\": \"http://${HOST_ENDPOINT}:8080/\"}, {\"consoleAPIPath\": \"/api/proxy/plugin/genie-plugin/dashboard-mcp/\", \"endpoint\": \"http://${HOST_ENDPOINT}:9081/mcp\"}]}"
+
+# Prefer podman if installed. Otherwise, fall back to docker.
+if [ -x "$(command -v podman)" ]; then
+    if [ "$(uname -s)" = "Linux" ]; then
+        # Use host networking on Linux
         podman run --pull always --platform $CONSOLE_IMAGE_PLATFORM --rm --network=host --env-file <(set | grep BRIDGE) $CONSOLE_IMAGE
     else
-        BRIDGE_PLUGINS="${PLUGIN_NAME}=http://host.containers.internal:9001"
-        # podman run --pull always --platform $CONSOLE_IMAGE_PLATFORM --rm -p "$CONSOLE_PORT":9000 --env-file <(set | grep BRIDGE) --env BRIDGE_PLUGIN_PROXY="{\"services\": [{\"consoleAPIPath\": \"/api/proxy/plugin/genie-plugin/perses/\", \"endpoint\":\"http://127.0.0.1:9090\"}]}" $CONSOLE_IMAGE
-        # podman run --pull always --platform $CONSOLE_IMAGE_PLATFORM --rm -p "$CONSOLE_PORT":9000 --env-file <(set | grep BRIDGE) --env BRIDGE_PLUGIN_PROXY="{\"services\": [{\"consoleAPIPath\": \"/api/proxy/plugin/genie-plugin/perses/\", \"endpoint\":\"https://thanos-querier-openshift-monitoring.apps.lprabhu-170920251037.devcluster.openshift.com\", \"authorize\":true}]}" $CONSOLE_IMAGE
-        # podman run --pull always --platform $CONSOLE_IMAGE_PLATFORM --rm -p "$CONSOLE_PORT":9000 --env-file <(set | grep BRIDGE) --env BRIDGE_PLUGIN_PROXY="{\"services\": [{\"consoleAPIPath\": \"/api/proxy/plugin/genie-plugin/perses/\", \"endpoint\":\"https://thanos-querier-openshift-monitoring.apps.lprabhu-170920251037.devcluster.openshift.com\", \"authorize\":true}]}" $CONSOLE_IMAGE
+        # Use port mapping for Podman on macOS/Windows
         podman run --pull always --platform $CONSOLE_IMAGE_PLATFORM --rm -p "$CONSOLE_PORT":9000 --env-file <(set | grep BRIDGE) $CONSOLE_IMAGE
     fi
 else
-    BRIDGE_PLUGINS="${PLUGIN_NAME}=http://host.docker.internal:9001"
-    docker run --pull always --platform $CONSOLE_IMAGE_PLATFORM --rm -p "$CONSOLE_PORT":9000 --env-file <(set | grep BRIDGE) --env BRIDGE_PLUGIN_PROXY="{\"services\": [{\"consoleAPIPath\": \"/api/proxy/plugin/monitoring-console-plugin/perses/\", \"endpoint\":\"http://127.0.0.1:9090\",\"authorize\":true}]}" $CONSOLE_IMAGE
+    # Use Docker with port mapping
+    docker run --pull always --platform $CONSOLE_IMAGE_PLATFORM --rm -p "$CONSOLE_PORT":9000 --env-file <(set | grep BRIDGE) --env BRIDGE_PLUGIN_PROXY="${BRIDGE_PLUGIN_PROXY}" $CONSOLE_IMAGE
 fi

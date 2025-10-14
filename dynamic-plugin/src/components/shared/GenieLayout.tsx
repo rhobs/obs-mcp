@@ -25,7 +25,7 @@ async function testConnection(): Promise<{ success: boolean; message: string }> 
 
     for (const endpoint of healthEndpoints) {
       try {
-        const response = await fetch(`http://localhost:8080${endpoint}`, {
+        const response = await fetch(`http://localhost:9000/api/proxy/plugin/genie-plugin/lightspeed/${endpoint}`, {
           method: 'GET',
           headers: {
             Accept: 'application/json',

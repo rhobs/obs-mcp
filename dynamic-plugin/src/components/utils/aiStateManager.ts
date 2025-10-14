@@ -4,7 +4,7 @@ import { OLSClient } from './olsClient';
 
 // Initialize state manager outside React scope (following Red Hat Cloud Services pattern)
 const client = new OLSClient({
-  baseUrl: 'http://localhost:8080',
+  baseUrl: `${window.location.origin}/api/proxy/plugin/genie-plugin/lightspeed/`, // Always use bridge proxy
   fetchFunction: (input, init) => fetch(input, init),
 });
 

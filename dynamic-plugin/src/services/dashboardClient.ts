@@ -5,7 +5,7 @@ export class DashboardMCPClient {
   private requestId = 0;
   private sessionId: string | null = null;
 
-  constructor(baseURL = 'http://localhost:9081/mcp') {
+  constructor(baseURL = `${window.location.origin}/api/proxy/plugin/genie-plugin/dashboard-mcp/`) {
     this.baseURL = baseURL;
   }
 
