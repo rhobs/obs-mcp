@@ -8,6 +8,7 @@ import {
   AddWidgetResponse,
   GenerateUIEvent,
 } from '../types/dashboard';
+import { MCPGenerateUIOutput, ComponentDataHandBuildComponent } from '../types/ngui';
 
 export type ToolCallEvent =
   | CreateDashboardEvent
@@ -196,11 +197,6 @@ export function isGenerateUIEvent(event: any): event is GenerateUIEvent {
   );
 }
 
-type NguiResponseObject = {
-  id: string;
-  content: string;
-};
-
 export function parseGenerateUIEvent(
   event: GenerateUIEvent,
   dashboardWidgets: DashboardWidget[] | null,
@@ -213,9 +209,9 @@ export function parseGenerateUIEvent(
     return null;
   }
 
-  const ngui_response: NguiResponseObject[] = JSON.parse(event.data.token.artifact);
+  const ngui_response: MCPGenerateUIOutput = JSON.parse(event.data.token.artifact);
   const result = {
-    widgets: ngui_response
+    widgets: ngui_response.blocks
       .filter((ngui_block) => {
         if (
           dashboardWidgets &&
@@ -228,18 +224,18 @@ export function parseGenerateUIEvent(
       })
       .map((ngui_block) => {
         console.log('NGUI BLOCK:', ngui_block);
-        const component = JSON.parse(ngui_block.content);
+        const component = JSON.parse(ngui_block.rendering.content);
         console.log('NGUI component:', component);
         if (component.component === 'text' || component.component === 'log') {
           // Custom component
-          const ngui_content = JSON.parse(ngui_block.content);
+          const hbc: ComponentDataHandBuildComponent = component;
           return {
             componentType: component.component,
             id: ngui_block.id,
             props: {
-              title: component.title,
-              ngui_id: ngui_block.id,
-              content: ngui_content.data,
+              title: '',
+              ngui_id: hbc.id,
+              content: hbc.data,
             },
             position: {
               x: 0,
@@ -256,7 +252,7 @@ export function parseGenerateUIEvent(
           props: {
             title: component.title,
             ngui_id: ngui_block.id,
-            ngui_content: ngui_block.content,
+            ngui_content: ngui_block.rendering.content,
           },
           position: {
             x: 0,
