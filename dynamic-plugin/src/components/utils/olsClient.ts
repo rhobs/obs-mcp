@@ -227,25 +227,46 @@ class DefaultStreamingHandler implements ISimpleStreamingHandler<string | Stream
     } else if (event.event === 'tool_result') {
       // This is a specific tool result event to OLS, it is not currently in LSC as a valid tool event
       hasUpdate = true;
+      console.log('Processing tool_result event:', event);
       if (!additionalAttributes.toolCalls) {
         additionalAttributes.toolCalls = [];
       }
       const event_data = (event as any).data;
-      additionalAttributes.toolCalls.push({
-        event: 'tool_result',
-        data: {
-          token: {
-            tool_name: event_data.tool_name,
-            response:
-              // send the object directly if it's not a string
-              typeof event_data.content === 'string'
-                ? JSON.parse(event_data.content)
-                : event_data.content,
-            artifact: event_data.artifact,
-            status: event_data.status,
+      let call = {};
+      if ((event as any)?.data?.tool_name === 'generate_ui' && (event as any)?.data?.artifact) {
+        console.log('Parsing NGUI tool_result event with artifact', {
+          d: JSON.parse((event as any).data?.artifact),
+        });
+        call = {
+          event: 'tool_result',
+          data: {
+            token: {
+              tool_name: event_data.tool_name,
+              response: JSON.parse((event as any).data?.artifact),
+              artifact: event_data.artifact,
+              status: event_data.status,
+            },
           },
-        },
-      });
+        };
+      } else {
+        call = {
+          event: 'tool_result',
+          data: {
+            token: {
+              tool_name: event_data.tool_name,
+              response:
+                // send the object directly if it's not a string
+                typeof event_data.content === 'string'
+                  ? JSON.parse(event_data.content)
+                  : event_data.content,
+              artifact: event_data.artifact,
+              status: event_data.status,
+            },
+          },
+        };
+      }
+      console.log('Parsed tool call:', call);
+      additionalAttributes.toolCalls.push(call);
     } else if (isErrorEvent(event)) {
       // Handle error events
       const error = new Error(event.data.response);

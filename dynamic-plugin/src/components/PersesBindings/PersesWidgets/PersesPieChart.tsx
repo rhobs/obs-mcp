@@ -93,7 +93,7 @@ const PersesPieChart = (props: PersesPieChartProps) => {
   );
   return (
     <PersesWidgetWrapper>
-      <TimeRangeProvider timeRange={timeRange} refreshInterval="6s">
+      <TimeRangeProvider timeRange={timeRange} refreshInterval="0s">
         <TimeSeries {...timeSeriesProps} />
       </TimeRangeProvider>
     </PersesWidgetWrapper>

@@ -10,7 +10,7 @@ import '@patternfly/chatbot/dist/css/main.css';
 import 'react-grid-layout/css/styles.css';
 import RedHatLogo from '../../assets/RedHatLogo.svg';
 import { HomeIcon } from '@patternfly/react-icons';
-import { BookIcon } from '@patternfly/react-icons'; 
+import { BookIcon } from '@patternfly/react-icons';
 
 interface GenieLayoutProps {
   title: string;
@@ -25,12 +25,15 @@ async function testConnection(): Promise<{ success: boolean; message: string }> 
 
     for (const endpoint of healthEndpoints) {
       try {
-        const response = await fetch(`http://localhost:9000/api/proxy/plugin/genie-plugin/lightspeed/${endpoint}`, {
-          method: 'GET',
-          headers: {
-            Accept: 'application/json',
+        const response = await fetch(
+          `http://localhost:9000/api/proxy/plugin/genie-plugin/lightspeed/${endpoint}`,
+          {
+            method: 'GET',
+            headers: {
+              Accept: 'application/json',
+            },
           },
-        });
+        );
 
         if (response.ok) {
           return {
@@ -91,7 +94,7 @@ export function GenieLayout({ title, children, mainContent }: GenieLayoutProps) 
         </Helmet>
 
         {/* Main Content Area */}
-        <main>
+        <main style={{ height: '100vh' }}>
           <header>
             <div className="header-container">
               <div className="logo">
@@ -99,26 +102,46 @@ export function GenieLayout({ title, children, mainContent }: GenieLayoutProps) 
               </div>
               <nav aria-label="Primary navigation">
                 <ul>
-                  <li><a href="/genie/widgets" className="active"><HomeIcon /></a></li>
-                  <li><a href="/genie/library"><BookIcon /></a></li>
-                  <li><a href="#">AI & Automation</a></li>
-                  <li><a href="#">Infrastructure</a></li>
-                  <li><a href="#">Analytics</a></li>
-                  <li><a href="#">Security</a></li>
-                  <li><a href="#">Marketplace</a></li>
-                  <li><a href="#">Develop</a></li>
-                  <li><a href="#">News</a></li>
-                  <li><a href="#">Support</a></li>
+                  <li>
+                    <a href="/genie/widgets" className="active">
+                      <HomeIcon />
+                    </a>
+                  </li>
+                  <li>
+                    <a href="/genie/library">
+                      <BookIcon />
+                    </a>
+                  </li>
+                  <li>
+                    <a href="#">AI & Automation</a>
+                  </li>
+                  <li>
+                    <a href="#">Infrastructure</a>
+                  </li>
+                  <li>
+                    <a href="#">Analytics</a>
+                  </li>
+                  <li>
+                    <a href="#">Security</a>
+                  </li>
+                  <li>
+                    <a href="#">Marketplace</a>
+                  </li>
+                  <li>
+                    <a href="#">Develop</a>
+                  </li>
+                  <li>
+                    <a href="#">News</a>
+                  </li>
+                  <li>
+                    <a href="#">Support</a>
+                  </li>
                 </ul>
               </nav>
             </div>
           </header>
-          <div className="left-sidebar">
-            Left sidebar
-          </div>
-          <div className="content">
-           {children}
-          </div>
+          <div className="left-sidebar">Left sidebar</div>
+          <div className="content">{children}</div>
           <div className="right-sidebar">Right sidebar</div>
           {/* Pinned Status at Bottom */}
           <div className="genie-status-bottom">
@@ -127,18 +150,19 @@ export function GenieLayout({ title, children, mainContent }: GenieLayoutProps) 
                 <p>
                   <strong>📡 Health Check:</strong> <code>localhost:8080/readiness</code>
                   <span
-                    className={`genie-health-status ${connectionStatus.loading
+                    className={`genie-health-status ${
+                      connectionStatus.loading
                         ? 'loading'
                         : connectionStatus.success
-                          ? 'success'
-                          : 'error'
-                      }`}
+                        ? 'success'
+                        : 'error'
+                    }`}
                   >
                     {connectionStatus.loading
                       ? '🔄 Testing...'
                       : connectionStatus.success
-                        ? '✅ Connected'
-                        : '❌ Failed'}
+                      ? '✅ Connected'
+                      : '❌ Failed'}
                   </span>
                 </p>
               </div>

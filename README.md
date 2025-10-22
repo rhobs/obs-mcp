@@ -27,3 +27,11 @@ Follow these steps to get up and running:
 4. Openshift Console - [dynamic-plugin/README.md](./dynamic-plugin/README.md)
 
 Open your browser and navigate to [http://localhost:9000/genie/widgets](http://localhost:9000/genie/widgets).
+
+### Prompt examples
+
+Can you create a new dashboard for monitoring? I'd like to have a basic set of widgets that are displaying charts that monitor CPU, memory, and networking usage. I want to know the overall cluster utilization, by and namespaces.
+
+What are mu namespaces, generate ui
+
+Can you show me memory usage of a genie-plugin namespace? use pie chart. Divide it by pods.

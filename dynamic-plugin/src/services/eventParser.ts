@@ -208,8 +208,8 @@ export function isGenerateUIEvent(event: any): event is GenerateUIEvent {
     event.data &&
     event.data.token &&
     typeof event.data.token === 'object' &&
-    (event.data.token.tool_name === 'generate_ui_component' ||
-      event.data.token.tool_name === 'generate_ui_multiple_components') &&
+    event.data.token.tool_name === 'generate_ui' &&
+    event.data.token.status === 'success' &&
     (event.data.token.artifact || event.data.token.response)
   );
 }
@@ -221,12 +221,32 @@ export function parseGenerateUIEvent(
   if (!isGenerateUIEvent(event)) {
     return null;
   }
-  if (event.data.token.status == 'error') {
-    console.error('Error in NGUI TOOL', event.data.token);
+
+  let ngui_response: MCPGenerateUIOutput;
+
+  // Handle new event format (data.artifact is already parsed object)
+  if ('tool_name' in event.data && event.data.tool_name === 'generate_ui') {
+    // TypeScript narrowing: we know this is the new format
+    const newFormatEvent = event.data as any; // Cast to handle union type
+    if (newFormatEvent.status === 'error') {
+      console.error('Error in NGUI TOOL (new format)', newFormatEvent);
+      return null;
+    }
+    ngui_response = newFormatEvent.artifact; // Already parsed by client
+  }
+  // Handle old event format (data.token.artifact) - keeping for backward compatibility
+  else if ('token' in event.data && event.data.token) {
+    // TypeScript narrowing: we know this is the old format
+    const oldFormatEvent = event.data as any; // Cast to handle union type
+    if (oldFormatEvent.token.status == 'error') {
+      console.error('Error in NGUI TOOL (old format)', oldFormatEvent.token);
+      return null;
+    }
+    ngui_response = JSON.parse(oldFormatEvent.token.artifact);
+  } else {
+    console.error('No valid artifact found in generate UI event');
     return null;
   }
-
-  const ngui_response: MCPGenerateUIOutput = JSON.parse(event.data.token.artifact);
   const result = {
     widgets: ngui_response.blocks
       .filter((ngui_block) => {

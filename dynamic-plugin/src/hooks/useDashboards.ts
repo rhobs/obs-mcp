@@ -48,6 +48,7 @@ export function useDashboards(dashboardId?: string) {
 
   function handleToolCalls(toolCalls: any[]) {
     toolCalls.forEach(async (toolCall) => {
+      console.log('Processing tool call:', toolCall);
       if (toolCall.event !== 'tool_result') {
         console.log('Ignoring non tool_result event:', toolCall);
         return;
