@@ -77,6 +77,10 @@ func createKubeconfigAPIConfig(opts ObsMCPOptions) (promapi.Config, error) {
 		return promapi.Config{}, fmt.Errorf("failed to get kubeconfig: %w", err)
 	}
 
+	if restConfig.BearerToken == "" {
+		return promapi.Config{}, fmt.Errorf("kubeconfig doesn't contain a bearer token for Prometheus authentication")
+	}
+
 	// For routes/ingresses, we need to configure TLS to skip verification
 	// or use the system's CA pool, since routes typically use different
 	// certificates than the Kubernetes API
