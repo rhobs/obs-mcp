@@ -208,7 +208,7 @@ export function isGenerateUIEvent(event: any): event is GenerateUIEvent {
     event.data &&
     event.data.token &&
     typeof event.data.token === 'object' &&
-    event.data.token.tool_name === 'generate_ui' &&
+    event.data.token.tool_name.startsWith('generate_ui') &&
     event.data.token.status === 'success' &&
     (event.data.token.artifact || event.data.token.response)
   );
@@ -225,7 +225,11 @@ export function parseGenerateUIEvent(
   let ngui_response: MCPGenerateUIOutput;
 
   // Handle new event format (data.artifact is already parsed object)
-  if ('tool_name' in event.data && event.data.tool_name === 'generate_ui') {
+  if (
+    'tool_name' in event.data &&
+    typeof event.data.tool_name == 'string' &&
+    event.data.tool_name.startsWith('generate_ui')
+  ) {
     // TypeScript narrowing: we know this is the new format
     const newFormatEvent = event.data as any; // Cast to handle union type
     if (newFormatEvent.status === 'error') {

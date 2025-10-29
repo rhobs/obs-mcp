@@ -12,7 +12,8 @@ files to get it running for the purposes of this project.
 5. `uv sync`
 6. Add dependencies as described in [getting_started](https://github.com/lightspeed-core/lightspeed-stack/blob/main/docs/getting_started.md#installing-dependencies-for-llama-stack)
    and add any missing via `uv add`.
-7. `make run`
+7. `make run` to start lightspeed-stack with llama-stack as package.
+   1. To run Llama-stack separately run `uv run llama stack run run.yaml`
 
 ### Model configuration
 

@@ -233,7 +233,10 @@ class DefaultStreamingHandler implements ISimpleStreamingHandler<string | Stream
       }
       const event_data = (event as any).data;
       let call = {};
-      if ((event as any)?.data?.tool_name === 'generate_ui' && (event as any)?.data?.artifact) {
+      if (
+        (event as any)?.data?.tool_name.startsWith('generate_ui') &&
+        (event as any)?.data?.artifact
+      ) {
         console.log('Parsing NGUI tool_result event with artifact', {
           d: JSON.parse((event as any).data?.artifact),
         });

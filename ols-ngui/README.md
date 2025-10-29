@@ -31,7 +31,7 @@ Or as local image
       --env NGUI_MODEL="gpt-4o-mini" \
       --env NGUI_PROVIDER_API_KEY=$OPENAI_API_KEY \
       --env NGUI_CONFIG_PATH="/opt/app-root/config/ngui_openshift_mcp_config.yaml" \
-      --env MCP_TOOLS="generate_ui_component" \
+      --env MCP_TOOLS="generate_ui_multiple_components" \
       --env MCP_STRUCTURED_OUTPUT_ENABLED="false" \
       quay.io/next-gen-ui/mcp:dev
    ``` 
