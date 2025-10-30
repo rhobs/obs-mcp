@@ -25,6 +25,10 @@ mcp_servers:
     provider_id: "model-context-protocol"
     url: "http://localhost:9100/mcp"
 
+  - name: "layout-manager"
+    provider_id: "model-context-protocol"
+    url: "http://localhost:9081/mcp"
+
 customization:
   system_prompt: |-
     Always use available tools.

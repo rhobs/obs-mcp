@@ -13,10 +13,12 @@ Follow these steps to get up and running:
 
 1. Set up the obs-mcp server. For details, see the [obs-mcp README](./obs-mcp/README.md).
 2. Set up the layout-manager mcp server. For details, see the [layout-manager mcp](./layout-manager/README.md)
-3. Once the servers are running, connect it to your Lightspeed Core (LSC) instance.
-4. Start the console UI: in the `dynamic-plugin` package, run `yarn start-console`.
-5. Start the UI plugin by running `yarn start` in the `dynamic-plugin` directory.
-6. Open your browser and navigate to `http://localhost:9000/genie/widgets`.
+3. Once the servers are running, connect it to your Lightspeed Core (LSC) instance (see [lightspeed-stack dir](lightspeed-stack/README.md) for details).
+4. Setup the console UI (in `dynamic-plugin` dir):
+    a. Install the dependencies: `yarn install`.
+    b. Start the console UI: `yarn start-console`.
+    c. Start the UI plugin: `yarn start`.
+5. Open your browser and navigate to `http://localhost:9000/genie/widgets`.
 
 
 ## Getting Started - OLS, Kube MCP, Persers MCP, Next Gen MCP, Layout Manager MCP
