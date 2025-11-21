@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"time"
 
+	promModel "github.com/prometheus/common/model"
+
 	"github.com/inecas/obs-mcp/pkg/prometheus"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/prometheus/common/model"
@@ -70,7 +72,7 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 		}
 
 		// Parse step duration
-		stepDuration, err := time.ParseDuration(step)
+		stepDuration, err := promModel.ParseDuration(step)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid step format: %s", err.Error())), nil
 		}
@@ -79,10 +81,6 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 		startStr := req.GetString("start", "")
 		endStr := req.GetString("end", "")
 		durationStr := req.GetString("duration", "")
-
-		if startStr == "NOW" {
-			startStr = ""
-		}
 
 		if endStr == "NOW" {
 			endStr = ""
@@ -105,13 +103,13 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 				durationStr = "1h"
 			}
 
-			duration, err := prometheus.ParseDuration(durationStr)
+			duration, err := promModel.ParseDuration(durationStr)
 			if err != nil {
 				return errorResult(fmt.Sprintf("invalid duration format: %s", err.Error()))
 			}
 
 			endTime = time.Now()
-			startTime = endTime.Add(-duration)
+			startTime = endTime.Add(-time.Duration(duration))
 		} else {
 			// Handle explicit start/end times
 			startTime, err = prometheus.ParseTimestamp(startStr)
@@ -126,7 +124,7 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 		}
 
 		// Execute the range query
-		result, err := promClient.ExecuteRangeQuery(ctx, query, startTime, endTime, stepDuration)
+		result, err := promClient.ExecuteRangeQuery(ctx, query, startTime, endTime, time.Duration(stepDuration))
 		if err != nil {
 			return errorResult(fmt.Sprintf("failed to execute range query: %s", err.Error()))
 		}

@@ -162,7 +162,7 @@ func TestExecuteRangeQueryHandler_RequiredParameters(t *testing.T) {
 				"query": "up{job=\"api\"}",
 				"step":  "invalid",
 			},
-			expectedError: "invalid step format: time: invalid duration \"invalid\"",
+			expectedError: "invalid step format: not a valid duration string: \"invalid\"",
 		},
 		{
 			name: "start without end",
@@ -220,7 +220,7 @@ func TestExecuteRangeQueryHandler_RequiredParameters(t *testing.T) {
 				"step":     "1m",
 				"duration": "invalid",
 			},
-			expectedError: "invalid duration format: invalid days format: invalid",
+			expectedError: "invalid duration format: not a valid duration string: \"invalid\"",
 		},
 	}
 
@@ -327,27 +327,13 @@ func TestExecuteRangeQueryHandler_DurationMode_NOWKeyword(t *testing.T) {
 	ctx := withMockClient(context.Background(), mockClient)
 	handler := ExecuteRangeQueryHandler(ObsMCPOptions{})
 
-	// Test with NOW in start
-	req := newMockRequest(map[string]interface{}{
-		"query": "up{job=\"api\"}",
-		"step":  "1m",
-		"start": "NOW",
-	})
-	result, err := handler(ctx, req)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if result.IsError {
-		t.Fatalf("unexpected error result: %v", getErrorMessage(t, result))
-	}
-
 	// Test with NOW in end
-	req = newMockRequest(map[string]interface{}{
+	req := newMockRequest(map[string]interface{}{
 		"query": "up{job=\"api\"}",
 		"step":  "1m",
 		"end":   "NOW",
 	})
-	result, err = handler(ctx, req)
+	result, err := handler(ctx, req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
