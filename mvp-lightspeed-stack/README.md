@@ -40,7 +40,6 @@ podman run \
   -p 8080:8080 --rm \
   -v ./genie-lightspeed-stack.yaml:/app-root/lightspeed-stack.yaml:Z \
   -v ./genie-run.yaml:/app-root/run.yaml:Z \
-  -v ./providers.d/:/app-root/providers.d/:Z \
   -e OPENAI_API_KEY=$OPENAI_API_KEY \
   quay.io/lightspeed-core/lightspeed-stack:0.3.0
 ```
