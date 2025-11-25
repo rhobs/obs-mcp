@@ -24,9 +24,13 @@ const (
 	AuthModeKubeConfig     AuthMode = "kubeconfig"
 	AuthModeServiceAccount AuthMode = "serviceaccount"
 	AuthModeHeader         AuthMode = "header"
+)
 
+type AuthContextKey string
+
+const (
 	// AuthHeaderKey is the context key for the Kubernetes authorization header
-	AuthHeaderKey string = "kubernetes-authorization"
+	AuthHeaderKey AuthContextKey = "kubernetes-authorization"
 )
 
 // ParseAuthMode validates and converts a string to AuthMode

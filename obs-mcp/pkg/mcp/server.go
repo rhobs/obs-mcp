@@ -16,9 +16,10 @@ import (
 
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
-	AuthMode AuthMode
-	PromURL  string
-	Insecure bool
+	AuthMode      AuthMode
+	PromURL       string
+	Insecure      bool
+	UseGuardrails bool
 }
 
 const (

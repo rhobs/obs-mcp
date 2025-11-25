@@ -17,6 +17,8 @@ func main() {
 	var listen = flag.String("listen", "", "Listen address for HTTP mode (e.g., :9100, 127.0.0.1:8080)")
 	var authMode = flag.String("auth-mode", "", "Authentication mode: kubeconfig, serviceaccount, or header")
 	var insecure = flag.Bool("insecure", false, "Skip TLS certificate verification")
+
+	var noGuardrails = flag.Bool("no-guardrails", false, "Disable guardrails")
 	flag.Parse()
 
 	// Parse and validate auth mode
@@ -30,9 +32,10 @@ func main() {
 
 	// Create MCP options
 	opts := mcp.ObsMCPOptions{
-		AuthMode: parsedAuthMode,
-		PromURL:  promURL,
-		Insecure: *insecure,
+		AuthMode:      parsedAuthMode,
+		PromURL:       promURL,
+		Insecure:      *insecure,
+		UseGuardrails: !*noGuardrails,
 	}
 
 	// Create MCP server

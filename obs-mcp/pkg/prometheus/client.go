@@ -36,14 +36,16 @@ func (p *PrometheusClient) ListMetrics(ctx context.Context) ([]string, error) {
 	return metrics, nil
 }
 
-func (p *PrometheusClient) ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error) {
-	isSafe, err := isSafeQuery(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse query: %w", err)
-	}
+func (p *PrometheusClient) ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration, useGuardrails bool) (map[string]interface{}, error) {
+	if useGuardrails {
+		isSafe, err := isSafeQuery(query)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse query: %w", err)
+		}
 
-	if !isSafe {
-		return nil, fmt.Errorf("query is not safe")
+		if !isSafe {
+			return nil, fmt.Errorf("query is not safe")
+		}
 	}
 
 	r := v1.Range{
@@ -69,13 +71,15 @@ func (p *PrometheusClient) ExecuteRangeQuery(ctx context.Context, query string, 
 	return response, nil
 }
 
-func (p *PrometheusClient) ExecuteInstantQuery(ctx context.Context, query string, time time.Time) (map[string]interface{}, error) {
-	isSafe, err := isSafeQuery(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse query: %w", err)
-	}
-	if !isSafe {
-		return nil, fmt.Errorf("query is not safe")
+func (p *PrometheusClient) ExecuteInstantQuery(ctx context.Context, query string, time time.Time, useGuardrails bool) (map[string]interface{}, error) {
+	if useGuardrails {
+		isSafe, err := isSafeQuery(query)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse query: %w", err)
+		}
+		if !isSafe {
+			return nil, fmt.Errorf("query is not safe")
+		}
 	}
 
 	result, warnings, err := p.client.Query(ctx, query, time)
