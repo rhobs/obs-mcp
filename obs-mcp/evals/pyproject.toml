@@ -1,0 +1,12 @@
+[project]
+name = "obs-mcp-eval"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "lightspeed-evaluation",
+]
+
+[tool.uv.sources]
+lightspeed-evaluation = { git = "https://github.com/lightspeed-core/lightspeed-evaluation.git" }

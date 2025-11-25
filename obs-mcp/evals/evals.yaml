@@ -1,0 +1,27 @@
+# LightSpeed Evaluation Framework - Focused Query Test Data
+- conversation_group_id: "Basic cpu usage query"
+  description: "Asks about basic metrics in the cluster."
+
+  conversation_metrics: []
+  conversation_metrics_metadata: {}
+
+  turns:
+    - turn_id: "turn-1"
+      query: "What was the nodes CPU usage over the last hour?"
+      contexts:
+      expected_response: |
+        The execute_query_range is called with appropriate parameters.
+      expected_tool_calls:
+        - - tool_name: list_metrics
+            arguments: {}
+        - - tool_name: execute_range_query
+            arguments:
+              duration: 1h
+              end: "NOW"
+              # TODO: this will not work with current guardrails, needs to be
+              # updated to match more specific query we want the LLM to use.
+              query: .*(instance:node_cpu_utilisation:rate1m|container_cpu_usage_seconds_total).*
+              step: 1m
+
+      turn_metrics:
+        - "custom:tool_eval"
