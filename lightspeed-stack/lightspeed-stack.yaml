@@ -1,15 +1,14 @@
 name: Lightspeed Core Service (LCS)
 service:
-  host: localhost
+  host: 0.0.0.0
   port: 8080
-
   auth_enabled: false
   workers: 1
   color_log: true
   access_log: true
 llama_stack:
   use_as_library_client: true
-  library_client_config_path: run.yaml
+  library_client_config_path: ./run.yaml
 user_data_collection:
   feedback_enabled: true
   feedback_storage: "/tmp/data/feedback"
@@ -23,12 +22,20 @@ inference:
 mcp_servers:
   - name: "obs"
     provider_id: "model-context-protocol"
-    url: "http://localhost:9100/mcp"
-
-  - name: "layout-manager"
-    provider_id: "model-context-protocol"
-    url: "http://localhost:9081/mcp"
+    url: http://host.containers.internal:9100/mcp
+  - name: kube-mcp-server
+    url: http://host.containers.internal:8081/mcp
+    # timeout: 120
+    # sse_read_timeout: 60
+  - name: next-gen-ui
+    url: http://host.containers.internal:9200/mcp
+    # timeout: 120
+    # sse_read_timeout: 60
 
 customization:
   system_prompt: |-
-    Always use available tools.
+    You are Genie, an AI assistant to help users to get all information about the Openshift cluster and its metrics.
+
+    To generate a widget or component in UI use "generate_ui_component" tool call. Argument "data" must exactly same content as result from other tool calls.
+    If the tool "generate_ui_component" is successfully called, do not generate component in your final text response.
+

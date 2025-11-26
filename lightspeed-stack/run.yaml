@@ -12,7 +12,7 @@ apis:
 benchmarks: []
 container_image: null
 datasets: []
-external_providers_dir: null
+external_providers_dir: /tmp
 inference_store:
   db_path: .llama/distributions/ollama/inference_store.db
   type: sqlite
@@ -27,15 +27,15 @@ providers:
       provider_type: remote::openai
       config:
         api_key: ${env.OPENAI_API_KEY}
-    - provider_id: gemini
-      provider_type: remote::gemini
-      config:
-        api_key: ${env.GOOGLE_API_KEY}
-    - provider_id: ollama
-      provider_type: remote::ollama
-      config:
-        url: http://localhost:11434
-        api_key: ignored
+    # - provider_id: gemini
+    #   provider_type: remote::gemini
+    #   config:
+    #     api_key: ${env.GOOGLE_API_KEY}
+    # - provider_id: ollama
+    #   provider_type: remote::ollama
+    #   config:
+    #     url: http://localhost:11434
+    #     api_key: ignored
   agents:
     - config:
         persistence_store:
@@ -58,14 +58,14 @@ providers:
         sqlite_db_path: .llama/distributions/ollama/trace_store.db
       provider_id: meta-reference
       provider_type: inline::meta-reference
-server:
-  auth: null
-  host: null
-  port: 8321
-  quota: null
-  tls_cafile: null
-  tls_certfile: null
-  tls_keyfile: null
+# server:
+#   auth: null
+#   host: null
+#   port: 8321
+#   quota: null
+#   tls_cafile: null
+#   tls_certfile: null
+#   tls_keyfile: null
 shields: []
 vector_dbs: []
 models:
@@ -77,5 +77,5 @@ models:
     provider_id: openai
     model_type: llm
     provider_model_id: gpt-4o
-  - model_id: gemini/gemini-2.5-flash
-    provider_id: gemini
+#   - model_id: gemini/gemini-2.5-flash
+#     provider_id: gemini
