@@ -33,15 +33,16 @@ func ListMetricsHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRe
 			return errorResult(fmt.Sprintf("failed to list metrics: %s", err.Error()))
 		}
 
-		slog.Info("ListMetricsHandler executed successfully", "resultLenght", len(metrics))
+		slog.Info("ListMetricsHandler executed successfully", "resultLength", len(metrics))
 		slog.Debug("ListMetricsHandler results", "results", metrics)
 
-		result, err := json.Marshal(metrics)
+		output := ListMetricsOutput{Metrics: metrics}
+		result, err := json.Marshal(output)
 		if err != nil {
 			return errorResult(fmt.Sprintf("failed to marshal metrics: %s", err.Error()))
 		}
 
-		return mcp.NewToolResultText(string(result)), nil
+		return mcp.NewToolResultStructured(output, string(result)), nil
 	}
 }
 
@@ -122,20 +123,45 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 			return errorResult(fmt.Sprintf("failed to execute range query: %s", err.Error()))
 		}
 
+		// Convert to structured output
+		output := RangeQueryOutput{
+			ResultType: fmt.Sprintf("%v", result["resultType"]),
+		}
+
 		resMatrix, ok := result["result"].(model.Matrix)
 		if ok {
-			slog.Info("ExecuteRangeQueryHandler executed successfully", "resultLenght", resMatrix.Len())
+			slog.Info("ExecuteRangeQueryHandler executed successfully", "resultLength", resMatrix.Len())
 			slog.Debug("ExecuteRangeQueryHandler results", "results", resMatrix)
+
+			output.Result = make([]SeriesResult, len(resMatrix))
+			for i, series := range resMatrix {
+				labels := make(map[string]string)
+				for k, v := range series.Metric {
+					labels[string(k)] = string(v)
+				}
+				values := make([][]interface{}, len(series.Values))
+				for j, sample := range series.Values {
+					values[j] = []interface{}{float64(sample.Timestamp) / 1000, sample.Value.String()}
+				}
+				output.Result[i] = SeriesResult{
+					Metric: labels,
+					Values: values,
+				}
+			}
 		} else {
 			slog.Info("ExecuteRangeQueryHandler executed successfully (unknown format)", "result", result)
 		}
 
-		// Convert to JSON
-		jsonResult, err := json.Marshal(result)
+		if warnings, ok := result["warnings"].([]string); ok {
+			output.Warnings = warnings
+		}
+
+		// Convert to JSON for fallback text
+		jsonResult, err := json.Marshal(output)
 		if err != nil {
 			return errorResult(fmt.Sprintf("failed to marshal result: %s", err.Error()))
 		}
 
-		return mcp.NewToolResultText(string(jsonResult)), nil
+		return mcp.NewToolResultStructured(output, string(jsonResult)), nil
 	}
 }
