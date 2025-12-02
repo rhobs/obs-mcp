@@ -19,6 +19,13 @@ This will connect the obs-mcp to the thanos querier running in the cluster.
 This procedure would not work if you're not using token-based auth (`oc whoami -t` to validate).
 In that case, consider using serviceaccount + token auth. Alternatively, follow the procedure bellow.
 
+NOTE: It is possible to hit the ground running locally as well:
+```shell
+helm install prometheus-community/prometheus --name-template <prefix> # sets up Prometheus (and exporters) on your local single-node k8s cluster
+export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=alertmanager,app.kubernetes.io/instance=local" -o jsonpath="{.items[0].metadata.name}") && kubectl --namespace default port-forward $POD_NAME 9090
+go run ./cmd/obs-mcp/ --auth-mode header --insecure --listen :9100 
+```
+
 ### Port-forwarding alternative
 
 This scenario opens a local port via port-forward that the obs-mcp will connect to:
