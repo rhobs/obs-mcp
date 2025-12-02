@@ -50,10 +50,10 @@ func ParseAuthMode(mode string) (AuthMode, error) {
 	}
 }
 
-func getPromClient(ctx context.Context, opts ObsMCPOptions) (prometheus.PromClient, error) {
+func getPromClient(ctx context.Context, opts ObsMCPOptions) (prometheus.Loader, error) {
 	// Check if a test client was injected via context
 	if testClient := ctx.Value(TestPromClientKey); testClient != nil {
-		if client, ok := testClient.(prometheus.PromClient); ok {
+		if client, ok := testClient.(prometheus.Loader); ok {
 			return client, nil
 		}
 	}

@@ -9,42 +9,42 @@ import (
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 )
 
-// PromClient defines the interface for querying Prometheus
-type PromClient interface {
+// Loader defines the interface for querying Prometheus
+type Loader interface {
 	ListMetrics(ctx context.Context) ([]string, error)
 	ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error)
 	ExecuteInstantQuery(ctx context.Context, query string, time time.Time) (map[string]interface{}, error)
 }
 
 // PrometheusClient implements PromClient
-type Client struct {
+type RealLoader struct {
 	client     v1.API
 	guardrails *Guardrails
 }
 
 // Ensure PrometheusClient implements PromClient at compile time
-var _ PromClient = (*Client)(nil)
+var _ Loader = (*RealLoader)(nil)
 
-func NewPrometheusClient(apiConfig api.Config) (*Client, error) {
+func NewPrometheusClient(apiConfig api.Config) (*RealLoader, error) {
 	client, err := api.NewClient(apiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error creating prometheus client: %w", err)
 	}
 
 	v1api := v1.NewAPI(client)
-	return &Client{
+	return &RealLoader{
 		client:     v1api,
 		guardrails: DefaultGuardrails(),
 	}, nil
 }
 
 // WithGuardrails sets a custom Guardrails configuration for the client.
-func (p *Client) WithGuardrails(g *Guardrails) *Client {
+func (p *RealLoader) WithGuardrails(g *Guardrails) *RealLoader {
 	p.guardrails = g
 	return p
 }
 
-func (p *Client) ListMetrics(ctx context.Context) ([]string, error) {
+func (p *RealLoader) ListMetrics(ctx context.Context) ([]string, error) {
 	labelValues, _, err := p.client.LabelValues(ctx, "__name__", []string{}, time.Now().Add(-time.Hour), time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("error fetching metric names: %w", err)
@@ -57,7 +57,7 @@ func (p *Client) ListMetrics(ctx context.Context) ([]string, error) {
 	return metrics, nil
 }
 
-func (p *Client) ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error) {
+func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error) {
 	if p.guardrails != nil {
 		isSafe, err := p.guardrails.IsSafeQuery(query)
 		if err != nil {
@@ -92,7 +92,7 @@ func (p *Client) ExecuteRangeQuery(ctx context.Context, query string, start, end
 	return response, nil
 }
 
-func (p *Client) ExecuteInstantQuery(ctx context.Context, query string, time time.Time) (map[string]interface{}, error) {
+func (p *RealLoader) ExecuteInstantQuery(ctx context.Context, query string, time time.Time) (map[string]interface{}, error) {
 	if p.guardrails != nil {
 		isSafe, err := p.guardrails.IsSafeQuery(query)
 		if err != nil {

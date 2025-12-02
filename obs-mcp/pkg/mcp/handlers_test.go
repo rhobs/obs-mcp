@@ -10,21 +10,21 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// MockPromClient is a mock implementation of prometheus.PromClient for testing
-type MockPromClient struct {
+// MockedLoader is a mock implementation of prometheus.PromClient for testing
+type MockedLoader struct {
 	ListMetricsFunc         func(ctx context.Context) ([]string, error)
 	ExecuteRangeQueryFunc   func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error)
 	ExecuteInstantQueryFunc func(ctx context.Context, query string, time time.Time) (map[string]interface{}, error)
 }
 
-func (m *MockPromClient) ListMetrics(ctx context.Context) ([]string, error) {
+func (m *MockedLoader) ListMetrics(ctx context.Context) ([]string, error) {
 	if m.ListMetricsFunc != nil {
 		return m.ListMetricsFunc(ctx)
 	}
 	return []string{}, nil
 }
 
-func (m *MockPromClient) ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error) {
+func (m *MockedLoader) ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error) {
 	if m.ExecuteRangeQueryFunc != nil {
 		return m.ExecuteRangeQueryFunc(ctx, query, start, end, step)
 	}
@@ -34,7 +34,7 @@ func (m *MockPromClient) ExecuteRangeQuery(ctx context.Context, query string, st
 	}, nil
 }
 
-func (m *MockPromClient) ExecuteInstantQuery(ctx context.Context, query string, time time.Time) (map[string]interface{}, error) {
+func (m *MockedLoader) ExecuteInstantQuery(ctx context.Context, query string, time time.Time) (map[string]interface{}, error) {
 	if m.ExecuteInstantQueryFunc != nil {
 		return m.ExecuteInstantQueryFunc(ctx, query, time)
 	}
@@ -45,7 +45,7 @@ func (m *MockPromClient) ExecuteInstantQuery(ctx context.Context, query string, 
 }
 
 // Ensure MockPromClient implements prometheus.PromClient at compile time
-var _ prometheus.PromClient = (*MockPromClient)(nil)
+var _ prometheus.Loader = (*MockedLoader)(nil)
 
 // newMockRequest creates a CallToolRequest with the given parameters
 func newMockRequest(params map[string]interface{}) mcp.CallToolRequest {
@@ -58,7 +58,7 @@ func newMockRequest(params map[string]interface{}) mcp.CallToolRequest {
 }
 
 // withMockClient returns a context with the mock client injected
-func withMockClient(ctx context.Context, client prometheus.PromClient) context.Context {
+func withMockClient(ctx context.Context, client prometheus.Loader) context.Context {
 	return context.WithValue(ctx, TestPromClientKey, client)
 }
 
@@ -66,7 +66,7 @@ func TestExecuteRangeQueryHandler_ExplicitTimeRange_RFC3339(t *testing.T) {
 	expectedStart, _ := prometheus.ParseTimestamp("2024-01-01T00:00:00Z")
 	expectedEnd, _ := prometheus.ParseTimestamp("2024-01-01T01:00:00Z")
 
-	mockClient := &MockPromClient{
+	mockClient := &MockedLoader{
 		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error) {
 			if query != "up{job=\"api\"}" {
 				t.Errorf("expected query 'up{job=\"api\"}', got %q", query)
@@ -103,7 +103,7 @@ func TestExecuteRangeQueryHandler_ExplicitTimeRange_RFC3339(t *testing.T) {
 }
 
 func TestExecuteRangeQueryHandler_StepParsing_ValidSteps(t *testing.T) {
-	mockClient := &MockPromClient{
+	mockClient := &MockedLoader{
 		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error) {
 			return map[string]interface{}{"resultType": "matrix", "result": []interface{}{}}, nil
 		},
@@ -227,7 +227,7 @@ func TestExecuteRangeQueryHandler_RequiredParameters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Mock client that should never be called for parameter validation errors
-			mockClient := &MockPromClient{}
+			mockClient := &MockedLoader{}
 
 			ctx := withMockClient(context.Background(), mockClient)
 			handler := ExecuteRangeQueryHandler(ObsMCPOptions{})
@@ -244,7 +244,7 @@ func TestExecuteRangeQueryHandler_RequiredParameters(t *testing.T) {
 }
 
 func TestExecuteRangeQueryHandler_DurationMode_DefaultOneHour(t *testing.T) {
-	mockClient := &MockPromClient{
+	mockClient := &MockedLoader{
 		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error) {
 			if query != "up{job=\"api\"}" {
 				t.Errorf("expected query 'up{job=\"api\"}', got %q", query)
@@ -280,7 +280,7 @@ func TestExecuteRangeQueryHandler_DurationMode_DefaultOneHour(t *testing.T) {
 }
 
 func TestExecuteRangeQueryHandler_DurationMode_CustomDuration(t *testing.T) {
-	mockClient := &MockPromClient{
+	mockClient := &MockedLoader{
 		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error) {
 			if query != "rate(http_requests_total{job=\"api\"}[5m])" {
 				t.Errorf("expected query 'rate(http_requests_total{job=\"api\"}[5m])', got %q", query)
@@ -314,7 +314,7 @@ func TestExecuteRangeQueryHandler_DurationMode_CustomDuration(t *testing.T) {
 }
 
 func TestExecuteRangeQueryHandler_DurationMode_NOWKeyword(t *testing.T) {
-	mockClient := &MockPromClient{
+	mockClient := &MockedLoader{
 		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error) {
 			duration := end.Sub(start)
 			if duration < 59*time.Minute || duration > 61*time.Minute {
