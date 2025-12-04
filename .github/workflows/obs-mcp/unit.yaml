@@ -1,0 +1,31 @@
+name: obs-mcp
+
+on:
+    push:
+    pull_request:
+        branches:
+            - main
+        paths:
+            - "obs-mcp/**"
+            - ".github/workflows/obs-mcp.yml"
+
+# To cancel running workflow when new commits pushed in a pull request
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    unit-tests:
+        name: unit tests
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
+            - name: Import environment variables from file
+              run: cat ".github/env" >> "$GITHUB_ENV"
+            - name: Set up Go
+              uses: actions/setup-go@v6
+              with:
+                  go-version: "${{ env.golang-version }}"
+                  check-latest: true
+            - run: make obs-mcp-test
