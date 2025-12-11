@@ -1,13 +1,11 @@
-name: obs-mcp-unit
+name: unit
 
 on:
     push:
     pull_request:
         branches:
             - main
-        paths:
-            - "obs-mcp/**"
-            - ".github/workflows/obs-mcp-unit.yaml"
+
 # To cancel running workflow when new commits pushed in a pull request
 concurrency:
     group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -27,4 +25,4 @@ jobs:
               with:
                   go-version: "${{ env.golang-version }}"
                   check-latest: true
-            - run: make obs-mcp-test
+            - run: make test-unit

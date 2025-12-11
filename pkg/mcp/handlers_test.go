@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/inecas/obs-mcp/pkg/prometheus"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
 // MockedLoader is a mock implementation of prometheus.PromClient for testing

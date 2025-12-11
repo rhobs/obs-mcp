@@ -1,4 +1,4 @@
-module github.com/inecas/obs-mcp
+module github.com/rhobs/obs-mcp
 
 go 1.24.6
 

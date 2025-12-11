@@ -9,9 +9,9 @@ import (
 
 	promModel "github.com/prometheus/common/model"
 
-	"github.com/inecas/obs-mcp/pkg/prometheus"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/prometheus/common/model"
+	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
 // errorResult is a helper to log and return an error result.

@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/inecas/obs-mcp/pkg/prometheus"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
 // ObsMCPOptions contains configuration options for the MCP server

@@ -15,3 +15,4 @@ obs-mcp/obs-mcp
 .devcontainer/dev.env
 integration-tests/videos
 integration-tests/screenshots
+.vscode/*

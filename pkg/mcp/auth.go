@@ -10,10 +10,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/inecas/obs-mcp/pkg/k8s"
-	"github.com/inecas/obs-mcp/pkg/prometheus"
 	promapi "github.com/prometheus/client_golang/api"
 	promcfg "github.com/prometheus/common/config"
+	"github.com/rhobs/obs-mcp/pkg/k8s"
+	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	"k8s.io/client-go/rest"
 )
 
