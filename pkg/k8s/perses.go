@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	persesv1alpha1 "github.com/perses/perses-operator/api/v1alpha1"
-	"github.com/rhobs/obs-mcp/pkg/perses"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,7 +39,7 @@ func GetPersesKubeClient() (client.Client, error) {
 // ListPersesDashboards lists all PersesDashboard objects across all namespaces or in a specific namespace.
 // Uses types from github.com/perses/perses-operator/api/v1alpha1
 // The labelSelector parameter accepts Kubernetes label selector syntax (e.g., "app=myapp,env=prod").
-func ListPersesDashboards(ctx context.Context, namespace, labelSelector string) ([]perses.PersesDashboardInfo, error) {
+func ListPersesDashboards(ctx context.Context, namespace, labelSelector string) ([]persesv1alpha1.PersesDashboard, error) {
 	c, err := GetPersesKubeClient()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get perses client: %w", err)
@@ -64,25 +63,7 @@ func ListPersesDashboards(ctx context.Context, namespace, labelSelector string) 
 		return nil, fmt.Errorf("failed to list PersesDashboards: %w", err)
 	}
 
-	dbInfos := make([]perses.PersesDashboardInfo, len(dashboardList.Items))
-	for i, db := range dashboardList.Items {
-		dbInfo := perses.PersesDashboardInfo{
-			Name:      db.Name,
-			Namespace: db.Namespace,
-			Labels:    db.GetLabels(),
-		}
-
-		// Extract MCP help description from annotation if present
-		if annotations := db.GetAnnotations(); annotations != nil {
-			if description, ok := annotations[PersesMCPHelpAnnotation]; ok {
-				dbInfo.Description = description
-			}
-		}
-
-		dbInfos[i] = dbInfo
-	}
-
-	return dbInfos, nil
+	return dashboardList.Items, nil
 }
 
 // GetPersesDashboard retrieves a specific PersesDashboard by name and namespace.
