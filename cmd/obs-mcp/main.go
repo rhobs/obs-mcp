@@ -13,6 +13,7 @@ import (
 
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/mcp"
+	"github.com/rhobs/obs-mcp/pkg/perses"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
@@ -30,6 +31,8 @@ func main() {
 	var guardrails = flag.String("guardrails", "all", "Guardrails configuration: 'all' (default), 'none', or comma-separated list of guardrails to enable (disallow-explicit-name-label, require-label-matcher, disallow-blanket-regex)")
 	var maxMetricCardinality = flag.Uint64("guardrails.max-metric-cardinality", 20000, "Maximum allowed series count per metric (0 = disabled)")
 	var maxLabelCardinality = flag.Uint64("guardrails.max-label-cardinality", 500, "Maximum allowed label value count for blanket regex (0 = always disallow blanket regex). Only takes effect if disallow-blanket-regex is enabled.")
+	var ootbDashboards = flag.String("ootb-dashboards", "", "Path to YAML file containing out-of-the-box PersesDashboard definitions")
+
 	flag.Parse()
 
 	// Configure slog with specified log level
@@ -56,12 +59,22 @@ func main() {
 		parsedGuardrails.MaxLabelCardinality = *maxLabelCardinality
 	}
 
+	// Load out-of-the-box dashboards if specified
+	ootbDashboardsList, err := perses.LoadOOTBDashboards(*ootbDashboards)
+	if err != nil {
+		log.Fatalf("Failed to load OOTB dashboards: %v", err)
+	}
+	if len(ootbDashboardsList) > 0 {
+		slog.Info("Loaded out-of-the-box dashboards", "count", len(ootbDashboardsList))
+	}
+
 	// Create MCP options
 	opts := mcp.ObsMCPOptions{
-		AuthMode:   parsedAuthMode,
-		PromURL:    promURL,
-		Insecure:   *insecure,
-		Guardrails: parsedGuardrails,
+		AuthMode:       parsedAuthMode,
+		PromURL:        promURL,
+		Insecure:       *insecure,
+		Guardrails:     parsedGuardrails,
+		OOTBDashboards: ootbDashboardsList,
 	}
 
 	// Create MCP server
