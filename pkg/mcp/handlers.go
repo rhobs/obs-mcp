@@ -3,9 +3,12 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/rhobs/obs-mcp/pkg/k8s"
+	"github.com/rhobs/obs-mcp/pkg/perses"
 	"github.com/rhobs/obs-mcp/pkg/resultutil"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 )
@@ -164,5 +167,60 @@ func GetSilencesHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[tools.SilencesInp
 			return nil, tools.SilencesOutput{}, err
 		}
 		return nil, output, nil
+	}
+}
+
+// ListPersesDashboardsHandler handles listing PersesDashboard CRD objects from the cluster.
+func ListPersesDashboardsHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[ListPersesDashboardsInput, ListPersesDashboardsOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input ListPersesDashboardsInput) (*mcp.CallToolResult, ListPersesDashboardsOutput, error) {
+		slog.Info("ListPersesDashboardsHandler called")
+
+		dashboards, err := k8s.ListPersesDashboards(ctx, input.Namespace, input.LabelSelector)
+		if err != nil {
+			return nil, ListPersesDashboardsOutput{}, fmt.Errorf("failed to list PersesDashboards: %w", err)
+		}
+
+		slog.Info("ListPersesDashboardsHandler executed successfully", "resultLength", len(dashboards))
+
+		dashboardInfos := make([]perses.PersesDashboardInfo, len(dashboards))
+		for i, db := range dashboards {
+			dashboardInfos[i] = perses.PersesDashboardInfo{
+				Name:        db.Name,
+				Namespace:   db.Namespace,
+				Labels:      db.Labels,
+				Description: db.Description,
+			}
+		}
+
+		return nil, ListPersesDashboardsOutput{Dashboards: dashboardInfos}, nil
+	}
+}
+
+// OOTBPersesDashboardsHandler handles returning pre-configured out-of-the-box dashboards.
+func OOTBPersesDashboardsHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[struct{}, OOTBPersesDashboardsOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, OOTBPersesDashboardsOutput, error) {
+		slog.Info("OOTBPersesDashboardsHandler called")
+		slog.Info("OOTBPersesDashboardsHandler executed successfully", "resultLength", len(opts.OOTBDashboards))
+		return nil, OOTBPersesDashboardsOutput{Dashboards: opts.OOTBDashboards}, nil
+	}
+}
+
+// GetPersesDashboardHandler handles getting a specific PersesDashboard by name and namespace.
+func GetPersesDashboardHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[GetPersesDashboardInput, GetPersesDashboardOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input GetPersesDashboardInput) (*mcp.CallToolResult, GetPersesDashboardOutput, error) {
+		slog.Info("GetPersesDashboardHandler called")
+
+		dashboardName, dashboardNamespace, spec, err := k8s.GetPersesDashboard(ctx, input.Namespace, input.Name)
+		if err != nil {
+			return nil, GetPersesDashboardOutput{}, fmt.Errorf("failed to get PersesDashboard: %w", err)
+		}
+
+		slog.Info("GetPersesDashboardHandler executed successfully", "name", dashboardName, "namespace", dashboardNamespace)
+
+		return nil, GetPersesDashboardOutput{
+			Name:      dashboardName,
+			Namespace: dashboardNamespace,
+			Spec:      spec,
+		}, nil
 	}
 }

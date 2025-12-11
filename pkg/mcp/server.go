@@ -13,6 +13,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/rhobs/obs-mcp/pkg/perses"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 )
@@ -25,6 +26,7 @@ type ObsMCPOptions struct {
 	Insecure               bool
 	Guardrails             *prometheus.Guardrails
 	FullRangeQueryResponse bool
+	OOTBDashboards         []perses.PersesDashboardInfo
 }
 
 const (
@@ -64,6 +66,11 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	mcp.AddTool(mcpServer, tools.GetSeries.ToMCPTool(), GetSeriesHandler(opts))
 	mcp.AddTool(mcpServer, tools.GetAlerts.ToMCPTool(), GetAlertsHandler(opts))
 	mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(), GetSilencesHandler(opts))
+
+	mcp.AddTool(mcpServer, OOTBPersesDashboards.ToMCPTool(), OOTBPersesDashboardsHandler(opts))
+	mcp.AddTool(mcpServer, ListPersesDashboards.ToMCPTool(), ListPersesDashboardsHandler(opts))
+	mcp.AddTool(mcpServer, GetPersesDashboard.ToMCPTool(), GetPersesDashboardHandler(opts))
+
 	return nil
 }
 

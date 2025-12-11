@@ -353,9 +353,9 @@ func TestToolPatternValidation(t *testing.T) {
 }
 
 func TestToolsHaveOutputSchema(t *testing.T) {
-	toolsToTest := []mcp.Tool{
-		CreateListMetricsTool(),
-		CreateExecuteRangeQueryTool(),
+	toolsToTest := []*mcp.Tool{
+		CreateListPersesDashboardsTool(),
+		CreateOOTBPersesDashboardsTool(),
 	}
 
 	if len(toolsToTest) == 0 {
