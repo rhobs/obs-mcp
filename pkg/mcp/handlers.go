@@ -7,10 +7,10 @@ import (
 	"log/slog"
 	"time"
 
-	promModel "github.com/prometheus/common/model"
-
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/prometheus/common/model"
+	"github.com/rhobs/obs-mcp/pkg/k8s"
+	"github.com/rhobs/obs-mcp/pkg/perses"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
@@ -72,7 +72,7 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 		}
 
 		// Parse step duration
-		stepDuration, err := promModel.ParseDuration(step)
+		stepDuration, err := model.ParseDuration(step)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid step format: %s", err.Error())), nil
 		}
@@ -103,7 +103,7 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 				durationStr = "1h"
 			}
 
-			duration, err := promModel.ParseDuration(durationStr)
+			duration, err := model.ParseDuration(durationStr)
 			if err != nil {
 				return errorResult(fmt.Sprintf("invalid duration format: %s", err.Error()))
 			}
@@ -169,5 +169,103 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 		}
 
 		return mcp.NewToolResultStructured(output, string(jsonResult)), nil
+	}
+}
+
+// ListPersesDashboardsHandler handles listing PersesDashboard CRD objects from the cluster.
+func ListPersesDashboardsHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.Info("ListPersesDashboardsHandler called")
+		slog.Debug("ListPersesDashboardsHandler params", "params", req.Params)
+
+		// Get optional parameters
+		namespace := req.GetString("namespace", "")
+		labelSelector := req.GetString("label_selector", "")
+
+		dashboards, err := k8s.ListPersesDashboards(ctx, namespace, labelSelector)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to list PersesDashboards: %s", err.Error()))
+		}
+
+		slog.Info("ListPersesDashboardsHandler executed successfully", "resultLength", len(dashboards))
+		slog.Debug("ListPersesDashboardsHandler results", "results", dashboards)
+
+		// Convert to output format
+		dashboardInfos := make([]perses.PersesDashboardInfo, len(dashboards))
+		for i, db := range dashboards {
+			dashboardInfos[i] = perses.PersesDashboardInfo{
+				Name:        db.Name,
+				Namespace:   db.Namespace,
+				Labels:      db.Labels,
+				Description: db.Description,
+			}
+		}
+
+		output := ListPersesDashboardsOutput{Dashboards: dashboardInfos}
+		result, err := json.Marshal(output)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to marshal dashboards: %s", err.Error()))
+		}
+
+		return mcp.NewToolResultStructured(output, string(result)), nil
+	}
+}
+
+// OOTBPersesDashboardsHandler handles returning pre-configured out-of-the-box dashboards.
+func OOTBPersesDashboardsHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.Info("OOTBPersesDashboardsHandler called")
+
+		output := OOTBPersesDashboardsOutput{Dashboards: opts.OOTBDashboards}
+
+		slog.Info("OOTBPersesDashboardsHandler executed successfully", "resultLength", len(opts.OOTBDashboards))
+		slog.Debug("OOTBPersesDashboardsHandler results", "results", opts.OOTBDashboards)
+
+		result, err := json.Marshal(output)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to marshal OOTB dashboards: %s", err.Error()))
+		}
+
+		return mcp.NewToolResultStructured(output, string(result)), nil
+	}
+}
+
+// GetPersesDashboardHandler handles getting a specific PersesDashboard by name and namespace.
+func GetPersesDashboardHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.Info("GetPersesDashboardHandler called")
+		slog.Debug("GetPersesDashboardHandler params", "params", req.Params)
+
+		// Get required parameters
+		name, err := req.RequireString("name")
+		if err != nil {
+			return errorResult("name parameter is required and must be a string")
+		}
+
+		namespace, err := req.RequireString("namespace")
+		if err != nil {
+			return errorResult("namespace parameter is required and must be a string")
+		}
+
+		dashboardName, dashboardNamespace, spec, err := k8s.GetPersesDashboard(ctx, namespace, name)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to get PersesDashboard: %s", err.Error()))
+		}
+
+		slog.Info("GetPersesDashboardHandler executed successfully", "name", dashboardName, "namespace", dashboardNamespace)
+		slog.Debug("GetPersesDashboardHandler spec", "spec", spec)
+
+		output := GetPersesDashboardOutput{
+			Name:      dashboardName,
+			Namespace: dashboardNamespace,
+			Spec:      spec,
+		}
+
+		result, err := json.Marshal(output)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to marshal dashboard: %s", err.Error()))
+		}
+
+		return mcp.NewToolResultStructured(output, string(result)), nil
 	}
 }
