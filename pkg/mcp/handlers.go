@@ -184,12 +184,20 @@ func ListPersesDashboardsHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[ListPers
 
 		dashboardInfos := make([]perses.PersesDashboardInfo, len(dashboards))
 		for i, db := range dashboards {
-			dashboardInfos[i] = perses.PersesDashboardInfo{
-				Name:        db.Name,
-				Namespace:   db.Namespace,
-				Labels:      db.Labels,
-				Description: db.Description,
+			dashboardInfo := perses.PersesDashboardInfo{
+				Name:      db.Name,
+				Namespace: db.Namespace,
+				Labels:    db.GetLabels(),
 			}
+
+			// Extract MCP help description from annotation if present
+			if annotations := db.GetAnnotations(); annotations != nil {
+				if description, ok := annotations[k8s.PersesMCPHelpAnnotation]; ok {
+					dashboardInfo.Description = description
+				}
+			}
+
+			dashboardInfos[i] = dashboardInfo
 		}
 
 		return nil, ListPersesDashboardsOutput{Dashboards: dashboardInfos}, nil
