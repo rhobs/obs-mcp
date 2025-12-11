@@ -1,15 +1,8 @@
-# Dependencies
-**/node_modules
-**/.venv
-.venv
-
 # Build artifacts
-**/dist
 **/.DS_Store
 
 # Go binaries
 obs-mcp/obs-mcp
-layout-manager/layout-manager
 
 # Go test coverage
 **/coverage.out
