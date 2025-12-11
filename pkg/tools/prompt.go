@@ -91,6 +91,9 @@ This tool works like execute_range_query but renders the results as a visual cha
 Use it when the user wants to see a graph or visualization of time-series data and to use visuals to provide the answer.
 Use the show_timeseries as the last tool call after all the other Prometheus tool calls where finalized.
 
+This tool can also be used with PromQL queries extracted from Perses dashboard panels (via get_dashboard_panels).
+When using queries from dashboard panels, substitute any dashboard variables (e.g., $namespace) with concrete values.
+
 TIME PARAMETERS:
 - 'duration': Look back from now (e.g., "5m", "1h", "24h")
 - 'step': Data point resolution (e.g., "1m" for 1-hour duration, "5m" for 24-hour duration)
@@ -159,4 +162,42 @@ FILTERING:
 - Use 'filter' to apply label matchers to find specific silences
 
 Silences are used to temporarily mute alerts based on label matchers. This tool helps you understand what is currently silenced in your environment.`
+
+	ListPersesDashboardsPrompt = `List all PersesDashboard resources from the cluster.
+
+Start here when the user asks about existing dashboards or wants to visualize metrics from a dashboard.
+
+Returns dashboard summaries with name, namespace, labels, and descriptions.
+
+Use the descriptions to identify dashboards relevant to the user's question.
+
+In the case that there is insufficient information in the description, use get_perses_dashboard to fetch the full dashboard spec for more context. Doing so is an expensive operation, so only do this when necessary.
+
+Follow up with get_dashboard_panels to see what panels are available in the relevant dashboard(s), then pass the panel's PromQL query to show_timeseries for visualization.`
+
+	GetPersesDashboardPrompt = `Get a specific Dashboard by name and namespace. This tool is used to get the dashboard's panels and configuration.
+
+Use the list_perses_dashboards tool first to find available dashboards, then use this tool to get the full specification of a specific dashboard, if needed (to gather more context).
+
+The intended use of this tool is only to gather more context on one or more dashboards when the description from list_perses_dashboards is insufficient.
+
+Information about panels themselves should be gathered using get_dashboard_panels instead (e.g., looking at a "kind: Markdown" panel to gather more context).
+
+Returns the dashboard's full specification including panels, layouts, variables, and datasources in JSON format.
+
+For most use cases, you will want to follow up with get_dashboard_panels to extract panel metadata for selection.`
+
+	GetDashboardPanelsPrompt = `Get panel(s) information from a specific Dashboard.
+
+After finding a relevant dashboard (using list_perses_dashboards and conditionally, get_perses_dashboard), use this to see what panels it contains.
+
+Returns panel metadata including:
+- Panel IDs (format: 'panelName' or 'panelName-N' for multi-query panels)
+- Titles and descriptions
+- PromQL queries (may contain variables like $namespace)
+- Chart types (TimeSeriesChart, PieChart, Table)
+
+You can optionally provide specific panel IDs to fetch only those panels. This is useful when you remember panel IDs from earlier calls and want to re-fetch just their metadata without retrieving the entire dashboard's panels.
+
+Use this information to identify which panels answer the user's question, then pass the panel's PromQL query to show_timeseries for visualization.`
 )

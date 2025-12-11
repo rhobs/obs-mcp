@@ -4,10 +4,124 @@ package e2e
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 )
+
+func getFirstDashboard(t *testing.T) (name, namespace string) {
+	t.Helper()
+
+	resp, err := mcpClient.CallTool(t, 1, "list_perses_dashboards", map[string]any{})
+	if err != nil {
+		t.Fatalf("Failed to call list_perses_dashboards: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("MCP error getting dashboards: %s", resp.Error.Message)
+	}
+
+	// Check for tool-level errors (isError: true)
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Fatalf("list_perses_dashboards returned an error: %s", resultJSON)
+	}
+
+	// Try structuredContent first (typed AddTool response), fall back to content text
+	var dashboardData struct {
+		Dashboards []struct {
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+		} `json:"dashboards"`
+	}
+
+	if sc, ok := resp.Result["structuredContent"].(map[string]any); ok {
+		scJSON, _ := json.Marshal(sc)
+		if err := json.Unmarshal(scJSON, &dashboardData); err != nil {
+			t.Fatalf("Failed to parse structuredContent: %v", err)
+		}
+	} else {
+		content, ok := resp.Result["content"].([]any)
+		if !ok || len(content) == 0 {
+			t.Fatalf("No dashboards available (result: %v)", resp.Result)
+		}
+		firstContent, ok := content[0].(map[string]any)
+		if !ok {
+			t.Fatalf("Unexpected content structure")
+		}
+		text, ok := firstContent["text"].(string)
+		if !ok {
+			t.Fatalf("No text field in content")
+		}
+		if err := json.Unmarshal([]byte(text), &dashboardData); err != nil {
+			t.Fatalf("Failed to parse dashboard data: %v (text: %s)", err, text)
+		}
+	}
+
+	if len(dashboardData.Dashboards) == 0 {
+		t.Fatalf("No dashboards found")
+	}
+
+	return dashboardData.Dashboards[0].Name, dashboardData.Dashboards[0].Namespace
+}
+
+func getDashboardPanelIDs(t *testing.T, dashboardName, dashboardNamespace string) []string {
+	t.Helper()
+
+	resp, err := mcpClient.CallTool(t, 2, "get_dashboard_panels", map[string]any{
+		"name":      dashboardName,
+		"namespace": dashboardNamespace,
+	})
+	if err != nil {
+		t.Fatalf("Failed to call get_dashboard_panels: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+
+	// Check for tool-level errors
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Fatalf("get_dashboard_panels returned an error: %s", resultJSON)
+	}
+
+	// Try structuredContent first, fall back to content text
+	var panelsData struct {
+		Panels []struct {
+			ID string `json:"id"`
+		} `json:"panels"`
+	}
+
+	if sc, ok := resp.Result["structuredContent"].(map[string]any); ok {
+		scJSON, _ := json.Marshal(sc)
+		if err := json.Unmarshal(scJSON, &panelsData); err != nil {
+			t.Fatalf("Failed to parse structuredContent: %v", err)
+		}
+	} else {
+		content, ok := resp.Result["content"].([]any)
+		if !ok || len(content) == 0 {
+			t.Fatalf("No panel content available (result: %v)", resp.Result)
+		}
+		text, ok := content[0].(map[string]any)["text"].(string)
+		if !ok {
+			t.Fatalf("No text field in panel content")
+		}
+		if err := json.Unmarshal([]byte(text), &panelsData); err != nil {
+			t.Fatalf("Failed to parse panels data: %v (text: %s)", err, text)
+		}
+	}
+
+	if len(panelsData.Panels) == 0 {
+		t.Fatalf("No panels found in dashboard")
+	}
+
+	panelIDs := make([]string, len(panelsData.Panels))
+	for i, panel := range panelsData.Panels {
+		panelIDs[i] = panel.ID
+	}
+
+	return panelIDs
+}
 
 func TestHealthEndpoint(t *testing.T) {
 	resp, err := http.Get(testConfig.MCPURL + "/health")
@@ -38,6 +152,8 @@ func TestBackendNotLocalhost(t *testing.T) {
 	if !strings.Contains(string(resultJSON), "prometheus_build_info") {
 		t.Error("prometheus_build_info not found -- server may be pointing at localhost:9090 instead of the configured backend")
 	}
+
+	t.Logf("list_metrics returned successfully")
 }
 
 func TestListMetricsReturnsKnownMetricsWithMatcher(t *testing.T) {
@@ -87,7 +203,6 @@ func TestExecuteRangeQuery(t *testing.T) {
 		t.Error("Expected non-nil result")
 	}
 
-	t.Logf("execute_range_query returned successfully")
 }
 
 func TestRangeQueryWithInvalidPromQL(t *testing.T) {
@@ -677,3 +792,69 @@ func TestGetAlertsEmptyFilter(t *testing.T) {
 	// Should succeed but may return empty alerts array
 	t.Log("Query for non-existent alert handled correctly")
 }
+
+func TestListDashboards(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 8, "list_perses_dashboards", map[string]any{})
+	if err != nil {
+		t.Fatalf("Failed to call list_perses_dashboards: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+
+	if resp.Result == nil {
+		t.Fatal("Expected result, got nil")
+	}
+
+	// Verify the result structure contains dashboards
+	resultJSON, _ := json.Marshal(resp.Result)
+	resultStr := string(resultJSON)
+
+	if !strings.Contains(resultStr, "dashboards") {
+		t.Error("Expected 'dashboards' field in result")
+	}
+}
+
+func TestGetDashboardPanels(t *testing.T) {
+	t.Run("WithListDashboards", func(t *testing.T) {
+		dashboardName, dashboardNamespace := getFirstDashboard(t)
+
+		resp, err := mcpClient.CallTool(t, 12, "get_dashboard_panels", map[string]any{
+			"name":      dashboardName,
+			"namespace": dashboardNamespace,
+		})
+		if err != nil {
+			t.Fatalf("Failed to call get_dashboard_panels: %v", err)
+		}
+
+		if resp.Error != nil {
+			t.Fatalf("MCP error: %s", resp.Error.Message)
+		}
+
+		if resp.Result == nil {
+			t.Fatal("Expected result, got nil")
+		}
+	})
+
+	t.Run("WithPanelIDsFilter", func(t *testing.T) {
+		dashboardName, dashboardNamespace := getFirstDashboard(t)
+		panelIDs := getDashboardPanelIDs(t, dashboardName, dashboardNamespace)
+
+		resp, err := mcpClient.CallTool(t, 14, "get_dashboard_panels", map[string]any{
+			"name":      dashboardName,
+			"namespace": dashboardNamespace,
+			"panel_ids": fmt.Sprintf("%s,%s", panelIDs[0], panelIDs[1]),
+		})
+		if err != nil {
+			t.Fatalf("Failed to call get_dashboard_panels: %v", err)
+		}
+
+		if resp.Error != nil {
+			t.Errorf("Unexpected error: %s", resp.Error.Message)
+		}
+
+		t.Log("get_dashboard_panels with panel_ids filter handled correctly")
+	})
+}
+

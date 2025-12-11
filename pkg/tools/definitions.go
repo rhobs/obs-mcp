@@ -280,6 +280,72 @@ var (
 			},
 		},
 	}
+
+	// "list_dashboards" conflicts with the same tool in layout-manager, and makes LCS throw duplicate tool name errors
+	ListPersesDashboards = ToolDef[DashboardsOutput]{
+		Name:        "list_perses_dashboards",
+		Description: ListPersesDashboardsPrompt,
+		Title:       "List Perses Dashboards",
+		ReadOnly:    true,
+		Destructive: false,
+		Idempotent:  true,
+		OpenWorld:   true,
+	}
+
+	// "get_dashboard" conflicts with the same tool in layout-manager, and makes LCS throw duplicate tool name errors
+	GetPersesDashboard = ToolDef[GetDashboardOutput]{
+		Name:        "get_perses_dashboard",
+		Description: GetPersesDashboardPrompt,
+		Title:       "Get Perses Dashboard",
+		ReadOnly:    true,
+		Destructive: false,
+		Idempotent:  true,
+		OpenWorld:   true,
+		Params: []ParamDef{
+			{
+				Name:        "name",
+				Type:        ParamTypeString,
+				Description: "Name of the Dashboard",
+				Required:    true,
+			},
+			{
+				Name:        "namespace",
+				Type:        ParamTypeString,
+				Description: "Namespace of the Dashboard",
+				Required:    true,
+			},
+		},
+	}
+
+	GetDashboardPanels = ToolDef[GetDashboardPanelsOutput]{
+		Name:        "get_dashboard_panels",
+		Description: GetDashboardPanelsPrompt,
+		Title:       "Get Dashboard Panels",
+		ReadOnly:    true,
+		Destructive: false,
+		Idempotent:  true,
+		OpenWorld:   true,
+		Params: []ParamDef{
+			{
+				Name:        "name",
+				Type:        ParamTypeString,
+				Description: "Name of the Dashboard",
+				Required:    true,
+			},
+			{
+				Name:        "namespace",
+				Type:        ParamTypeString,
+				Description: "Namespace of the Dashboard",
+				Required:    true,
+			},
+			{
+				Name:        "panel_ids",
+				Type:        ParamTypeString,
+				Description: "Optional comma-separated list of panel IDs to filter. Panel IDs follow the format 'panelName' or 'panelName-N' where N is the query index (e.g. 'cpuUsage,memoryUsage-0,networkTraffic-1'). Use this to fetch metadata for specific panels you've seen in earlier calls. Leave empty to get all panels.",
+				Required:    false,
+			},
+		},
+	}
 )
 
 // AllTools returns all tool definitions
@@ -294,5 +360,8 @@ func AllTools() []ToolDefInterface {
 		GetSeries,
 		GetAlerts,
 		GetSilences,
+		ListPersesDashboards,
+		GetPersesDashboard,
+		GetDashboardPanels,
 	}
 }
