@@ -4,7 +4,6 @@ name: Lightspeed Core Service (LCS)
 service:
   host: localhost
   port: 8080
-
   auth_enabled: false
   workers: 1
   color_log: true
@@ -30,7 +29,9 @@ mcp_servers:
   - name: "obs"
     provider_id: "model-context-protocol"
     url: "http://localhost:9100/mcp"
-
+  # - name: "layout-manager"
+  #   provider_id: "model-context-protocol"
+  #   url: "http://localhost:9081/mcp"
 customization:
   system_prompt: |-
     Always use available tools.

@@ -114,6 +114,7 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		mcp.AddTool(mcpServer, traces.SearchTagsTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Tempo, tempoToolset.SearchTagsHandler))
 		mcp.AddTool(mcpServer, traces.SearchTagValuesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Tempo, tempoToolset.SearchTagValuesHandler))
 	}
+
 	return nil
 }
 
