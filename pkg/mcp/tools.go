@@ -19,7 +19,7 @@ type RangeQueryOutput struct {
 // SeriesResult represents a single time series result from a range query.
 type SeriesResult struct {
 	Metric map[string]string `json:"metric" jsonschema:"description=The metric labels"`
-	Values [][]interface{}   `json:"values" jsonschema:"description=Array of [timestamp, value] pairs"`
+	Values [][]any           `json:"values" jsonschema:"description=Array of [timestamp, value] pairs"`
 }
 
 func CreateListMetricsTool() mcp.Tool {

@@ -53,7 +53,7 @@ func TestRangeQueryOutputSerialization(t *testing.T) {
 				ResultType: "matrix",
 				Result: []SeriesResult{{
 					Metric: map[string]string{"__name__": "up"},
-					Values: [][]interface{}{{1700000000.0, "1"}},
+					Values: [][]any{{1700000000.0, "1"}},
 				}},
 			},
 		},
@@ -62,9 +62,9 @@ func TestRangeQueryOutputSerialization(t *testing.T) {
 			input: RangeQueryOutput{
 				ResultType: "matrix",
 				Result: []SeriesResult{
-					{Metric: map[string]string{"job": "a"}, Values: [][]interface{}{}},
-					{Metric: map[string]string{"job": "b"}, Values: [][]interface{}{}},
-					{Metric: map[string]string{"job": "c"}, Values: [][]interface{}{}},
+					{Metric: map[string]string{"job": "a"}, Values: [][]any{}},
+					{Metric: map[string]string{"job": "b"}, Values: [][]any{}},
+					{Metric: map[string]string{"job": "c"}, Values: [][]any{}},
 				},
 			},
 		},
@@ -81,7 +81,7 @@ func TestRangeQueryOutputSerialization(t *testing.T) {
 				ResultType: "vector",
 				Result: []SeriesResult{{
 					Metric: map[string]string{"__name__": "up"},
-					Values: [][]interface{}{{1700000000.0, "1"}},
+					Values: [][]any{{1700000000.0, "1"}},
 				}},
 			},
 		},
@@ -91,7 +91,7 @@ func TestRangeQueryOutputSerialization(t *testing.T) {
 				ResultType: "scalar",
 				Result: []SeriesResult{{
 					Metric: map[string]string{},
-					Values: [][]interface{}{{1700000000.0, "42"}},
+					Values: [][]any{{1700000000.0, "42"}},
 				}},
 			},
 		},
@@ -129,14 +129,14 @@ func TestSeriesResultSerialization(t *testing.T) {
 			name: "with labels and values",
 			input: SeriesResult{
 				Metric: map[string]string{"__name__": "up", "job": "prometheus"},
-				Values: [][]interface{}{{1700000000.0, "1"}, {1700000060.0, "1"}},
+				Values: [][]any{{1700000000.0, "1"}, {1700000060.0, "1"}},
 			},
 		},
 		{
 			name: "empty",
 			input: SeriesResult{
 				Metric: map[string]string{},
-				Values: [][]interface{}{},
+				Values: [][]any{},
 			},
 		},
 		{
@@ -146,7 +146,7 @@ func TestSeriesResultSerialization(t *testing.T) {
 					"__name__": "http_requests", "method": "GET", "status": "200",
 					"handler": "/api", "instance": "localhost:9090",
 				},
-				Values: [][]interface{}{{1700000000.0, "100"}},
+				Values: [][]any{{1700000000.0, "100"}},
 			},
 		},
 	}
@@ -272,7 +272,7 @@ func TestToolPatternValidation(t *testing.T) {
 						t.Fatalf("parameter %q not found", pt.param)
 					}
 
-					propMap, ok := prop.(map[string]interface{})
+					propMap, ok := prop.(map[string]any)
 					if !ok {
 						t.Fatalf("parameter %q is not a map", pt.param)
 					}

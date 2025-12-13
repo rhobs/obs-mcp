@@ -1,0 +1,31 @@
+name: lint
+
+on:
+    push:
+    pull_request:
+        branches:
+            - main
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    golangci-lint:
+        name: golangci-lint
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
+
+            - name: Import environment variables from file
+              run: cat ".github/env" >> "$GITHUB_ENV"
+
+            - name: Set up Go
+              uses: actions/setup-go@v6
+              with:
+                  go-version: "${{ env.golang-version }}"
+                  check-latest: true
+
+            - name: Run golangci-lint
+              run: make lint

@@ -19,8 +19,8 @@ const (
 // Loader defines the interface for querying Prometheus
 type Loader interface {
 	ListMetrics(ctx context.Context) ([]string, error)
-	ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error)
-	ExecuteInstantQuery(ctx context.Context, query string, time time.Time) (map[string]interface{}, error)
+	ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error)
+	ExecuteInstantQuery(ctx context.Context, query string, time time.Time) (map[string]any, error)
 }
 
 // PrometheusClient implements PromClient
@@ -64,7 +64,7 @@ func (p *RealLoader) ListMetrics(ctx context.Context) ([]string, error) {
 	return metrics, nil
 }
 
-func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]interface{}, error) {
+func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
 	if p.guardrails != nil {
 		isSafe, err := p.guardrails.IsSafeQuery(ctx, query, p.client)
 		if err != nil {
@@ -86,7 +86,7 @@ func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start,
 		return nil, fmt.Errorf("error executing range query: %w", err)
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"resultType": result.Type().String(),
 		"result":     result,
 	}
@@ -98,7 +98,7 @@ func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start,
 	return response, nil
 }
 
-func (p *RealLoader) ExecuteInstantQuery(ctx context.Context, query string, time time.Time) (map[string]interface{}, error) {
+func (p *RealLoader) ExecuteInstantQuery(ctx context.Context, query string, ts time.Time) (map[string]any, error) {
 	if p.guardrails != nil {
 		isSafe, err := p.guardrails.IsSafeQuery(ctx, query, p.client)
 		if err != nil {
@@ -109,12 +109,12 @@ func (p *RealLoader) ExecuteInstantQuery(ctx context.Context, query string, time
 		}
 	}
 
-	result, warnings, err := p.client.Query(ctx, query, time)
+	result, warnings, err := p.client.Query(ctx, query, ts)
 	if err != nil {
 		return nil, fmt.Errorf("error executing instant query: %w", err)
 	}
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"resultType": result.Type().String(),
 		"result":     result,
 	}

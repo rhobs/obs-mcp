@@ -1,6 +1,10 @@
 # Makefile for obs-mcp server
 
 CONTAINER_CLI ?= docker
+TOOLS_DIR := hack/tools
+
+ROOT_DIR := $(shell pwd)
+TOOLS_BIN_DIR := $(ROOT_DIR)/tmp/bin
 
 .PHONY: help
 help: ## Show this help message
@@ -34,6 +38,21 @@ container: build ## Build obs-mcp container image
 format: ## Format all code
 	go fmt ./...
 
+$(TOOLS_BIN_DIR):
+	mkdir -p $(TOOLS_BIN_DIR)
+
+$(TOOLS_BIN_DIR)/golangci-lint: $(TOOLS_DIR)/go.mod | $(TOOLS_BIN_DIR)
+	cd $(TOOLS_DIR) && go build -o $(TOOLS_BIN_DIR)/golangci-lint github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+
+.PHONY: lint
+lint: $(TOOLS_BIN_DIR)/golangci-lint ## Run golangci-lint
+	$(TOOLS_BIN_DIR)/golangci-lint run --timeout=10m ./...
+
+.PHONY: lint-fix
+lint-fix: $(TOOLS_BIN_DIR)/golangci-lint ## Run golangci-lint with fix
+	$(TOOLS_BIN_DIR)/golangci-lint run --timeout=10m --fix ./...
+
 .PHONY: setup
 setup: check-tools ## Install dependencies for all components
 	go mod download
+	cd $(TOOLS_DIR) && go mod download

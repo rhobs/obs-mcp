@@ -12,9 +12,10 @@ import (
 
 	promapi "github.com/prometheus/client_golang/api"
 	promcfg "github.com/prometheus/common/config"
+	"k8s.io/client-go/rest"
+
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
-	"k8s.io/client-go/rest"
 )
 
 // AuthMode defines the authentication mode for Prometheus client
@@ -178,6 +179,7 @@ func createAPIConfigWithToken(prometheusURL, token string, insecure bool) (proma
 func getTokenFromCtx(ctx context.Context) string {
 	// TODO: we're ignoring user auth for now, just to see if something improves
 	return ""
+	//nolint:govet // intentionally disabling token auth temporarily
 	k8sToken := ctx.Value(AuthHeaderKey)
 	if k8sToken == nil {
 		slog.Warn("No token provided in context.")

@@ -56,8 +56,8 @@ func ParseGuardrails(value string) (*Guardrails, error) {
 	}
 
 	g := &Guardrails{}
-	names := strings.Split(value, ",")
-	for _, name := range names {
+	names := strings.SplitSeq(value, ",")
+	for name := range names {
 		name = strings.TrimSpace(strings.ToLower(name))
 		if name == "" {
 			continue
@@ -88,6 +88,8 @@ func ParseGuardrails(value string) (*Guardrails, error) {
 // Returns (false, error) if the query is invalid or violates a guardrail rule.
 // The error message explains which rule was violated.
 // Returns (true, nil) if the query is valid and passes all rules.
+//
+//nolint:gocyclo // complex validation logic, refactoring would reduce readability
 func (g *Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.API) (bool, error) {
 	if ((g.DisallowBlanketRegex && g.MaxLabelCardinality > 0) || (g.MaxMetricCardinality > 0)) && (client == nil || ctx == nil) {
 		return false, fmt.Errorf("cannot verify cardinality without TSDB client")

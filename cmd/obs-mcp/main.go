@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/common/promslog"
 
 	"github.com/mark3labs/mcp-go/server"
+
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/mcp"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"

@@ -16,3 +16,4 @@ obs-mcp/obs-mcp
 integration-tests/videos
 integration-tests/screenshots
 .vscode/*
+tmp/*

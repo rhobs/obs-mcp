@@ -7,10 +7,9 @@ import (
 	"log/slog"
 	"time"
 
-	promModel "github.com/prometheus/common/model"
-
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/prometheus/common/model"
+
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
@@ -62,17 +61,17 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 		// Get required query parameter
 		query, err := req.RequireString("query")
 		if err != nil {
-			return mcp.NewToolResultError("query parameter is required and must be a string"), nil
+			return mcp.NewToolResultError("query parameter is required and must be a string"), nil //nolint:nilerr // MCP pattern: error in result, not return
 		}
 
 		// Get required step parameter
 		step, err := req.RequireString("step")
 		if err != nil {
-			return mcp.NewToolResultError("step parameter is required and must be a string"), nil
+			return mcp.NewToolResultError("step parameter is required and must be a string"), nil //nolint:nilerr // MCP pattern: error in result, not return
 		}
 
 		// Parse step duration
-		stepDuration, err := promModel.ParseDuration(step)
+		stepDuration, err := model.ParseDuration(step)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("invalid step format: %s", err.Error())), nil
 		}
@@ -103,7 +102,7 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 				durationStr = "1h"
 			}
 
-			duration, err := promModel.ParseDuration(durationStr)
+			duration, err := model.ParseDuration(durationStr)
 			if err != nil {
 				return errorResult(fmt.Sprintf("invalid duration format: %s", err.Error()))
 			}
@@ -145,9 +144,9 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 				for k, v := range series.Metric {
 					labels[string(k)] = string(v)
 				}
-				values := make([][]interface{}, len(series.Values))
+				values := make([][]any, len(series.Values))
 				for j, sample := range series.Values {
-					values[j] = []interface{}{float64(sample.Timestamp) / 1000, sample.Value.String()}
+					values[j] = []any{float64(sample.Timestamp) / 1000, sample.Value.String()}
 				}
 				output.Result[i] = SeriesResult{
 					Metric: labels,

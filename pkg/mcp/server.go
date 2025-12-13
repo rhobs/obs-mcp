@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/mark3labs/mcp-go/server"
+
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
@@ -101,7 +102,7 @@ func Serve(ctx context.Context, mcpServer *server.MCPServer, listenAddr string) 
 
 	mux.HandleFunc(healthEndpoint, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	ctx, cancel := context.WithCancel(ctx)
