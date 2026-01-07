@@ -141,13 +141,11 @@ func (p *RealLoader) GetLabelNames(ctx context.Context, metricName string, start
 	}
 
 	labels := make([]string, len(labelNames))
-	for i, name := range labelNames {
-		labels[i] = string(name)
-	}
+	copy(labels, labelNames)
 	return labels, nil
 }
 
-func (p *RealLoader) GetLabelValues(ctx context.Context, label string, metricName string, start, end time.Time) ([]string, error) {
+func (p *RealLoader) GetLabelValues(ctx context.Context, label, metricName string, start, end time.Time) ([]string, error) {
 	var matches []string
 	if metricName != "" {
 		matches = []string{metricName}

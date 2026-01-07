@@ -19,7 +19,7 @@ type InstantQueryOutput struct {
 // InstantResult represents a single instant query result.
 type InstantResult struct {
 	Metric map[string]string `json:"metric" jsonschema:"description=The metric labels"`
-	Value  []interface{}     `json:"value" jsonschema:"description=[timestamp, value] pair for the instant query"`
+	Value  []any             `json:"value" jsonschema:"description=[timestamp, value] pair for the instant query"`
 }
 
 // LabelNamesOutput defines the output schema for the get_label_names tool.

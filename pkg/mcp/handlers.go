@@ -225,7 +225,7 @@ func ExecuteInstantQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Ca
 				}
 				output.Result[i] = InstantResult{
 					Metric: labels,
-					Value:  []interface{}{float64(sample.Timestamp) / 1000, sample.Value.String()},
+					Value:  []any{float64(sample.Timestamp) / 1000, sample.Value.String()},
 				}
 			}
 		} else {

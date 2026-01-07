@@ -55,7 +55,7 @@ func (m *MockedLoader) GetLabelNames(ctx context.Context, metricName string, sta
 	return []string{}, nil
 }
 
-func (m *MockedLoader) GetLabelValues(ctx context.Context, label string, metricName string, start, end time.Time) ([]string, error) {
+func (m *MockedLoader) GetLabelValues(ctx context.Context, label, metricName string, start, end time.Time) ([]string, error) {
 	if m.GetLabelValuesFunc != nil {
 		return m.GetLabelValuesFunc(ctx, label, metricName, start, end)
 	}
