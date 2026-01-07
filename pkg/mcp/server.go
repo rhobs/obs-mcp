@@ -54,7 +54,11 @@ For questions like "Why is my API service having high error rates?":
 1. **Discover metrics**: Call list_metrics to find relevant metrics (http_requests_total, errors_total, etc.)
 2. **Find label dimensions**: Call get_label_names to see how to filter (by service, status, namespace)
 3. **Get exact values**: Use get_label_values to find the exact service name (e.g., "api-gateway" vs "api")
-4. **Verify cardinality**: Optionally use get_series to check your filters before querying
+4. **Verify cardinality**: Optionally, use get_series to check your filters before querying:
+   - Using regex label matchers (status=~"5..", pod=~"api.*")
+   - Querying container/pod metrics without namespace filter
+   - First time querying a metric you haven't seen before
+   - User asks about "all pods", "all services", or broad scope
 5. **Query metrics**: Execute instant or range queries with proper PromQL
 
 ## Key PromQL Patterns
