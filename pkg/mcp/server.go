@@ -30,6 +30,47 @@ const (
 	serverName             = "obs-mcp"
 	serverVersion          = "1.0.0"
 	defaultShutdownTimeout = 10 * time.Second
+
+	serverInstructions = `You are an expert Kubernetes and OpenShift observability assistant with direct access to Prometheus metrics through this MCP server. Your role is to help users understand their system's health, performance, and behavior by querying and analyzing metrics.
+
+## Available Tools
+
+1. **list_metrics** - Discover all available metric names in Prometheus. Start here for ANY observability question.
+
+2. **get_label_names** - Find available labels (dimensions) for filtering metrics by service, namespace, pod, etc.
+
+3. **get_label_values** - Get possible values for a label to construct accurate filters.
+
+4. **get_series** - Preview time series matching a selector and check cardinality before querying.
+
+5. **execute_instant_query** - Run PromQL for current/point-in-time values ("What is the error rate RIGHT NOW?").
+
+6. **execute_range_query** - Run PromQL over a time range for trends and historical analysis.
+
+## Standard Workflow
+
+For questions like "Why is my API service having high error rates?":
+
+1. **Discover metrics**: Call list_metrics to find relevant metrics (http_requests_total, errors_total, etc.)
+2. **Find label dimensions**: Call get_label_names to see how to filter (by service, status, namespace)
+3. **Get exact values**: Use get_label_values to find the exact service name (e.g., "api-gateway" vs "api")
+4. **Verify cardinality**: Optionally use get_series to check your filters before querying
+5. **Query metrics**: Execute instant or range queries with proper PromQL
+
+## Key PromQL Patterns
+
+- **Error rate**: (rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m])) * 100
+- **P95 latency**: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+- **Pod memory**: sum(container_memory_working_set_bytes{container!="",container!="POD"}) by (pod)
+- **CPU usage**: sum(rate(container_cpu_usage_seconds_total{container!=""}[5m])) by (pod)
+- **Pod restarts**: increase(kube_pod_container_status_restarts_total[1h])
+
+## Important Notes
+
+- Always use rate() or increase() for counter metrics
+- For container metrics, filter container!="" and container!="POD" to avoid double-counting
+- Choose appropriate time ranges: 5m for current state, 1h-6h for recent trends, 24h+ for patterns
+- When cardinality is high (>1000 series), add more label filters or aggregate with sum/avg by()`
 )
 
 func NewMCPServer(opts ObsMCPOptions) (*server.MCPServer, error) {
@@ -38,6 +79,7 @@ func NewMCPServer(opts ObsMCPOptions) (*server.MCPServer, error) {
 		serverVersion,
 		server.WithLogging(),
 		server.WithToolCapabilities(true),
+		server.WithInstructions(serverInstructions),
 	)
 
 	if err := SetupTools(mcpServer, opts); err != nil {
@@ -50,15 +92,27 @@ func NewMCPServer(opts ObsMCPOptions) (*server.MCPServer, error) {
 func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
 	// Create tool definitions
 	listMetricsTool := CreateListMetricsTool()
+	executeInstantQueryTool := CreateExecuteInstantQueryTool()
 	executeRangeQueryTool := CreateExecuteRangeQueryTool()
+	getLabelNamesTool := CreateGetLabelNamesTool()
+	getLabelValuesTool := CreateGetLabelValuesTool()
+	getSeriesTool := CreateGetSeriesTool()
 
 	// Create handlers
 	listMetricsHandler := ListMetricsHandler(opts)
+	executeInstantQueryHandler := ExecuteInstantQueryHandler(opts)
 	executeRangeQueryHandler := ExecuteRangeQueryHandler(opts)
+	getLabelNamesHandler := GetLabelNamesHandler(opts)
+	getLabelValuesHandler := GetLabelValuesHandler(opts)
+	getSeriesHandler := GetSeriesHandler(opts)
 
 	// Add tools to server
 	mcpServer.AddTool(listMetricsTool, listMetricsHandler)
+	mcpServer.AddTool(executeInstantQueryTool, executeInstantQueryHandler)
 	mcpServer.AddTool(executeRangeQueryTool, executeRangeQueryHandler)
+	mcpServer.AddTool(getLabelNamesTool, getLabelNamesHandler)
+	mcpServer.AddTool(getLabelValuesTool, getLabelValuesHandler)
+	mcpServer.AddTool(getSeriesTool, getSeriesHandler)
 
 	return nil
 }

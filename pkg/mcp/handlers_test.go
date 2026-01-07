@@ -16,6 +16,9 @@ type MockedLoader struct {
 	ListMetricsFunc         func(ctx context.Context) ([]string, error)
 	ExecuteRangeQueryFunc   func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error)
 	ExecuteInstantQueryFunc func(ctx context.Context, query string, time time.Time) (map[string]any, error)
+	GetLabelNamesFunc       func(ctx context.Context, metricName string, start, end time.Time) ([]string, error)
+	GetLabelValuesFunc      func(ctx context.Context, label string, metricName string, start, end time.Time) ([]string, error)
+	GetSeriesFunc           func(ctx context.Context, matches []string, start, end time.Time) ([]map[string]string, error)
 }
 
 func (m *MockedLoader) ListMetrics(ctx context.Context) ([]string, error) {
@@ -43,6 +46,27 @@ func (m *MockedLoader) ExecuteInstantQuery(ctx context.Context, query string, ts
 		"resultType": "vector",
 		"result":     []any{},
 	}, nil
+}
+
+func (m *MockedLoader) GetLabelNames(ctx context.Context, metricName string, start, end time.Time) ([]string, error) {
+	if m.GetLabelNamesFunc != nil {
+		return m.GetLabelNamesFunc(ctx, metricName, start, end)
+	}
+	return []string{}, nil
+}
+
+func (m *MockedLoader) GetLabelValues(ctx context.Context, label string, metricName string, start, end time.Time) ([]string, error) {
+	if m.GetLabelValuesFunc != nil {
+		return m.GetLabelValuesFunc(ctx, label, metricName, start, end)
+	}
+	return []string{}, nil
+}
+
+func (m *MockedLoader) GetSeries(ctx context.Context, matches []string, start, end time.Time) ([]map[string]string, error) {
+	if m.GetSeriesFunc != nil {
+		return m.GetSeriesFunc(ctx, matches, start, end)
+	}
+	return []map[string]string{}, nil
 }
 
 // Ensure MockPromClient implements prometheus.PromClient at compile time
