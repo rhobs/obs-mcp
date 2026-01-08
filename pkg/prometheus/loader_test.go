@@ -16,36 +16,6 @@ func TestMakeLLMFriendlyError(t *testing.T) {
 		expectedSubstr []string // substrings that should be in the error message
 	}{
 		{
-			name:          "parse error",
-			originalError: errors.New("parse error: unexpected character"),
-			query:         "up{invalid",
-			expectedSubstr: []string{
-				"syntax error",
-				"up{invalid",
-				"check the query syntax",
-			},
-		},
-		{
-			name:          "bad_data error",
-			originalError: errors.New("bad_data: invalid expression"),
-			query:         "rate(http[5m])",
-			expectedSubstr: []string{
-				"syntax error",
-				"rate(http[5m])",
-				"correctly formatted",
-			},
-		},
-		{
-			name:          "unknown function",
-			originalError: errors.New("unknown function: foobar"),
-			query:         "foobar(up)",
-			expectedSubstr: []string{
-				"unknown function",
-				"foobar(up)",
-				"function name is correct",
-			},
-		},
-		{
 			name:          "timeout error",
 			originalError: errors.New("query timeout exceeded"),
 			query:         "sum(rate(http_requests_total[5m])) by (job)",
@@ -97,7 +67,7 @@ func TestMakeLLMFriendlyError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := makeLLMFriendlyError(tt.originalError, tt.query)
+			result := MakeLLMFriendlyError(tt.originalError, tt.query)
 			if result == nil {
 				t.Fatalf("expected error, got nil")
 			}
@@ -113,7 +83,7 @@ func TestMakeLLMFriendlyError(t *testing.T) {
 }
 
 func TestMakeLLMFriendlyError_NilError(t *testing.T) {
-	result := makeLLMFriendlyError(nil, "up")
+	result := MakeLLMFriendlyError(nil, "up")
 	if result != nil {
 		t.Errorf("expected nil error for nil input, got: %v", result)
 	}
@@ -135,9 +105,9 @@ func TestCheckEmptyResult(t *testing.T) {
 			expectedSubstr: []string{
 				"nonexistent_metric",
 				"returned no data",
-				"metric does not exist",
-				"no data for the specified time range",
-				"list_metrics",
+				"metric and labels you specified exist",
+				"no time series match",
+				"label filter combination",
 			},
 		},
 		{
@@ -148,7 +118,8 @@ func TestCheckEmptyResult(t *testing.T) {
 			expectedSubstr: []string{
 				"up{job=\"missing\"}",
 				"returned no data",
-				"label filters are too restrictive",
+				"label filter combination",
+				"label filters is too restrictive",
 			},
 		},
 		{

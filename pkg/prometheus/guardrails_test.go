@@ -10,12 +10,40 @@ import (
 )
 
 func TestGuardrails_IsSafeQuery(t *testing.T) {
-	// Use static guardrails without cardinality limits (no TSDB client needed)
+	// Create mock client with all metrics that will be tested
+	mock := &mockPrometheusAPI{
+		tsdbResult: v1.TSDBResult{
+			SeriesCountByMetricName: []v1.Stat{
+				{Name: "http_requests_total", Value: 1000},
+				{Name: "some_very_high_cardinality_metric", Value: 1000},
+				{Name: "my_metric", Value: 1000},
+				{Name: "up", Value: 100},
+				{Name: "http_request_duration_seconds_bucket", Value: 500},
+				{Name: "histogram_quantile", Value: 100},
+				{Name: "http_latency_bucket", Value: 500},
+				{Name: "cpu_usage", Value: 100},
+				{Name: "node_cpu_seconds_total", Value: 100},
+			},
+			LabelValueCountByLabelName: []v1.Stat{
+				{Name: "job", Value: 50},
+				{Name: "pod", Value: 100},
+				{Name: "instance", Value: 80},
+				{Name: "status", Value: 10},
+				{Name: "le", Value: 20},
+				{Name: "environment", Value: 5},
+				{Name: "mode", Value: 10},
+				{Name: "service", Value: 30},
+				{Name: "cpu", Value: 16},
+			},
+		},
+	}
+
+	// Use static guardrails without cardinality limits
 	g := &Guardrails{
 		DisallowExplicitNameLabel: true,
 		RequireLabelMatcher:       true,
 		DisallowBlanketRegex:      true,
-		MaxMetricCardinality:      0, // Disabled - no TSDB needed
+		MaxMetricCardinality:      0, // Disabled
 		MaxLabelCardinality:       0, // Disabled - blanket regex always rejected
 	}
 	tests := map[string]bool{
@@ -73,7 +101,7 @@ func TestGuardrails_IsSafeQuery(t *testing.T) {
 
 	for query, expectedSafe := range tests {
 		t.Run(query, func(t *testing.T) {
-			safe, err := g.IsSafeQuery(context.TODO(), query, nil)
+			safe, err := g.IsSafeQuery(context.TODO(), query, mock)
 			if safe != expectedSafe {
 				t.Errorf("IsSafeQuery(%q) = %v (err: %v), want %v", query, safe, err, expectedSafe)
 			}
@@ -86,13 +114,25 @@ func TestGuardrails_IsSafeQuery(t *testing.T) {
 }
 
 func TestGuardrails_DisabledRules(t *testing.T) {
+	mock := &mockPrometheusAPI{
+		tsdbResult: v1.TSDBResult{
+			SeriesCountByMetricName: []v1.Stat{
+				{Name: "http_requests_total", Value: 1000},
+			},
+			LabelValueCountByLabelName: []v1.Stat{
+				{Name: "job", Value: 50},
+				{Name: "pod", Value: 100},
+			},
+		},
+	}
+
 	t.Run("DisallowExplicitNameLabel disabled", func(t *testing.T) {
 		g := &Guardrails{
 			DisallowExplicitNameLabel: false,
 			RequireLabelMatcher:       true,
 			DisallowBlanketRegex:      true,
 		}
-		safe, err := g.IsSafeQuery(context.TODO(), `{__name__="http_requests_total", job="api"}`, nil)
+		safe, err := g.IsSafeQuery(context.TODO(), `{__name__="http_requests_total", job="api"}`, mock)
 		if !safe {
 			t.Errorf("expected query to be safe when DisallowExplicitNameLabel is disabled, got error: %v", err)
 		}
@@ -104,7 +144,7 @@ func TestGuardrails_DisabledRules(t *testing.T) {
 			RequireLabelMatcher:       false,
 			DisallowBlanketRegex:      true,
 		}
-		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total`, nil)
+		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total`, mock)
 		if !safe {
 			t.Errorf("expected query to be safe when RequireLabelMatcher is disabled, got error: %v", err)
 		}
@@ -116,7 +156,7 @@ func TestGuardrails_DisabledRules(t *testing.T) {
 			RequireLabelMatcher:       true,
 			DisallowBlanketRegex:      false,
 		}
-		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{pod=~".*"}`, nil)
+		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{pod=~".*"}`, mock)
 		if !safe {
 			t.Errorf("expected query to be safe when DisallowBlanketRegex is disabled, got error: %v", err)
 		}
@@ -254,6 +294,17 @@ func TestExtractBlanketRegexLabels(t *testing.T) {
 }
 
 func TestGuardrails_MaxLabelCardinality(t *testing.T) {
+	mock := &mockPrometheusAPI{
+		tsdbResult: v1.TSDBResult{
+			SeriesCountByMetricName: []v1.Stat{
+				{Name: "http_requests_total", Value: 1000},
+			},
+			LabelValueCountByLabelName: []v1.Stat{
+				{Name: "pod", Value: 100},
+			},
+		},
+	}
+
 	t.Run("MaxLabelCardinality set with DisallowBlanketRegex but no client", func(t *testing.T) {
 		g := &Guardrails{
 			DisallowExplicitNameLabel: false,
@@ -279,7 +330,7 @@ func TestGuardrails_MaxLabelCardinality(t *testing.T) {
 			DisallowBlanketRegex:      true,
 			MaxLabelCardinality:       0, // 0 means always disallow
 		}
-		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{pod=~".*"}`, nil)
+		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{pod=~".*"}`, mock)
 		if safe {
 			t.Error("expected query with blanket regex to be unsafe when MaxLabelCardinality is 0")
 		}
@@ -295,7 +346,7 @@ func TestGuardrails_MaxLabelCardinality(t *testing.T) {
 			DisallowBlanketRegex:      false, // Disabled
 			MaxLabelCardinality:       100,
 		}
-		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{pod=~".*"}`, nil)
+		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{pod=~".*"}`, mock)
 		if !safe {
 			t.Errorf("expected query to be safe when DisallowBlanketRegex is disabled, got error: %v", err)
 		}
@@ -309,7 +360,7 @@ func TestGuardrails_MaxLabelCardinality(t *testing.T) {
 			MaxLabelCardinality:       0, // 0 = blanket regex always rejected, but selective passes
 		}
 		// Selective regex should always pass (no blanket regex)
-		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{pod=~"web-.*"}`, nil)
+		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{pod=~"web-.*"}`, mock)
 		if !safe {
 			t.Errorf("expected query with selective regex to be safe, got error: %v", err)
 		}
@@ -389,6 +440,9 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 	t.Run("Label cardinality below threshold allows blanket regex", func(t *testing.T) {
 		mock := &mockPrometheusAPI{
 			tsdbResult: v1.TSDBResult{
+				SeriesCountByMetricName: []v1.Stat{
+					{Name: "http_requests_total", Value: 1000},
+				},
 				LabelValueCountByLabelName: []v1.Stat{
 					{Name: "pod", Value: 50},      // Below threshold
 					{Name: "instance", Value: 80}, // Below threshold
@@ -412,6 +466,9 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 	t.Run("Label cardinality above threshold disallows blanket regex", func(t *testing.T) {
 		mock := &mockPrometheusAPI{
 			tsdbResult: v1.TSDBResult{
+				SeriesCountByMetricName: []v1.Stat{
+					{Name: "http_requests_total", Value: 1000},
+				},
 				LabelValueCountByLabelName: []v1.Stat{
 					{Name: "pod", Value: 150},     // Above threshold
 					{Name: "instance", Value: 80}, // Below threshold
@@ -438,6 +495,9 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 	t.Run("Multiple blanket regex labels - all below threshold", func(t *testing.T) {
 		mock := &mockPrometheusAPI{
 			tsdbResult: v1.TSDBResult{
+				SeriesCountByMetricName: []v1.Stat{
+					{Name: "http_requests_total", Value: 1000},
+				},
 				LabelValueCountByLabelName: []v1.Stat{
 					{Name: "pod", Value: 50},
 					{Name: "instance", Value: 80},
@@ -462,6 +522,9 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 	t.Run("Multiple blanket regex labels - one above threshold", func(t *testing.T) {
 		mock := &mockPrometheusAPI{
 			tsdbResult: v1.TSDBResult{
+				SeriesCountByMetricName: []v1.Stat{
+					{Name: "http_requests_total", Value: 1000},
+				},
 				LabelValueCountByLabelName: []v1.Stat{
 					{Name: "pod", Value: 50},       // Below threshold
 					{Name: "instance", Value: 150}, // Above threshold
@@ -489,8 +552,12 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 	t.Run("Label not in TSDB result allows blanket regex", func(t *testing.T) {
 		mock := &mockPrometheusAPI{
 			tsdbResult: v1.TSDBResult{
+				SeriesCountByMetricName: []v1.Stat{
+					{Name: "http_requests_total", Value: 1000},
+				},
 				LabelValueCountByLabelName: []v1.Stat{
 					{Name: "instance", Value: 80},
+					{Name: "pod", Value: 50}, // Add pod so label existence check passes
 				},
 			},
 		}
@@ -512,6 +579,9 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 	t.Run("Mixed regex patterns - only blanket regex checked", func(t *testing.T) {
 		mock := &mockPrometheusAPI{
 			tsdbResult: v1.TSDBResult{
+				SeriesCountByMetricName: []v1.Stat{
+					{Name: "http_requests_total", Value: 1000},
+				},
 				LabelValueCountByLabelName: []v1.Stat{
 					{Name: "pod", Value: 150},      // Above threshold but uses selective regex
 					{Name: "instance", Value: 200}, // Above threshold and uses blanket regex
@@ -539,6 +609,9 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 	t.Run("Negative blanket regex also checked", func(t *testing.T) {
 		mock := &mockPrometheusAPI{
 			tsdbResult: v1.TSDBResult{
+				SeriesCountByMetricName: []v1.Stat{
+					{Name: "http_requests_total", Value: 1000},
+				},
 				LabelValueCountByLabelName: []v1.Stat{
 					{Name: "pod", Value: 150}, // Above threshold
 				},

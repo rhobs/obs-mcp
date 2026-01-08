@@ -125,7 +125,7 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 		// Execute the range query
 		result, err := promClient.ExecuteRangeQuery(ctx, query, startTime, endTime, time.Duration(stepDuration))
 		if err != nil {
-			// Pass through the error directly as it's already LLM-friendly from the loader
+			// Pass through the error directly as it's already LLM-friendly from the loader/guardrails
 			return errorResult(err.Error())
 		}
 
