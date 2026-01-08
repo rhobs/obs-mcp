@@ -219,10 +219,8 @@ func TestCheckEmptyResult(t *testing.T) {
 						t.Errorf("expected warning to contain %q, got: %s", substr, warning)
 					}
 				}
-			} else {
-				if warning != "" {
-					t.Errorf("expected no warning, got: %s", warning)
-				}
+			} else if warning != "" {
+				t.Errorf("expected no warning, got: %s", warning)
 			}
 		})
 	}
