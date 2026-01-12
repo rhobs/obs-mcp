@@ -7,6 +7,7 @@ import (
 
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
+	"github.com/prometheus/common/model"
 )
 
 const (
@@ -46,8 +47,14 @@ func NewPrometheusClient(apiConfig api.Config) (*RealLoader, error) {
 }
 
 // WithGuardrails sets a custom Guardrails configuration for the client.
+// If nil is passed, creates an empty Guardrails (metric existence check always runs).
 func (p *RealLoader) WithGuardrails(g *Guardrails) *RealLoader {
-	p.guardrails = g
+	if g == nil {
+		// Even with no optional guardrails, ensure we have an instance for existence checks
+		p.guardrails = &Guardrails{}
+	} else {
+		p.guardrails = g
+	}
 	return p
 }
 
@@ -64,15 +71,43 @@ func (p *RealLoader) ListMetrics(ctx context.Context) ([]string, error) {
 	return metrics, nil
 }
 
+// checkEmptyResult provides helpful context when a query returns no data after validation passes
+func checkEmptyResult(result any, query string) string {
+	var isEmpty bool
+
+	switch v := result.(type) {
+	case model.Matrix:
+		isEmpty = len(v) == 0
+	case model.Vector:
+		isEmpty = len(v) == 0
+	case *model.Scalar:
+		isEmpty = v == nil
+	case *model.String:
+		isEmpty = v == nil
+	default:
+		return ""
+	}
+
+	if isEmpty {
+		return fmt.Sprintf("The query '%s' returned no data. "+
+			"The metric and labels you specified exist in Prometheus, but no time series match your specific label filter combination. "+
+			"This could mean: (1) the label values you're filtering for don't exist, (2) the combination of label filters is too restrictive, "+
+			"or (3) there's no data for the specified time range with these exact label values. "+
+			"Try using less restrictive label filters, checking label values, or adjusting the time range.",
+			query)
+	}
+
+	return ""
+}
+
 func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
-	if p.guardrails != nil {
-		isSafe, err := p.guardrails.IsSafeQuery(ctx, query, p.client)
-		if err != nil {
-			return nil, fmt.Errorf("query validation failed: %w", err)
-		}
-		if !isSafe {
-			return nil, fmt.Errorf("query is not safe")
-		}
+	// Always validate query (including non-optional metric existence check)
+	isSafe, err := p.guardrails.IsSafeQuery(ctx, query, p.client)
+	if err != nil {
+		return nil, fmt.Errorf("query validation failed: %w", err)
+	}
+	if !isSafe {
+		return nil, fmt.Errorf("query is not safe")
 	}
 
 	r := v1.Range{
@@ -83,7 +118,7 @@ func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start,
 
 	result, warnings, err := p.client.QueryRange(ctx, query, r, v1.WithTimeout(DefaultQueryTimeout))
 	if err != nil {
-		return nil, fmt.Errorf("error executing range query: %w", err)
+		return nil, MakeLLMFriendlyError(err, query)
 	}
 
 	response := map[string]any{
@@ -91,27 +126,32 @@ func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start,
 		"result":     result,
 	}
 
+	// Add warnings from Prometheus
 	if len(warnings) > 0 {
 		response["warnings"] = warnings
+	}
+
+	// Check for empty results and add guidance
+	if emptyWarning := checkEmptyResult(result, query); emptyWarning != "" {
+		response["emptyResultGuidance"] = emptyWarning
 	}
 
 	return response, nil
 }
 
 func (p *RealLoader) ExecuteInstantQuery(ctx context.Context, query string, ts time.Time) (map[string]any, error) {
-	if p.guardrails != nil {
-		isSafe, err := p.guardrails.IsSafeQuery(ctx, query, p.client)
-		if err != nil {
-			return nil, fmt.Errorf("query validation failed: %w", err)
-		}
-		if !isSafe {
-			return nil, fmt.Errorf("query is not safe")
-		}
+	// Always validate query (including non-optional metric existence check)
+	isSafe, err := p.guardrails.IsSafeQuery(ctx, query, p.client)
+	if err != nil {
+		return nil, fmt.Errorf("query validation failed: %w", err)
+	}
+	if !isSafe {
+		return nil, fmt.Errorf("query is not safe")
 	}
 
 	result, warnings, err := p.client.Query(ctx, query, ts)
 	if err != nil {
-		return nil, fmt.Errorf("error executing instant query: %w", err)
+		return nil, MakeLLMFriendlyError(err, query)
 	}
 
 	response := map[string]any{
@@ -119,8 +159,14 @@ func (p *RealLoader) ExecuteInstantQuery(ctx context.Context, query string, ts t
 		"result":     result,
 	}
 
+	// Add warnings from Prometheus
 	if len(warnings) > 0 {
 		response["warnings"] = warnings
+	}
+
+	// Check for empty results and add guidance
+	if emptyWarning := checkEmptyResult(result, query); emptyWarning != "" {
+		response["emptyResultGuidance"] = emptyWarning
 	}
 
 	return response, nil

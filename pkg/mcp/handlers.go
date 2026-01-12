@@ -125,7 +125,14 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 		// Execute the range query
 		result, err := promClient.ExecuteRangeQuery(ctx, query, startTime, endTime, time.Duration(stepDuration))
 		if err != nil {
-			return errorResult(fmt.Sprintf("failed to execute range query: %s", err.Error()))
+			// Pass through the error directly as it's already LLM-friendly from the loader/guardrails
+			return errorResult(err.Error())
+		}
+
+		// Check if query returned empty results - return helpful guidance as text
+		if emptyGuidance, ok := result["emptyResultGuidance"].(string); ok && emptyGuidance != "" {
+			slog.Info("ExecuteRangeQueryHandler returned empty results")
+			return mcp.NewToolResultText(emptyGuidance), nil
 		}
 
 		// Convert to structured output
