@@ -16,7 +16,7 @@ The easiest way to get the obs-mcp connected to the cluster is via a kubeconfig:
  go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --insecure
  ```
 
-This will connect the obs-mcp to the thanos querier running in the cluster.
+This will connect the obs-mcp to the Prometheus running in the cluster.
 
 This procedure would not work if you're not using token-based auth (`oc whoami -t` to validate).
 In that case, consider using serviceaccount + token auth. Alternatively, follow the procedure bellow.
@@ -36,10 +36,10 @@ This scenario opens a local port via port-forward that the obs-mcp will connect 
 
  1. Log into your OpenShift cluster
 
- 1. Port forward the OpenShift Thanos instance to a local port
+ 1. Port forward the OpenShift in-cluster Prometheus instance to a local port
 
 ``` sh
-PROM_POD=$(kubectl get pods -n openshift-monitoring -l app.kubernetes.io/instance=thanos-querier -o jsonpath="{.items[0].met
+PROM_POD=$(kubectl get pods -n openshift-monitoring -l app.kubernetes.io/instance=k8s -l app.kubernetes.io/component=prometheus -o jsonpath="{.items[0].met
 adata.name}")
 kubectl port-forward -n openshift-monitoring $PROM_POD 9090:9090
 ```

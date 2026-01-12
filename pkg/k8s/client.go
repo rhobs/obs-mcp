@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	openShiftRouteAPI      = "/apis/route.openshift.io/v1"
-	monitoringNamespace    = "openshift-monitoring"
-	routesResource         = "routes"
-	thanosQuerierRouteName = "thanos-querier"
+	openShiftRouteAPI   = "/apis/route.openshift.io/v1"
+	monitoringNamespace = "openshift-monitoring"
+	routesResource      = "routes"
+	prometheusRouteName = "prometheus-k8s"
 )
 
 // GetClientConfig returns a Kubernetes REST config using kubeconfig
@@ -47,8 +47,8 @@ func GetKubeClient() (*kubernetes.Clientset, error) {
 	return clientset, nil
 }
 
-// GetThanosQuerierURL discovers the Thanos Querier service URL in OpenShift
-func GetThanosQuerierURL() (string, error) {
+// GetPrometheusURL discovers the prometheus to be used in OpenShift environemtn.
+func GetPrometheusURL() (string, error) {
 	ctx := context.Background()
 
 	kubeClient, err := GetKubeClient()
@@ -61,11 +61,11 @@ func GetThanosQuerierURL() (string, error) {
 		AbsPath(openShiftRouteAPI).
 		Namespace(monitoringNamespace).
 		Resource(routesResource).
-		Name(thanosQuerierRouteName).
+		Name(prometheusRouteName).
 		Do(ctx)
 
 	if result.Error() != nil {
-		return "", fmt.Errorf("failed to load thanos-querier route: %w", result.Error())
+		return "", fmt.Errorf("failed to load prometheus route: %w", result.Error())
 	}
 
 	body, err := result.Raw()
@@ -86,5 +86,5 @@ func GetThanosQuerierURL() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("no suitable route found for thanos-querier")
+	return "", fmt.Errorf("no suitable route found for prometheus")
 }
