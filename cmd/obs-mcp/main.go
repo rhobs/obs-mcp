@@ -102,7 +102,7 @@ func determinePrometheusURL(authMode mcp.AuthMode) string {
 	if authMode == mcp.AuthModeKubeConfig {
 		slog.Info("No Prometheus URL provided, attempting to use kubeconfig to discover Thanos Querier")
 
-		url, err := k8s.GetThanosQuerierURL()
+		url, err := k8s.GetPrometheusURL()
 		if err != nil {
 			slog.Warn("Failed to discover Thanos Querier via kubeconfig, falling back to localhost", "err", err)
 			return defaultPrometheusURL
