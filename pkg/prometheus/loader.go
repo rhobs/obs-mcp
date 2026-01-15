@@ -64,7 +64,45 @@ func (p *RealLoader) ListMetrics(ctx context.Context) ([]string, error) {
 	return metrics, nil
 }
 
+// ValidateMetricsExist validates that all metrics referenced in a query exist in Prometheus TSDB.
+// This is an always-on validation that should be called before executing any query.
+// It uses ListMetrics to fetch available metrics and ensures all metrics in the query exist.
+func (p *RealLoader) ValidateMetricsExist(ctx context.Context, query string) error {
+	metricNames, err := ExtractMetricNames(query)
+	if err != nil {
+		return fmt.Errorf("failed to extract metric names: %w", err)
+	}
+
+	// If no metrics in query, nothing to validate
+	if len(metricNames) == 0 {
+		return nil
+	}
+
+	availableMetricsList, err := p.ListMetrics(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to fetch available metrics: %w", err)
+	}
+
+	availableMetrics := make(map[string]bool)
+	for _, metric := range availableMetricsList {
+		availableMetrics[metric] = true
+	}
+
+	for _, metricName := range metricNames {
+		if !availableMetrics[metricName] {
+			return fmt.Errorf("metric %q does not exist in Prometheus TSDB, please check the query and try again", metricName)
+		}
+	}
+
+	return nil
+}
+
 func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+	// Always validate that metrics exist in Prometheus TSDB
+	if err := p.ValidateMetricsExist(ctx, query); err != nil {
+		return nil, fmt.Errorf("metric validation failed: %w", err)
+	}
+
 	if p.guardrails != nil {
 		isSafe, err := p.guardrails.IsSafeQuery(ctx, query, p.client)
 		if err != nil {
@@ -99,6 +137,11 @@ func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start,
 }
 
 func (p *RealLoader) ExecuteInstantQuery(ctx context.Context, query string, ts time.Time) (map[string]any, error) {
+	// Always validate that metrics exist in Prometheus TSDB
+	if err := p.ValidateMetricsExist(ctx, query); err != nil {
+		return nil, fmt.Errorf("metric validation failed: %w", err)
+	}
+
 	if p.guardrails != nil {
 		isSafe, err := p.guardrails.IsSafeQuery(ctx, query, p.client)
 		if err != nil {

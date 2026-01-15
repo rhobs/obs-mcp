@@ -318,7 +318,8 @@ func TestGuardrails_MaxLabelCardinality(t *testing.T) {
 
 // mockPrometheusAPI is a mock implementation of v1.API for testing
 type mockPrometheusAPI struct {
-	tsdbResult v1.TSDBResult
+	tsdbResult       v1.TSDBResult
+	availableMetrics []string
 }
 
 func (m *mockPrometheusAPI) TSDB(ctx context.Context, opts ...v1.Option) (v1.TSDBResult, error) {
@@ -346,6 +347,14 @@ func (m *mockPrometheusAPI) LabelNames(ctx context.Context, matches []string, st
 	return nil, nil, nil
 }
 func (m *mockPrometheusAPI) LabelValues(ctx context.Context, label string, matches []string, startTime, endTime time.Time, opts ...v1.Option) (model.LabelValues, v1.Warnings, error) {
+	// Only handle __name__ label for metric listing
+	if label == "__name__" && m.availableMetrics != nil {
+		result := make(model.LabelValues, len(m.availableMetrics))
+		for i, metric := range m.availableMetrics {
+			result[i] = model.LabelValue(metric)
+		}
+		return result, nil, nil
+	}
 	return nil, nil, nil
 }
 func (m *mockPrometheusAPI) Query(ctx context.Context, query string, ts time.Time, opts ...v1.Option) (model.Value, v1.Warnings, error) {
