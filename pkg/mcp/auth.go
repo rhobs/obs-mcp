@@ -177,9 +177,6 @@ func createAPIConfigWithToken(prometheusURL, token string, insecure bool) (proma
 }
 
 func getTokenFromCtx(ctx context.Context) string {
-	// TODO: we're ignoring user auth for now, just to see if something improves
-	return ""
-	//nolint:govet // intentionally disabling token auth temporarily
 	k8sToken := ctx.Value(AuthHeaderKey)
 	if k8sToken == nil {
 		slog.Warn("No token provided in context.")
