@@ -118,7 +118,7 @@ func createKubeconfigAPIConfig(opts ObsMCPOptions) (promapi.Config, error) {
 	}
 
 	return promapi.Config{
-		Address:      opts.PromURL,
+		Address:      opts.MetricsBackendURL,
 		RoundTripper: rt,
 	}, nil
 }
@@ -132,7 +132,7 @@ func createServiceAccountAPIConfig(opts ObsMCPOptions) (promapi.Config, error) {
 	}
 	token := string(tokenBytes)
 
-	return createAPIConfigWithToken(opts.PromURL, token, opts.Insecure)
+	return createAPIConfigWithToken(opts.MetricsBackendURL, token, opts.Insecure)
 }
 
 func createHeaderAPIConfig(ctx context.Context, opts ObsMCPOptions) (promapi.Config, error) {
@@ -141,7 +141,7 @@ func createHeaderAPIConfig(ctx context.Context, opts ObsMCPOptions) (promapi.Con
 		slog.Warn("No token provided in context for header auth mode")
 	}
 
-	return createAPIConfigWithToken(opts.PromURL, token, opts.Insecure)
+	return createAPIConfigWithToken(opts.MetricsBackendURL, token, opts.Insecure)
 }
 
 func createAPIConfigWithToken(prometheusURL, token string, insecure bool) (promapi.Config, error) {

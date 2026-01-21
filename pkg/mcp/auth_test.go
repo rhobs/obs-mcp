@@ -47,8 +47,8 @@ func TestCreateHeaderAPIConfig(t *testing.T) {
 
 	// Step 4: Create API config using the complete production code path
 	opts := ObsMCPOptions{
-		PromURL:  "https://prometheus.example.com",
-		Insecure: true,
+		MetricsBackendURL: "https://prometheus.example.com",
+		Insecure:          true,
 	}
 	apiConfig, err := createHeaderAPIConfig(ctx, opts)
 	if err != nil {

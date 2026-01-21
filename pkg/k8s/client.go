@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"k8s.io/client-go/kubernetes"
@@ -11,10 +12,19 @@ import (
 )
 
 const (
-	openShiftRouteAPI   = "/apis/route.openshift.io/v1"
-	monitoringNamespace = "openshift-monitoring"
-	routesResource      = "routes"
-	prometheusRouteName = "prometheus-k8s"
+	openShiftRouteAPI      = "/apis/route.openshift.io/v1"
+	monitoringNamespace    = "openshift-monitoring"
+	routesResource         = "routes"
+	thanosQuerierRouteName = "thanos-querier"
+	prometheusRouteName    = "prometheus-k8s"
+)
+
+// MetricsBackend represents the type of metrics backend
+type MetricsBackend string
+
+const (
+	MetricsBackendPrometheus MetricsBackend = "prometheus"
+	MetricsBackendThanos     MetricsBackend = "thanos"
 )
 
 // GetClientConfig returns a Kubernetes REST config using kubeconfig
@@ -47,8 +57,33 @@ func GetKubeClient() (*kubernetes.Clientset, error) {
 	return clientset, nil
 }
 
-// GetPrometheusURL discovers the prometheus to be used in OpenShift environemtn.
-func GetPrometheusURL() (string, error) {
+// GetMetricsBackendURL discovers the metrics backend endpoint in OpenShift.
+func GetMetricsBackendURL(backend MetricsBackend) (string, error) {
+	if backend == MetricsBackendPrometheus {
+		return discoverRoute(prometheusRouteName)
+	}
+
+	// Thanos with fallback to Prometheus
+	url, err := discoverRoute(thanosQuerierRouteName)
+	if err == nil {
+		return url, nil
+	}
+	slog.Info("Thanos route not found, falling back to prometheus", "error", err)
+	return discoverRoute(prometheusRouteName)
+}
+
+// discoverRoute attempts to find a route and logs the result.
+func discoverRoute(routeName string) (string, error) {
+	url, err := getRouteURL(routeName)
+	if err != nil {
+		slog.Error("Failed to discover route", "route", routeName, "error", err)
+		return "", err
+	}
+	slog.Info("Successfully discovered route", "route", routeName, "url", url)
+	return url, nil
+}
+
+func getRouteURL(routeName string) (string, error) {
 	ctx := context.Background()
 
 	kubeClient, err := GetKubeClient()
@@ -61,11 +96,11 @@ func GetPrometheusURL() (string, error) {
 		AbsPath(openShiftRouteAPI).
 		Namespace(monitoringNamespace).
 		Resource(routesResource).
-		Name(prometheusRouteName).
+		Name(routeName).
 		Do(ctx)
 
 	if result.Error() != nil {
-		return "", fmt.Errorf("failed to load prometheus route: %w", result.Error())
+		return "", fmt.Errorf("failed to load route %s: %w", routeName, result.Error())
 	}
 
 	body, err := result.Raw()
@@ -73,18 +108,22 @@ func GetPrometheusURL() (string, error) {
 		return "", fmt.Errorf("failed to parse the route results: %w", err)
 	}
 
-	// Simple string parsing to extract the host
-	bodyStr := string(body)
-	if strings.Contains(bodyStr, `"host":`) {
-		// Extract host field using string manipulation
-		parts := strings.Split(bodyStr, `"host":"`)
+	host := parseHostFromRouteBody(string(body))
+	if host == "" {
+		return "", fmt.Errorf("no host found in route %s", routeName)
+	}
+	return host, nil
+}
+
+func parseHostFromRouteBody(body string) string {
+	if strings.Contains(body, `"host":`) {
+		parts := strings.Split(body, `"host":"`)
 		if len(parts) > 1 {
 			hostPart := strings.Split(parts[1], `"`)[0]
 			if hostPart != "" {
-				return "https://" + hostPart, nil
+				return "https://" + hostPart
 			}
 		}
 	}
-
-	return "", fmt.Errorf("no suitable route found for prometheus")
+	return ""
 }
