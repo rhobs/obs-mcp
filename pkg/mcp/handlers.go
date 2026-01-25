@@ -281,12 +281,12 @@ func FormatPanelsForUIHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[FormatPanelsFo
 			}
 		}
 
-		_, _, spec, err := k8s.GetDashboard(ctx, input.DashboardNamespace, input.DashboardName)
+		_, _, spec, err := k8s.GetDashboard(ctx, input.Namespace, input.Name)
 		if err != nil {
 			return nil, FormatPanelsForUIOutput{}, fmt.Errorf("failed to get Dashboard: %w", err)
 		}
 
-		panels, err := perses.ExtractPanels(input.DashboardName, input.DashboardNamespace, spec, true, panelIDs)
+		panels, err := perses.ExtractPanels(input.Name, input.Namespace, spec, true, panelIDs)
 		if err != nil {
 			return nil, FormatPanelsForUIOutput{}, fmt.Errorf("failed to extract panels: %w", err)
 		}
@@ -294,8 +294,8 @@ func FormatPanelsForUIHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[FormatPanelsFo
 		widgets := convertPanelsToDashboardWidgets(panels)
 
 		slog.Info("FormatPanelsForUIHandler executed successfully",
-			"dashboard", input.DashboardName,
-			"namespace", input.DashboardNamespace,
+			"dashboard", input.Name,
+			"namespace", input.Namespace,
 			"requestedPanels", len(panelIDs),
 			"formattedWidgets", len(widgets))
 

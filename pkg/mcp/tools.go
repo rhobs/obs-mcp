@@ -190,9 +190,9 @@ type FormatPanelsForUIOutput struct {
 
 // FormatPanelsForUIInput defines the input schema for the format_panels_for_ui tool.
 type FormatPanelsForUIInput struct {
-	DashboardName      string `json:"dashboard_name"`
-	DashboardNamespace string `json:"dashboard_namespace"`
-	PanelIDs           string `json:"panel_ids"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	PanelIDs  string `json:"panel_ids"`
 }
 
 var FormatPanelsForUI = tools.ToolDef[FormatPanelsForUIOutput]{
@@ -214,13 +214,13 @@ Panel IDs (fetched using get_dashboard_panels) must be provided to specify which
 	ReadOnly: true,
 	Params: []tools.ParamDef{
 		{
-			Name:        "dashboard_name",
+			Name:        "name",
 			Type:        tools.ParamTypeString,
 			Description: "Name of the dashboard containing the panels",
 			Required:    true,
 		},
 		{
-			Name:        "dashboard_namespace",
+			Name:        "namespace",
 			Type:        tools.ParamTypeString,
 			Description: "Namespace of the dashboard",
 			Required:    true,
