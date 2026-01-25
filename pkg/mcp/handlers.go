@@ -9,6 +9,7 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/prometheus/common/model"
+
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/perses"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
@@ -233,17 +234,17 @@ func GetDashboardHandler(_ ObsMCPOptions) func(context.Context, mcp.CallToolRequ
 			return errorResult("namespace parameter is required and must be a string")
 		}
 
-		dashboardName, dashboardNamespace, spec, err := k8s.GetDashboard(ctx, namespace, name)
+		spec, err := k8s.GetDashboard(ctx, namespace, name)
 		if err != nil {
 			return errorResult(fmt.Sprintf("failed to get Dashboard: %s", err.Error()))
 		}
 
-		slog.Info("GetDashboardHandler executed successfully", "name", dashboardName, "namespace", dashboardNamespace)
+		slog.Info("GetDashboardHandler executed successfully", "name", name, "namespace", namespace)
 		slog.Debug("GetDashboardHandler spec", "spec", spec)
 
 		output := GetDashboardOutput{
-			Name:      dashboardName,
-			Namespace: dashboardNamespace,
+			Name:      name,
+			Namespace: namespace,
 			Spec:      spec,
 		}
 
@@ -283,16 +284,13 @@ func GetDashboardPanelsHandler(_ ObsMCPOptions) func(context.Context, mcp.CallTo
 			}
 		}
 
-		dashboardName, dashboardNamespace, spec, err := k8s.GetDashboard(ctx, namespace, name)
+		spec, err := k8s.GetDashboard(ctx, namespace, name)
 		if err != nil {
 			return errorResult(fmt.Sprintf("failed to get dashboard: %s", err.Error()))
 		}
 
 		// Extract panel metadata (with optional filtering)
-		panels, err := perses.ExtractPanels(dashboardName, dashboardNamespace, spec, false, panelIDs)
-		if err != nil {
-			return errorResult(fmt.Sprintf("failed to extract panels: %s", err.Error()))
-		}
+		panels := perses.ExtractPanels(name, namespace, spec, false, panelIDs)
 
 		duration := "1h"
 		if d, ok := spec["duration"].(string); ok {
@@ -300,14 +298,14 @@ func GetDashboardPanelsHandler(_ ObsMCPOptions) func(context.Context, mcp.CallTo
 		}
 
 		slog.Info("GetDashboardPanelsHandler executed successfully",
-			"name", dashboardName,
-			"namespace", dashboardNamespace,
+			"name", name,
+			"namespace", namespace,
 			"requested", len(panelIDs),
 			"returned", len(panels))
 
 		output := GetDashboardPanelsOutput{
-			Name:      dashboardName,
-			Namespace: dashboardNamespace,
+			Name:      name,
+			Namespace: namespace,
 			Duration:  duration,
 			Panels:    panels,
 		}
@@ -352,16 +350,13 @@ func FormatPanelsForUIHandler(_ ObsMCPOptions) func(context.Context, mcp.CallToo
 			}
 		}
 
-		_, _, spec, err := k8s.GetDashboard(ctx, namespace, name)
+		spec, err := k8s.GetDashboard(ctx, namespace, name)
 		if err != nil {
 			return errorResult(fmt.Sprintf("failed to get Dashboard: %s", err.Error()))
 		}
 
 		// Extract full panel details for UI
-		panels, err := perses.ExtractPanels(name, namespace, spec, true, panelIDs)
-		if err != nil {
-			return errorResult(fmt.Sprintf("failed to extract panels: %s", err.Error()))
-		}
+		panels := perses.ExtractPanels(name, namespace, spec, true, panelIDs)
 
 		// Convert panels to DashboardWidget format
 		widgets := convertPanelsToDashboardWidgets(panels)
@@ -426,7 +421,7 @@ func isWhitespace(b byte) bool {
 }
 
 // convertPanelsToDashboardWidgets converts DashboardPanel objects to DashboardWidget format expected by UI.
-func convertPanelsToDashboardWidgets(panels []perses.DashboardPanel) []perses.DashboardWidget {
+func convertPanelsToDashboardWidgets(panels []*perses.DashboardPanel) []perses.DashboardWidget {
 	widgets := make([]perses.DashboardWidget, 0, len(panels))
 
 	for _, panel := range panels {
@@ -487,12 +482,16 @@ func mapChartTypeToComponent(chartType string) string {
 // inferBreakpointFromWidth maps panel width to responsive breakpoint.
 // Perses uses a 24-column grid, so we infer breakpoints based on width.
 func inferBreakpointFromWidth(width int) string {
-	if width >= 18 {
+	switch {
+	case width >= 18:
 		return "xl"
-	} else if width >= 12 {
+	case width >= 12:
 		return "lg"
-	} else if width >= 6 {
+	case width >= 6:
 		return "md"
+	case width >= 1:
+		return "sm"
+	default: // 0
+		return "lg"
 	}
-	return "sm"
 }

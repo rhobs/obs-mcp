@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -106,7 +107,7 @@ func TestExecuteRangeQueryHandler_ExplicitTimeRange_RFC3339(t *testing.T) {
 func TestExecuteRangeQueryHandler_StepParsing_ValidSteps(t *testing.T) {
 	mockClient := &MockedLoader{
 		ExecuteRangeQueryFunc: func(_ context.Context, _ string, _, _ time.Time, _ time.Duration) (map[string]any, error) {
-			return map[string]interface{}{"resultType": "matrix", "result": []interface{}{}}, nil
+			return map[string]any{"resultType": "matrix", "result": []any{}}, nil
 		},
 	}
 
@@ -361,17 +362,17 @@ func getErrorMessage(t *testing.T, result *mcp.CallToolResult) string {
 func TestGetDashboardPanelsHandler_RequiredParameters(t *testing.T) {
 	tests := []struct {
 		name          string
-		params        map[string]interface{}
+		params        map[string]any
 		expectedError string
 	}{
 		{
 			name:          "missing name parameter",
-			params:        map[string]interface{}{"namespace": "default"},
+			params:        map[string]any{"namespace": "default"},
 			expectedError: "name parameter is required and must be a string",
 		},
 		{
 			name:          "missing namespace parameter",
-			params:        map[string]interface{}{"name": "test-dashboard"},
+			params:        map[string]any{"name": "test-dashboard"},
 			expectedError: "namespace parameter is required and must be a string",
 		},
 	}
@@ -398,12 +399,12 @@ func TestGetDashboardPanelsHandler_RequiredParameters(t *testing.T) {
 func TestFormatPanelsForUIHandler_RequiredParameters(t *testing.T) {
 	tests := []struct {
 		name          string
-		params        map[string]interface{}
+		params        map[string]any
 		expectedError string
 	}{
 		{
 			name: "missing name",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"namespace": "default",
 				"panel_ids": "0_0",
 			},
@@ -411,7 +412,7 @@ func TestFormatPanelsForUIHandler_RequiredParameters(t *testing.T) {
 		},
 		{
 			name: "missing namespace",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"name":      "test-dashboard",
 				"panel_ids": "0_0",
 			},
@@ -419,7 +420,7 @@ func TestFormatPanelsForUIHandler_RequiredParameters(t *testing.T) {
 		},
 		{
 			name: "missing panel_ids",
-			params: map[string]interface{}{
+			params: map[string]any{
 				"name":      "test-dashboard",
 				"namespace": "default",
 			},
@@ -452,7 +453,7 @@ func TestGetDashboardPanelsHandler_OptionalPanelIDs(t *testing.T) {
 	req := mcp.CallToolRequest{
 		Params: mcp.CallToolParams{
 			Name: "get_dashboard_panels",
-			Arguments: map[string]interface{}{
+			Arguments: map[string]any{
 				"name":      "test-dashboard",
 				"namespace": "default",
 				// panel_ids is optional - not provided
@@ -467,7 +468,7 @@ func TestGetDashboardPanelsHandler_OptionalPanelIDs(t *testing.T) {
 		t.Errorf("panel_ids should be optional, but got required parameter error")
 	}
 	// Expected to fail with "failed to get dashboard" since we don't have a real cluster
-	if len(errorMsg) > 0 && len(errorMsg) >= 23 && errorMsg[:23] != "failed to get dashboard" {
+	if errorMsg != "" && strings.HasPrefix(errorMsg, "failed to get Dashboard") {
 		t.Logf("Got expected error: %s", errorMsg)
 	}
 }
@@ -475,17 +476,17 @@ func TestGetDashboardPanelsHandler_OptionalPanelIDs(t *testing.T) {
 func TestGetDashboardHandler_RequiredParameters(t *testing.T) {
 	tests := []struct {
 		name          string
-		params        map[string]interface{}
+		params        map[string]any
 		expectedError string
 	}{
 		{
 			name:          "missing name parameter",
-			params:        map[string]interface{}{"namespace": "default"},
+			params:        map[string]any{"namespace": "default"},
 			expectedError: "name parameter is required and must be a string",
 		},
 		{
 			name:          "missing namespace parameter",
-			params:        map[string]interface{}{"name": "test-dashboard"},
+			params:        map[string]any{"name": "test-dashboard"},
 			expectedError: "namespace parameter is required and must be a string",
 		},
 	}

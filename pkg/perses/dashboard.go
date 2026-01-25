@@ -40,7 +40,7 @@ type PanelPosition struct {
 type DashboardWidget struct {
 	ID            string               `json:"id" jsonschema:"description=Unique identifier for the widget"`
 	ComponentType string               `json:"componentType" jsonschema:"description=Type of Perses component to render (PersesTimeSeries, PersesPieChart, PersesTable)"`
-	Position      PanelPosition        `json:"position,omitempty" jsonschema:"description=Layout position in 24-column grid (optional, included when available from dashboard layout)"`
+	Position      PanelPosition        `json:"position" jsonschema:"description=Layout position in 24-column grid (optional, included when available from dashboard layout)"`
 	Props         DashboardWidgetProps `json:"props" jsonschema:"description=Properties passed to the Perses component"`
 	Breakpoint    string               `json:"breakpoint" jsonschema:"description=Responsive grid breakpoint (xl/lg/md/sm) inferred from panel width, defaults to lg if position unavailable"`
 }

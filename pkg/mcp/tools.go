@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"github.com/mark3labs/mcp-go/mcp"
+
 	"github.com/rhobs/obs-mcp/pkg/perses"
 )
 
@@ -77,9 +78,9 @@ type DashboardsOutput struct {
 
 // GetDashboardOutput defines the output schema for the get_dashboard tool.
 type GetDashboardOutput struct {
-	Name      string                 `json:"name" jsonschema:"description=Name of the Dashboard"`
-	Namespace string                 `json:"namespace" jsonschema:"description=Namespace where the Dashboard is located"`
-	Spec      map[string]interface{} `json:"spec" jsonschema:"description=The full dashboard specification including panels, layouts, variables, and datasources"`
+	Name      string         `json:"name" jsonschema:"description=Name of the Dashboard"`
+	Namespace string         `json:"namespace" jsonschema:"description=Namespace where the Dashboard is located"`
+	Spec      map[string]any `json:"spec" jsonschema:"description=The full dashboard specification including panels, layouts, variables, and datasources"`
 }
 
 // CreateListDashboardsTool creates the list_dashboards tool definition.
@@ -134,10 +135,10 @@ For most use cases, you will want to follow up with get_dashboard_panels to extr
 
 // GetDashboardPanelsOutput defines the output schema for the get_dashboard_panels tool.
 type GetDashboardPanelsOutput struct {
-	Name      string                  `json:"name" jsonschema:"description=Name of the dashboard"`
-	Namespace string                  `json:"namespace" jsonschema:"description=Namespace of the dashboard"`
-	Duration  string                  `json:"duration,omitempty" jsonschema:"description=Default time duration for queries extracted from dashboard spec (e.g. 1h, 24h)"`
-	Panels    []perses.DashboardPanel `json:"panels" jsonschema:"description=List of panel metadata including IDs, titles, queries, and chart types for LLM selection"`
+	Name      string                   `json:"name" jsonschema:"description=Name of the dashboard"`
+	Namespace string                   `json:"namespace" jsonschema:"description=Namespace of the dashboard"`
+	Duration  string                   `json:"duration,omitempty" jsonschema:"description=Default time duration for queries extracted from dashboard spec (e.g. 1h, 24h)"`
+	Panels    []*perses.DashboardPanel `json:"panels" jsonschema:"description=List of panel metadata including IDs, titles, queries, and chart types for LLM selection"`
 }
 
 // CreateGetDashboardPanelsTool creates the get_dashboard_panels tool definition.

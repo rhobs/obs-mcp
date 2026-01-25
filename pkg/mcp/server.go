@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/mark3labs/mcp-go/server"
+
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
