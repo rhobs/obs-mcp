@@ -19,10 +19,11 @@ type RangeQueryOutput struct {
 
 // SeriesResult represents a single time series result from a range query.
 type SeriesResult struct {
-	Metric map[string]string `json:"metric" jsonschema:"description=The metric labels"`
-	Values [][]any           `json:"values" jsonschema:"description=Array of [timestamp, value] pairs"`
+	Metric map[string]string `json:"metric" jsonschema:"description=The metric labels as key-value pairs"`
+	Values [][]any           `json:"values" jsonschema:"description=Array of [timestamp, value] pairs where timestamp is Unix epoch in seconds and value is the metric value"`
 }
 
+// CreateListMetricsTool creates the list_metrics tool definition.
 func CreateListMetricsTool() mcp.Tool {
 	tool := mcp.NewTool("list_metrics",
 		mcp.WithDescription("List all available metrics in Prometheus"),
@@ -35,6 +36,7 @@ func CreateListMetricsTool() mcp.Tool {
 	return tool
 }
 
+// CreateExecuteRangeQueryTool creates the execute_range_query tool definition.
 func CreateExecuteRangeQueryTool() mcp.Tool {
 	return mcp.NewTool("execute_range_query",
 		mcp.WithDescription(`Execute a PromQL range query with flexible time specification.
@@ -68,62 +70,34 @@ For historical data queries, use explicit 'start' and 'end' times.
 	)
 }
 
-// ListPersesDashboardsOutput defines the output schema for the list_perses_dashboards tool.
-type ListPersesDashboardsOutput struct {
-	Dashboards []perses.PersesDashboardInfo `json:"dashboards" jsonschema:"description=List of PersesDashboard objects from the cluster"`
+// DashboardsOutput defines the output schema for the list_dashboards tool.
+type DashboardsOutput struct {
+	Dashboards []perses.DashboardInfo `json:"dashboards" jsonschema:"description=List of all PersesDashboard resources from the cluster with their metadata"`
 }
 
-func CreateListPersesDashboardsTool() mcp.Tool {
-	return mcp.NewTool("list_perses_dashboards",
-		mcp.WithDescription(`List all PersesDashboard custom resources from the Kubernetes cluster.
-
-PersesDashboard is a Custom Resource from the Perses operator (https://github.com/perses/perses-operator) that defines
-dashboard configurations. This tool returns summary information about all available dashboards in the form of a list of names, namespaces, labels, and descriptions.
-
-IMPORTANT: Before using this tool, first check out_of_the_box_perses_dashboards for curated platform dashboards that are more likely to answer common user questions. 
-Only use this tool if the out-of-the-box dashboards don't have what the user is looking for.
-
-You can optionally filter by namespace and/or labels.
-
-Once you have found the dashboard you need, you can use the get_perses_dashboard tool to get the dashboard's panels and configuration.
-
-IMPORTANT: If you are looking for a specific dashboard, use this tool first to see if it exists. If it does, use the get_perses_dashboard tool to get the dashboard's panels and configuration.
-`),
-		mcp.WithString("namespace",
-			mcp.Description("Optional namespace to filter dashboards. Leave empty to list from all namespaces."),
-		),
-		mcp.WithString("label_selector",
-			mcp.Description("Optional Kubernetes label selector to filter dashboards (e.g., 'app=myapp', 'env=prod,team=platform', 'app in (foo,bar)'). Leave empty to list all dashboards."),
-		),
-		mcp.WithOutputSchema[ListPersesDashboardsOutput](),
-	)
-}
-
-// OOTBPersesDashboardsOutput defines the output schema for the out_of_the_box_perses_dashboards tool.
-type OOTBPersesDashboardsOutput struct {
-	Dashboards []perses.PersesDashboardInfo `json:"dashboards" jsonschema:"description=List of curated out-of-the-box PersesDashboard definitions"`
-}
-
-// GetPersesDashboardOutput defines the output schema for the get_perses_dashboard tool.
-type GetPersesDashboardOutput struct {
-	Name      string                 `json:"name" jsonschema:"description=Name of the PersesDashboard"`
-	Namespace string                 `json:"namespace" jsonschema:"description=Namespace where the PersesDashboard is located"`
+// GetDashboardOutput defines the output schema for the get_dashboard tool.
+type GetDashboardOutput struct {
+	Name      string                 `json:"name" jsonschema:"description=Name of the Dashboard"`
+	Namespace string                 `json:"namespace" jsonschema:"description=Namespace where the Dashboard is located"`
 	Spec      map[string]interface{} `json:"spec" jsonschema:"description=The full dashboard specification including panels, layouts, variables, and datasources"`
 }
 
-func CreateOOTBPersesDashboardsTool() mcp.Tool {
-	tool := mcp.NewTool("out_of_the_box_perses_dashboards",
-		mcp.WithDescription(`List curated out-of-the-box PersesDashboard definitions for the platform.
+// CreateListDashboardsTool creates the list_dashboards tool definition.
+func CreateListDashboardsTool() mcp.Tool {
+	tool := mcp.NewTool("list_dashboards",
+		mcp.WithDescription(`List all PersesDashboard resources from the cluster.
 
-IMPORTANT: Use this tool FIRST when looking for dashboards. These are pre-configured, curated dashboards that cover common platform observability needs and are 
-most likely to answer user questions about the platform.
+Start here when there is a need to visualize metrics.
 
-Only fall back to list_perses_dashboards if the dashboards returned here don't have
-what the user is looking for.
+Returns dashboard summaries with name, namespace, labels, and descriptions.
 
-Returns a list of dashboard summaries with name, namespace, labels, and description explaining what each dashboard contains.
+Use the descriptions to identify dashboards relevant to the user's question.
+
+In the case that there is insufficient information in the description, use get_dashboard to fetch the full dashboard spec for more context. Doing so is an expensive operation, so only do this when necessary.
+
+Follow up with get_dashboard_panels to see what panels are available in the relevant dashboard(s).
 `),
-		mcp.WithOutputSchema[OOTBPersesDashboardsOutput](),
+		mcp.WithOutputSchema[DashboardsOutput](),
 	)
 	// workaround for tool with no parameter
 	tool.InputSchema = mcp.ToolInputSchema{}
@@ -131,24 +105,106 @@ Returns a list of dashboard summaries with name, namespace, labels, and descript
 	return tool
 }
 
-func CreateGetPersesDashboardTool() mcp.Tool {
-	return mcp.NewTool("get_perses_dashboard",
-		mcp.WithDescription(`Get a specific PersesDashboard by name and namespace. This tool is used to get the dashboard's panels and configuration.
+// CreateGetDashboardTool creates the get_dashboard tool definition.
+func CreateGetDashboardTool() mcp.Tool {
+	return mcp.NewTool("get_dashboard",
+		mcp.WithDescription(`Get a specific Dashboard by name and namespace. This tool is used to get the dashboard's panels and configuration.
 
-Use the list_perses_dashboards or out_of_the_box_perses_dashboards tool first to find available dashboards, then use this tool to get the full specification of a specific dashboard.
+Use the list_dashboards tool first to find available dashboards, then use this tool to get the full specification of a specific dashboard, if needed (to gather more context).
+
+The intended use of this tool is only to gather more context on one or more dashboards when the description from list_dashboards is insufficient.
+
+Information about panels themselves should be gathered using get_dashboard_panels instead (e.g., looking at a "kind: Markdown" panel to gather more context).
 
 Returns the dashboard's full specification including panels, layouts, variables, and datasources in JSON format.
 
-You can glean PromQL queries from the dashboard's panels and variables, as well as production context to allow you to answer a user's questions better.
+For most use cases, you will want to follow up with get_dashboard_panels to extract panel metadata for selection.
 `),
 		mcp.WithString("name",
 			mcp.Required(),
-			mcp.Description("Name of the PersesDashboard"),
+			mcp.Description("Name of the Dashboard"),
 		),
 		mcp.WithString("namespace",
 			mcp.Required(),
-			mcp.Description("Namespace of the PersesDashboard"),
+			mcp.Description("Namespace of the Dashboard"),
 		),
-		mcp.WithOutputSchema[GetPersesDashboardOutput](),
+		mcp.WithOutputSchema[GetDashboardOutput](),
+	)
+}
+
+// GetDashboardPanelsOutput defines the output schema for the get_dashboard_panels tool.
+type GetDashboardPanelsOutput struct {
+	Name      string                  `json:"name" jsonschema:"description=Name of the dashboard"`
+	Namespace string                  `json:"namespace" jsonschema:"description=Namespace of the dashboard"`
+	Duration  string                  `json:"duration,omitempty" jsonschema:"description=Default time duration for queries extracted from dashboard spec (e.g. 1h, 24h)"`
+	Panels    []perses.DashboardPanel `json:"panels" jsonschema:"description=List of panel metadata including IDs, titles, queries, and chart types for LLM selection"`
+}
+
+// CreateGetDashboardPanelsTool creates the get_dashboard_panels tool definition.
+func CreateGetDashboardPanelsTool() mcp.Tool {
+	return mcp.NewTool("get_dashboard_panels",
+		mcp.WithDescription(`Get panel(s) information from a specific Dashboard.
+
+After finding a relevant dashboard (using list_dashboards and conditionally, get_dashboard), use this to see what panels it contains.
+
+Returns panel metadata including:
+- Panel IDs (format: 'panelName' or 'panelName-N' for multi-query panels)
+- Titles and descriptions
+- PromQL queries (may contain variables like $namespace)
+- Chart types (TimeSeriesChart, PieChart, Table)
+
+You can optionally provide specific panel IDs to fetch only those panels. This is useful when you remember panel IDs from earlier calls and want to re-fetch just their metadata without retrieving the entire dashboard's panels.
+
+Use this information to identify which panels answer the user's question, then use format_panels_for_ui with the selected panel IDs to prepare them for display.
+`),
+		mcp.WithString("name",
+			mcp.Required(),
+			mcp.Description("Name of the Dashboard"),
+		),
+		mcp.WithString("namespace",
+			mcp.Required(),
+			mcp.Description("Namespace of the Dashboard"),
+		),
+		mcp.WithString("panel_ids",
+			mcp.Description("Optional comma-separated list of panel IDs to filter. Panel IDs follow the format 'panelName' or 'panelName-N' where N is the query index (e.g. 'cpuUsage,memoryUsage-0,networkTraffic-1'). Use this to fetch metadata for specific panels you've seen in earlier calls. Leave empty to get all panels."),
+		),
+		mcp.WithOutputSchema[GetDashboardPanelsOutput](),
+	)
+}
+
+// FormatPanelsForUIOutput defines the output schema for the format_panels_for_ui tool.
+type FormatPanelsForUIOutput struct {
+	Widgets []perses.DashboardWidget `json:"widgets" jsonschema:"description=Dashboard widgets in DashboardWidget format ready for direct rendering by genie-plugin UI"`
+}
+
+// CreateFormatPanelsForUITool creates the format_panels_for_ui tool definition.
+func CreateFormatPanelsForUITool() mcp.Tool {
+	return mcp.NewTool("format_panels_for_ui",
+		mcp.WithDescription(`Format selected dashboard panels for UI rendering in DashboardWidget format.
+
+After choosing relevant panels, use this to prepare them for display.
+
+Returns an array of DashboardWidget objects ready for direct rendering, with:
+- id: Unique panel identifier
+- componentType: Perses component name (PersesTimeSeries, PersesPieChart, PersesTable)
+- position: Grid layout coordinates (x, y, w, h) in 24-column grid
+- breakpoint: Responsive grid breakpoint (xl/lg/md/sm) inferred from panel width
+- props: Component properties (query, duration, step, start, end)
+
+Panel IDs (fetched using get_dashboard_panels) must be provided to specify which panels to format.
+`),
+		mcp.WithString("dashboard_name",
+			mcp.Required(),
+			mcp.Description("Name of the dashboard containing the panels"),
+		),
+		mcp.WithString("dashboard_namespace",
+			mcp.Required(),
+			mcp.Description("Namespace of the dashboard"),
+		),
+		mcp.WithString("panel_ids",
+			mcp.Required(), // Panel IDs are not required in get_dashboard_panels, but are required here to specify which panels to format
+			mcp.Description("Comma-separated list of panel IDs to format (e.g. 'myPanelID-1,0_1-2')"),
+		),
+		mcp.WithOutputSchema[FormatPanelsForUIOutput](),
 	)
 }

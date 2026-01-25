@@ -22,9 +22,12 @@ import (
 type AuthMode string
 
 const (
-	AuthModeKubeConfig     AuthMode = "kubeconfig"
+	// AuthModeKubeConfig uses kubeconfig for authentication
+	AuthModeKubeConfig AuthMode = "kubeconfig"
+	// AuthModeServiceAccount uses in-cluster service account token for authentication
 	AuthModeServiceAccount AuthMode = "serviceaccount"
-	AuthModeHeader         AuthMode = "header"
+	// AuthModeHeader uses token from context header for authentication
+	AuthModeHeader AuthMode = "header"
 )
 
 const (
@@ -32,6 +35,7 @@ const (
 	defaultServiceAccountCAPath    = "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt"
 )
 
+// ContextKey defines keys for context values
 type ContextKey string
 
 const (

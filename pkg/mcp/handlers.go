@@ -172,44 +172,42 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 	}
 }
 
-// ListPersesDashboardsHandler handles listing PersesDashboard CRD objects from the cluster.
-func ListPersesDashboardsHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		slog.Info("ListPersesDashboardsHandler called")
-		slog.Debug("ListPersesDashboardsHandler params", "params", req.Params)
+// DashboardsHandler handles returning all dashboards from the cluster.
+// Returns all Dashboard resources to provide maximum context for LLM selection.
+func DashboardsHandler(_ ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.Info("DashboardsHandler called")
 
-		// Get optional parameters
-		namespace := req.GetString("namespace", "")
-		labelSelector := req.GetString("label_selector", "")
-
-		dashboards, err := k8s.ListPersesDashboards(ctx, namespace, labelSelector)
+		// TODO: add a label selectors flag when more dashboards start annotating themselves?
+		dashboards, err := k8s.ListDashboards(ctx, "", "")
 		if err != nil {
-			return errorResult(fmt.Sprintf("failed to list PersesDashboards: %s", err.Error()))
+			return errorResult(fmt.Sprintf("failed to list dashboards: %s", err.Error()))
 		}
 
-		slog.Info("ListPersesDashboardsHandler executed successfully", "resultLength", len(dashboards))
-		slog.Debug("ListPersesDashboardsHandler results", "results", dashboards)
-
-		// Convert to output format
-		dashboardInfos := make([]perses.PersesDashboardInfo, len(dashboards))
-		for i, db := range dashboards {
-			dashboardInfo := perses.PersesDashboardInfo{
-				Name:      db.Name,
-				Namespace: db.Namespace,
-				Labels:    db.GetLabels(),
+		// Convert to DashboardInfo
+		dashboardInfos := make([]perses.DashboardInfo, 0, len(dashboards))
+		for _, dashboard := range dashboards {
+			info := perses.DashboardInfo{
+				Name:      dashboard.Name,
+				Namespace: dashboard.Namespace,
+				Labels:    dashboard.Labels,
 			}
 
-			// Extract MCP help description from annotation if present
-			if annotations := db.GetAnnotations(); annotations != nil {
-				if description, ok := annotations[k8s.PersesMCPHelpAnnotation]; ok {
-					dashboardInfo.Description = description
+			// Extract description from annotation
+			if dashboard.Annotations != nil {
+				if desc, ok := dashboard.Annotations[k8s.MCPHelpAnnotation /* TODO: currently no such annotation is curated across openshift */]; ok {
+					info.Description = desc
 				}
 			}
 
-			dashboardInfos[i] = dashboardInfo
+			dashboardInfos = append(dashboardInfos, info)
 		}
 
-		output := ListPersesDashboardsOutput{Dashboards: dashboardInfos}
+		slog.Info("DashboardsHandler executed successfully", "dashboardCount", len(dashboardInfos))
+		slog.Debug("DashboardsHandler results", "results", dashboardInfos)
+
+		output := DashboardsOutput{Dashboards: dashboardInfos}
+
 		result, err := json.Marshal(output)
 		if err != nil {
 			return errorResult(fmt.Sprintf("failed to marshal dashboards: %s", err.Error()))
@@ -219,32 +217,12 @@ func ListPersesDashboardsHandler(opts ObsMCPOptions) func(context.Context, mcp.C
 	}
 }
 
-// OOTBPersesDashboardsHandler handles returning pre-configured out-of-the-box dashboards.
-func OOTBPersesDashboardsHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+// GetDashboardHandler handles getting a specific dashboard by name and namespace.
+func GetDashboardHandler(_ ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		slog.Info("OOTBPersesDashboardsHandler called")
+		slog.Info("GetDashboardHandler called")
+		slog.Debug("GetDashboardHandler params", "params", req.Params)
 
-		output := OOTBPersesDashboardsOutput{Dashboards: opts.OOTBDashboards}
-
-		slog.Info("OOTBPersesDashboardsHandler executed successfully", "resultLength", len(opts.OOTBDashboards))
-		slog.Debug("OOTBPersesDashboardsHandler results", "results", opts.OOTBDashboards)
-
-		result, err := json.Marshal(output)
-		if err != nil {
-			return errorResult(fmt.Sprintf("failed to marshal OOTB dashboards: %s", err.Error()))
-		}
-
-		return mcp.NewToolResultStructured(output, string(result)), nil
-	}
-}
-
-// GetPersesDashboardHandler handles getting a specific PersesDashboard by name and namespace.
-func GetPersesDashboardHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		slog.Info("GetPersesDashboardHandler called")
-		slog.Debug("GetPersesDashboardHandler params", "params", req.Params)
-
-		// Get required parameters
 		name, err := req.RequireString("name")
 		if err != nil {
 			return errorResult("name parameter is required and must be a string")
@@ -255,15 +233,15 @@ func GetPersesDashboardHandler(opts ObsMCPOptions) func(context.Context, mcp.Cal
 			return errorResult("namespace parameter is required and must be a string")
 		}
 
-		dashboardName, dashboardNamespace, spec, err := k8s.GetPersesDashboard(ctx, namespace, name)
+		dashboardName, dashboardNamespace, spec, err := k8s.GetDashboard(ctx, namespace, name)
 		if err != nil {
-			return errorResult(fmt.Sprintf("failed to get PersesDashboard: %s", err.Error()))
+			return errorResult(fmt.Sprintf("failed to get Dashboard: %s", err.Error()))
 		}
 
-		slog.Info("GetPersesDashboardHandler executed successfully", "name", dashboardName, "namespace", dashboardNamespace)
-		slog.Debug("GetPersesDashboardHandler spec", "spec", spec)
+		slog.Info("GetDashboardHandler executed successfully", "name", dashboardName, "namespace", dashboardNamespace)
+		slog.Debug("GetDashboardHandler spec", "spec", spec)
 
-		output := GetPersesDashboardOutput{
+		output := GetDashboardOutput{
 			Name:      dashboardName,
 			Namespace: dashboardNamespace,
 			Spec:      spec,
@@ -276,4 +254,242 @@ func GetPersesDashboardHandler(opts ObsMCPOptions) func(context.Context, mcp.Cal
 
 		return mcp.NewToolResultStructured(output, string(result)), nil
 	}
+}
+
+// GetDashboardPanelsHandler handles getting panel metadata from a dashboard for LLM selection.
+func GetDashboardPanelsHandler(_ ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.Info("GetDashboardPanelsHandler called")
+		slog.Debug("GetDashboardPanelsHandler params", "params", req.Params)
+
+		name, err := req.RequireString("name")
+		if err != nil {
+			return errorResult("name parameter is required and must be a string")
+		}
+
+		namespace, err := req.RequireString("namespace")
+		if err != nil {
+			return errorResult("namespace parameter is required and must be a string")
+		}
+
+		// Optional panel IDs filter
+		panelIDsStr := req.GetString("panel_ids", "")
+		var panelIDs []string
+		if panelIDsStr != "" {
+			for _, part := range splitByComma(panelIDsStr) {
+				if part != "" {
+					panelIDs = append(panelIDs, part)
+				}
+			}
+		}
+
+		dashboardName, dashboardNamespace, spec, err := k8s.GetDashboard(ctx, namespace, name)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to get dashboard: %s", err.Error()))
+		}
+
+		// Extract panel metadata (with optional filtering)
+		panels, err := perses.ExtractPanels(dashboardName, dashboardNamespace, spec, false, panelIDs)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to extract panels: %s", err.Error()))
+		}
+
+		duration := "1h"
+		if d, ok := spec["duration"].(string); ok {
+			duration = d
+		}
+
+		slog.Info("GetDashboardPanelsHandler executed successfully",
+			"name", dashboardName,
+			"namespace", dashboardNamespace,
+			"requested", len(panelIDs),
+			"returned", len(panels))
+
+		output := GetDashboardPanelsOutput{
+			Name:      dashboardName,
+			Namespace: dashboardNamespace,
+			Duration:  duration,
+			Panels:    panels,
+		}
+
+		result, err := json.Marshal(output)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to marshal panels: %s", err.Error()))
+		}
+
+		return mcp.NewToolResultStructured(output, string(result)), nil
+	}
+}
+
+// FormatPanelsForUIHandler handles formatting selected panels for UI rendering.
+func FormatPanelsForUIHandler(_ ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.Info("FormatPanelsForUIHandler called")
+		slog.Debug("FormatPanelsForUIHandler params", "params", req.Params)
+
+		dashboardName, err := req.RequireString("dashboard_name")
+		if err != nil {
+			return errorResult("dashboard_name parameter is required and must be a string")
+		}
+
+		dashboardNamespace, err := req.RequireString("dashboard_namespace")
+		if err != nil {
+			return errorResult("dashboard_namespace parameter is required and must be a string")
+		}
+
+		panelIDsStr := req.GetString("panel_ids", "")
+
+		// Parse comma-separated panel IDs
+		var panelIDs []string
+		if panelIDsStr != "" {
+			for _, part := range splitByComma(panelIDsStr) {
+				if part != "" {
+					panelIDs = append(panelIDs, part)
+				}
+			}
+		}
+
+		_, _, spec, err := k8s.GetDashboard(ctx, dashboardNamespace, dashboardName)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to get Dashboard: %s", err.Error()))
+		}
+
+		// Extract full panel details for UI
+		panels, err := perses.ExtractPanels(dashboardName, dashboardNamespace, spec, true, panelIDs)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to extract panels: %s", err.Error()))
+		}
+
+		// Convert panels to DashboardWidget format
+		widgets := convertPanelsToDashboardWidgets(panels)
+
+		slog.Info("FormatPanelsForUIHandler executed successfully",
+			"dashboard", dashboardName,
+			"namespace", dashboardNamespace,
+			"requestedPanels", len(panelIDs),
+			"formattedWidgets", len(widgets))
+
+		output := FormatPanelsForUIOutput{
+			Widgets: widgets,
+		}
+
+		result, err := json.Marshal(output)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to marshal panels: %s", err.Error()))
+		}
+
+		return mcp.NewToolResultStructured(output, string(result)), nil
+	}
+}
+
+func splitByComma(s string) []string {
+	var parts []string
+	current := ""
+	for i := 0; i < len(s); i++ {
+		if s[i] == ',' {
+			trimmed := trimWhitespace(current)
+			if trimmed != "" {
+				parts = append(parts, trimmed)
+			}
+			current = ""
+		} else {
+			current += string(s[i])
+		}
+	}
+	trimmed := trimWhitespace(current)
+	if trimmed != "" {
+		parts = append(parts, trimmed)
+	}
+	return parts
+}
+
+func trimWhitespace(s string) string {
+	start := 0
+	end := len(s)
+
+	for start < end && isWhitespace(s[start]) {
+		start++
+	}
+
+	for end > start && isWhitespace(s[end-1]) {
+		end--
+	}
+
+	return s[start:end]
+}
+
+func isWhitespace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+}
+
+// convertPanelsToDashboardWidgets converts DashboardPanel objects to DashboardWidget format expected by UI.
+func convertPanelsToDashboardWidgets(panels []perses.DashboardPanel) []perses.DashboardWidget {
+	widgets := make([]perses.DashboardWidget, 0, len(panels))
+
+	for _, panel := range panels {
+		// Set defaults for required fields
+		step := panel.Step
+		if step == "" {
+			step = "15s" // default step for Prometheus queries
+		}
+		duration := panel.Duration
+		if duration == "" {
+			duration = "1h" // default duration
+		}
+
+		// Infer breakpoint from panel width if available
+		breakpoint := "lg" // default
+		if panel.Position != nil {
+			breakpoint = inferBreakpointFromWidth(panel.Position.W)
+		}
+
+		widget := perses.DashboardWidget{
+			ID:            panel.ID,
+			ComponentType: mapChartTypeToComponent(panel.ChartType),
+			Breakpoint:    breakpoint,
+			Props: perses.DashboardWidgetProps{
+				Query:    panel.Query,
+				Duration: duration,
+				Start:    panel.Start,
+				End:      panel.End,
+				Step:     step,
+			},
+		}
+
+		// Add position if available
+		if panel.Position != nil {
+			widget.Position = *panel.Position
+		}
+
+		widgets = append(widgets, widget)
+	}
+
+	return widgets
+}
+
+// mapChartTypeToComponent maps Perses chart types to component names
+func mapChartTypeToComponent(chartType string) string {
+	switch chartType {
+	case "TimeSeriesChart":
+		return "PersesTimeSeries"
+	case "PieChart", "StatChart":
+		return "PersesPieChart"
+	case "Table":
+		return "PersesTable"
+	default:
+		return "PersesTimeSeries" // default fallback
+	}
+}
+
+// inferBreakpointFromWidth maps panel width to responsive breakpoint.
+// Perses uses a 24-column grid, so we infer breakpoints based on width.
+func inferBreakpointFromWidth(width int) string {
+	if width >= 18 {
+		return "xl"
+	} else if width >= 12 {
+		return "lg"
+	} else if width >= 6 {
+		return "md"
+	}
+	return "sm"
 }

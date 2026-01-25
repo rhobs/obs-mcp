@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	// PersesMCPHelpAnnotation is the annotation key for MCP help description
-	PersesMCPHelpAnnotation = "operator.perses.dev/mcp-help"
+	// MCPHelpAnnotation is the annotation key for MCP help description
+	MCPHelpAnnotation = "operator.perses.dev/mcp-help"
 )
 
-// GetPersesKubeClient returns a controller-runtime client with Perses types registered
-func GetPersesKubeClient() (client.Client, error) {
+// GetPersesClient returns a controller-runtime client with types registered
+func GetPersesClient() (client.Client, error) {
 	config, err := GetClientConfig()
 	if err != nil {
 		return nil, err
@@ -36,11 +36,11 @@ func GetPersesKubeClient() (client.Client, error) {
 	return c, nil
 }
 
-// ListPersesDashboards lists all PersesDashboard objects across all namespaces or in a specific namespace.
+// ListDashboards lists all Dashboard objects across all namespaces or in a specific namespace.
 // Uses types from github.com/perses/perses-operator/api/v1alpha1
 // The labelSelector parameter accepts Kubernetes label selector syntax (e.g., "app=myapp,env=prod").
-func ListPersesDashboards(ctx context.Context, namespace, labelSelector string) ([]persesv1alpha1.PersesDashboard, error) {
-	c, err := GetPersesKubeClient()
+func ListDashboards(ctx context.Context, namespace, labelSelector string) ([]persesv1alpha1.PersesDashboard, error) {
+	c, err := GetPersesClient()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get perses client: %w", err)
 	}
@@ -60,16 +60,16 @@ func ListPersesDashboards(ctx context.Context, namespace, labelSelector string) 
 
 	var dashboardList persesv1alpha1.PersesDashboardList
 	if err := c.List(ctx, &dashboardList, listOpts); err != nil {
-		return nil, fmt.Errorf("failed to list PersesDashboards: %w", err)
+		return nil, fmt.Errorf("failed to list Dashboards: %w", err)
 	}
 
 	return dashboardList.Items, nil
 }
 
-// GetPersesDashboard retrieves a specific PersesDashboard by name and namespace.
+// GetDashboard retrieves a specific Dashboard by name and namespace.
 // Returns the dashboard name, namespace, and full spec as a map for JSON serialization.
-func GetPersesDashboard(ctx context.Context, namespace, name string) (string, string, map[string]interface{}, error) {
-	c, err := GetPersesKubeClient()
+func GetDashboard(ctx context.Context, namespace, name string) (string, string, map[string]interface{}, error) {
+	c, err := GetPersesClient()
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to get perses client: %w", err)
 	}
@@ -77,7 +77,7 @@ func GetPersesDashboard(ctx context.Context, namespace, name string) (string, st
 	var dashboard persesv1alpha1.PersesDashboard
 	key := client.ObjectKey{Namespace: namespace, Name: name}
 	if err := c.Get(ctx, key, &dashboard); err != nil {
-		return "", "", nil, fmt.Errorf("failed to get PersesDashboard %s/%s: %w", namespace, name, err)
+		return "", "", nil, fmt.Errorf("failed to get Dashboard %s/%s: %w", namespace, name, err)
 	}
 
 	// Convert spec to map[string]interface{} for JSON serialization
@@ -89,7 +89,7 @@ func GetPersesDashboard(ctx context.Context, namespace, name string) (string, st
 	return dashboard.Name, dashboard.Namespace, specMap, nil
 }
 
-// specToMap converts a PersesDashboardSpec to a map[string]interface{} for JSON serialization
+// specToMap converts a DashboardSpec to a map[string]interface{} for JSON serialization
 func specToMap(spec persesv1alpha1.Dashboard) (map[string]interface{}, error) {
 	data, err := json.Marshal(spec)
 	if err != nil {

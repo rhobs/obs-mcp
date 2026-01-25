@@ -68,7 +68,7 @@ func TestExecuteRangeQueryHandler_ExplicitTimeRange_RFC3339(t *testing.T) {
 	expectedEnd, _ := prometheus.ParseTimestamp("2024-01-01T01:00:00Z")
 
 	mockClient := &MockedLoader{
-		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+		ExecuteRangeQueryFunc: func(_ context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
 			if query != "up{job=\"api\"}" {
 				t.Errorf("expected query 'up{job=\"api\"}', got %q", query)
 			}
@@ -105,8 +105,8 @@ func TestExecuteRangeQueryHandler_ExplicitTimeRange_RFC3339(t *testing.T) {
 
 func TestExecuteRangeQueryHandler_StepParsing_ValidSteps(t *testing.T) {
 	mockClient := &MockedLoader{
-		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
-			return map[string]any{"resultType": "matrix", "result": []any{}}, nil
+		ExecuteRangeQueryFunc: func(_ context.Context, _ string, _, _ time.Time, _ time.Duration) (map[string]any, error) {
+			return map[string]interface{}{"resultType": "matrix", "result": []interface{}{}}, nil
 		},
 	}
 
@@ -246,7 +246,7 @@ func TestExecuteRangeQueryHandler_RequiredParameters(t *testing.T) {
 
 func TestExecuteRangeQueryHandler_DurationMode_DefaultOneHour(t *testing.T) {
 	mockClient := &MockedLoader{
-		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+		ExecuteRangeQueryFunc: func(_ context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
 			if query != "up{job=\"api\"}" {
 				t.Errorf("expected query 'up{job=\"api\"}', got %q", query)
 			}
@@ -282,7 +282,7 @@ func TestExecuteRangeQueryHandler_DurationMode_DefaultOneHour(t *testing.T) {
 
 func TestExecuteRangeQueryHandler_DurationMode_CustomDuration(t *testing.T) {
 	mockClient := &MockedLoader{
-		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+		ExecuteRangeQueryFunc: func(_ context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
 			if query != "rate(http_requests_total{job=\"api\"}[5m])" {
 				t.Errorf("expected query 'rate(http_requests_total{job=\"api\"}[5m])', got %q", query)
 			}
@@ -316,7 +316,7 @@ func TestExecuteRangeQueryHandler_DurationMode_CustomDuration(t *testing.T) {
 
 func TestExecuteRangeQueryHandler_DurationMode_NOWKeyword(t *testing.T) {
 	mockClient := &MockedLoader{
-		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+		ExecuteRangeQueryFunc: func(_ context.Context, _ string, start, end time.Time, _ time.Duration) (map[string]any, error) {
 			duration := end.Sub(start)
 			if duration < 59*time.Minute || duration > 61*time.Minute {
 				t.Errorf("expected duration ~1h when NOW is used, got %v", duration)
