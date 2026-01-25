@@ -53,6 +53,13 @@ kubectl -n monitoring rollout status statefulset/prometheus-k8s --timeout=5m
 echo "==> Waiting for Alertmanager to be ready..."
 kubectl -n monitoring rollout status statefulset/alertmanager-main --timeout=5m
 
+echo "==> Installing Perses CRD..."
+kubectl apply -f "${ROOT_DIR}/hack/e2e/manifests/perses-crd.yaml"
+kubectl wait --for condition=Established crd/persesdashboards.perses.dev --timeout=2m
+
+echo "==> Installing Perses sample dashboard..."
+kubectl apply -f "${ROOT_DIR}/hack/e2e/manifests/perses-sample-dashboard.yaml"
+
 echo "==> Cluster setup complete!"
 echo "    Run 'make test-e2e-deploy' to build and deploy obs-mcp"
 echo "    Run 'make test-e2e' to run E2E tests"
