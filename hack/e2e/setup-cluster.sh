@@ -26,6 +26,10 @@ fi
 
 # Apply CRDs and namespace setup first
 kubectl apply --server-side -f "${KUBE_PROMETHEUS_DIR}/manifests/setup"
+
+echo "==> Installing Perses CRD..."
+kubectl apply -f "${ROOT_DIR}/hack/e2e/manifests/perses-crd.yaml"
+
 echo "==> Waiting for CRDs to be established..."
 kubectl wait --for condition=Established --all CustomResourceDefinition --namespace=monitoring --timeout=5m
 
@@ -44,6 +48,9 @@ for f in "${KUBE_PROMETHEUS_DIR}"/manifests/alertmanager-*.yaml; do
     kubectl apply -f "$f"
 done
 
+echo "==> Installing Perses sample dashboard..."
+kubectl apply -f "${ROOT_DIR}/hack/e2e/manifests/perses-sample-dashboard.yaml"
+
 echo "==> Waiting for Prometheus Operator to be ready..."
 kubectl -n monitoring rollout status deployment/prometheus-operator --timeout=5m
 
@@ -52,13 +59,6 @@ kubectl -n monitoring rollout status statefulset/prometheus-k8s --timeout=5m
 
 echo "==> Waiting for Alertmanager to be ready..."
 kubectl -n monitoring rollout status statefulset/alertmanager-main --timeout=5m
-
-echo "==> Installing Perses CRD..."
-kubectl apply -f "${ROOT_DIR}/hack/e2e/manifests/perses-crd.yaml"
-kubectl wait --for condition=Established crd/persesdashboards.perses.dev --timeout=2m
-
-echo "==> Installing Perses sample dashboard..."
-kubectl apply -f "${ROOT_DIR}/hack/e2e/manifests/perses-sample-dashboard.yaml"
 
 echo "==> Cluster setup complete!"
 echo "    Run 'make test-e2e-deploy' to build and deploy obs-mcp"
