@@ -1,54 +1,302 @@
-- conversation_group_id: "nodes-cpu-usage-query"
-  description: "Asks about basic metrics in the cluster."
+- conversation_group_id: "pods-created"
+  description: "Asks about basic kubernetes metrics in the cluster."
 
   conversation_metrics: []
   conversation_metrics_metadata: {}
 
   turns:
     - turn_id: "turn-1"
-      query: "What was the nodes CPU usage over the last hour?"
+      query: "How many pods were created in the last 5 minutes?"
       contexts:
       expected_response: |
-        The execute_query_range is called with appropriate parameters.
+        The query uses kube_pod_created metric.
       expected_tool_calls:
+        - - tool_name: mcp_list_tools
+            arguments:
+              server_label: obs
         - - tool_name: list_metrics
-            arguments: {}
+            arguments:
+              server_label: obs
+        - - tool_name: get_label_names
+            arguments:
+              metric: kube_pod_created
+              server_label: obs
         - - tool_name: execute_range_query
             arguments:
-              duration: 1h
-              end: "NOW"
-              # TODO: this will not work with current guardrails, needs to be
-              # updated to match more specific query we want the LLM to use.
-              query: .*(instance:node_cpu_utilisation:rate1m|container_cpu_usage_seconds_total).*
+              query: .*kube_pod_created.*
+              duration: 5m
               step: 1m
+              start: NOW-5m
+              end: NOW
+              server_label: obs
       turn_metrics:
         - "custom:tool_eval"
 
-- conversation_group_id: "network-basic-troubleshooting"
-  description: |
-    Asks about basic network-focued metrics. Targeted to mimic
-    /monitoring/dashboards/dashboard-namespace-by-pod error dashbaord.
+- conversation_group_id: "pods-crashlooping"
+  description: "Asks about basic kubernetes metrics in the cluster."
 
   conversation_metrics: []
   conversation_metrics_metadata: {}
 
   turns:
     - turn_id: "turn-1"
-      query: "Where there any packet lost in the openshift-marketplace namespace in the last hour."
+      query: "Which pods were crashlooping in the last 5 minutes?"
       contexts:
       expected_response: |
-        The appropraite query is used to load the data?
+        The query uses kube_pod_container_status_restarts_total metric.
       expected_tool_calls:
+        - - tool_name: mcp_list_tools
+            arguments:
+              server_label: obs
         - - tool_name: list_metrics
-            arguments: {}
+            arguments:
+              server_label: obs
+        - - tool_name: get_label_names
+            arguments:
+              metric: kube_pod_container_status_restarts_total
+              server_label: obs
         - - tool_name: execute_range_query
             arguments:
-              duration: 1h
-              end: "NOW"
-              # (inecas): The model I've tested it with (gpt-4o-mini) was not successful yet: more work needed
-              # to make it pass. See also https://issues.redhat.com/browse/GIE-226.
-              query: .*container_network_receive_packets_dropped_total.*namespace="openshift-marketplace"
+              query: .*kube_pod_container_status_restarts_total.*
+              duration: 5m
               step: 1m
-
+              server_label: obs
       turn_metrics:
         - "custom:tool_eval"
+
+- conversation_group_id: "pods-pending"
+  description: "Asks about basic kubernetes metrics in the cluster."
+
+  conversation_metrics: []
+  conversation_metrics_metadata: {}
+
+  turns:
+    - turn_id: "turn-1"
+      query: "Which pods are stuck in pending state?"
+      contexts:
+      expected_response: |
+        The query uses kube_pod_status_phase metric.
+      expected_tool_calls:
+        - - tool_name: mcp_list_tools
+            arguments:
+              server_label: obs
+        - - tool_name: list_metrics
+            arguments:
+              server_label: obs
+        - - tool_name: get_label_names
+            arguments:
+              metric: kube_pod_status_phase
+              server_label: obs
+        - - tool_name: execute_instant_query
+            arguments:
+              query: .*kube_pod_status_phase.*
+              server_label: obs
+      turn_metrics:
+        - "custom:tool_eval"
+
+- conversation_group_id: "pods-cpu"
+  description: "Asks about basic kubernetes metrics in the cluster."
+
+  conversation_metrics: []
+  conversation_metrics_metadata: {}
+
+  turns:
+    - turn_id: "turn-1"
+      query: "Which pods are using the most CPU?"
+      contexts:
+      expected_response: |
+        The query uses container_cpu_usage_seconds_total metric.
+      expected_tool_calls:
+        - - tool_name: mcp_list_tools
+            arguments:
+              server_label: obs
+        - - tool_name: list_metrics
+            arguments:
+              server_label: obs
+        - - tool_name: get_label_names
+            arguments:
+              metric: container_cpu_usage_seconds_total
+              server_label: obs
+        - - tool_name: execute_instant_query
+            arguments:
+              query: .*container_cpu_usage_seconds_total.*
+              server_label: obs
+      turn_metrics:
+        - "custom:tool_eval"
+
+- conversation_group_id: "pods-networking"
+  description: "Asks about basic kubernetes metrics in the cluster."
+
+  conversation_metrics: []
+  conversation_metrics_metadata: {}
+
+  turns:
+    - turn_id: "turn-1"
+      query: "Which pods are receiving the most network traffic?"
+      contexts:
+      expected_response: |
+        The query uses container_network_receive_bytes_total metric.
+      expected_tool_calls:
+        - - tool_name: mcp_list_tools
+            arguments:
+              server_label: obs
+        - - tool_name: list_metrics
+            arguments:
+              server_label: obs
+        - - tool_name: get_label_names
+            arguments:
+              metric: container_network_receive_bytes_total
+              server_label: obs
+        - - tool_name: execute_instant_query
+            arguments:
+              query: .*container_network_receive_bytes_total.*
+              server_label: obs
+      turn_metrics:
+        - "custom:tool_eval"
+
+- conversation_group_id: "prometheus-head-series"
+  description: "Asks about basic prometheus metrics in the cluster."
+
+  conversation_metrics: []
+  conversation_metrics_metadata: {}
+
+  turns:
+    - turn_id: "turn-1"
+      query: "How many head series does prometheus have?"
+      contexts:
+      expected_response: |
+        The query uses prometheus_tsdb_head_series metric.
+      expected_tool_calls:
+        - - tool_name: mcp_list_tools
+            arguments:
+              server_label: obs
+        - - tool_name: list_metrics
+            arguments:
+              server_label: obs
+        - - tool_name: get_label_names
+            arguments:
+              metric: prometheus_tsdb_head_series
+              server_label: obs
+        - - tool_name: execute_instant_query
+            arguments:
+              query: .*prometheus_tsdb_head_series.*
+              server_label: obs
+      turn_metrics:
+        - "custom:tool_eval"
+
+- conversation_group_id: "prometheus-requests"
+  description: "Asks about basic prometheus metrics in the cluster."
+
+  conversation_metrics: []
+  conversation_metrics_metadata: {}
+
+  turns:
+    - turn_id: "turn-1"
+      query: "How many requests per second are being made to prometheus?"
+      contexts:
+      expected_response: |
+        The query uses prometheus_http_requests_total metric.
+      expected_tool_calls:
+        - - tool_name: mcp_list_tools
+            arguments:
+              server_label: obs
+        - - tool_name: list_metrics
+            arguments:
+              server_label: obs
+        - - tool_name: get_label_names
+            arguments:
+              metric: prometheus_http_requests_total
+              server_label: obs
+        - - tool_name: execute_instant_query
+            arguments:
+              query: .*prometheus_http_requests_total.*
+              server_label: obs
+      turn_metrics:
+        - "custom:tool_eval"
+
+- conversation_group_id: "prometheus-wal"
+  description: "Asks about basic prometheus metrics in the cluster."
+
+  conversation_metrics: []
+  conversation_metrics_metadata: {}
+
+  turns:
+    - turn_id: "turn-1"
+      query: "What is the current storage size of Prometheus WAL?"
+      contexts:
+      expected_response: |
+        The query uses prometheus_tsdb_wal_storage_size_bytes metric.
+      expected_tool_calls:
+        - - tool_name: mcp_list_tools
+            arguments:
+              server_label: obs
+        - - tool_name: list_metrics
+            arguments:
+              server_label: obs
+        - - tool_name: get_label_names
+            arguments:
+              metric: prometheus_tsdb_wal_storage_size_bytes
+              server_label: obs
+        - - tool_name: execute_instant_query
+            arguments:
+              query: .*prometheus_tsdb_wal_storage_size_bytes.*
+              server_label: obs
+      turn_metrics:
+        - "custom:tool_eval"
+
+# TODO: Add this eval once we have the nodes-cpu-usage-query rule in a Prometheus.
+# - conversation_group_id: "nodes-cpu-usage-query"
+#   description: "Asks about basic metrics in the cluster."
+
+#   conversation_metrics: []
+#   conversation_metrics_metadata: {}
+
+#   turns:
+#     - turn_id: "turn-1"
+#       query: "What was the nodes CPU usage over the last hour?"
+#       contexts:
+#       expected_response: |
+#         The execute_query_range is called with appropriate parameters.
+#       expected_tool_calls:
+#         - - tool_name: list_metrics
+#             arguments: {}
+#         - - tool_name: execute_range_query
+#             arguments:
+#               duration: 1h
+#               end: "NOW"
+#               # TODO: this will not work with current guardrails, needs to be
+#               # updated to match more specific query we want the LLM to use.
+#               query: .*(instance:node_cpu_utilisation:rate1m|container_cpu_usage_seconds_total).*
+#               step: 1m
+#       turn_metrics:
+#         - "custom:tool_eval"
+
+# TODO: Add this eval once we have a replicable openshift setup
+# - conversation_group_id: "network-basic-troubleshooting"
+#   description: |
+#     Asks about basic network-focued metrics. Targeted to mimic
+#     /monitoring/dashboards/dashboard-namespace-by-pod error dashbaord.
+
+#   conversation_metrics: []
+#   conversation_metrics_metadata: {}
+
+#   turns:
+#     - turn_id: "turn-1"
+#       query: "Where there any packet lost in the openshift-marketplace namespace in the last hour."
+#       contexts:
+#       expected_response: |
+#         The appropraite query is used to load the data?
+#       expected_tool_calls:
+#         - - tool_name: list_metrics
+#             arguments: {}
+#         - - tool_name: execute_range_query
+#             arguments:
+#               duration: 1h
+#               end: "NOW"
+#               # (inecas): The model I've tested it with (gpt-4o-mini) was not successful yet: more work needed
+#               # to make it pass. See also https://issues.redhat.com/browse/GIE-226.
+#               query: .*container_network_receive_packets_dropped_total.*namespace="openshift-marketplace"
+#               step: 1m
+
+#       turn_metrics:
+#         - "custom:tool_eval"

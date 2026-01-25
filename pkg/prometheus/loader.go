@@ -21,6 +21,9 @@ type Loader interface {
 	ListMetrics(ctx context.Context) ([]string, error)
 	ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error)
 	ExecuteInstantQuery(ctx context.Context, query string, time time.Time) (map[string]any, error)
+	GetLabelNames(ctx context.Context, metricName string, start, end time.Time) ([]string, error)
+	GetLabelValues(ctx context.Context, label string, metricName string, start, end time.Time) ([]string, error)
+	GetSeries(ctx context.Context, matches []string, start, end time.Time) ([]map[string]string, error)
 }
 
 // PrometheusClient implements PromClient
@@ -167,4 +170,55 @@ func (p *RealLoader) ExecuteInstantQuery(ctx context.Context, query string, ts t
 	}
 
 	return response, nil
+}
+
+func (p *RealLoader) GetLabelNames(ctx context.Context, metricName string, start, end time.Time) ([]string, error) {
+	var matches []string
+	if metricName != "" {
+		matches = []string{metricName}
+	}
+
+	labelNames, _, err := p.client.LabelNames(ctx, matches, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching label names: %w", err)
+	}
+
+	labels := make([]string, len(labelNames))
+	copy(labels, labelNames)
+	return labels, nil
+}
+
+func (p *RealLoader) GetLabelValues(ctx context.Context, label, metricName string, start, end time.Time) ([]string, error) {
+	var matches []string
+	if metricName != "" {
+		matches = []string{metricName}
+	}
+
+	labelValues, _, err := p.client.LabelValues(ctx, label, matches, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching label values: %w", err)
+	}
+
+	values := make([]string, len(labelValues))
+	for i, value := range labelValues {
+		values[i] = string(value)
+	}
+	return values, nil
+}
+
+func (p *RealLoader) GetSeries(ctx context.Context, matches []string, start, end time.Time) ([]map[string]string, error) {
+	seriesList, _, err := p.client.Series(ctx, matches, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching series: %w", err)
+	}
+
+	result := make([]map[string]string, len(seriesList))
+	for i, series := range seriesList {
+		labels := make(map[string]string)
+		for k, v := range series {
+			labels[string(k)] = string(v)
+		}
+		result[i] = labels
+	}
+	return result, nil
 }

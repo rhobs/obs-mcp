@@ -170,3 +170,265 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 		return mcp.NewToolResultStructured(output, string(jsonResult)), nil
 	}
 }
+
+// ExecuteInstantQueryHandler handles the execution of Prometheus instant queries.
+func ExecuteInstantQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.Info("ExecuteInstantQueryHandler called")
+		slog.Debug("ExecuteInstantQueryHandler params", "params", req.Params)
+
+		promClient, err := getPromClient(ctx, opts)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to create Prometheus client: %s", err.Error()))
+		}
+
+		// Get required query parameter
+		query, err := req.RequireString("query")
+		if err != nil {
+			return errorResult("query parameter is required and must be a string")
+		}
+
+		// Get optional time parameter
+		timeStr := req.GetString("time", "")
+
+		var queryTime time.Time
+		if timeStr == "" || timeStr == "NOW" {
+			queryTime = time.Now()
+		} else {
+			queryTime, err = prometheus.ParseTimestamp(timeStr)
+			if err != nil {
+				return errorResult(fmt.Sprintf("invalid time format: %s", err.Error()))
+			}
+		}
+
+		// Execute the instant query
+		result, err := promClient.ExecuteInstantQuery(ctx, query, queryTime)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to execute instant query: %s", err.Error()))
+		}
+
+		// Convert to structured output
+		output := InstantQueryOutput{
+			ResultType: fmt.Sprintf("%v", result["resultType"]),
+		}
+
+		resVector, ok := result["result"].(model.Vector)
+		if ok {
+			slog.Info("ExecuteInstantQueryHandler executed successfully", "resultLength", len(resVector))
+			slog.Debug("ExecuteInstantQueryHandler results", "results", resVector)
+
+			output.Result = make([]InstantResult, len(resVector))
+			for i, sample := range resVector {
+				labels := make(map[string]string)
+				for k, v := range sample.Metric {
+					labels[string(k)] = string(v)
+				}
+				output.Result[i] = InstantResult{
+					Metric: labels,
+					Value:  []any{float64(sample.Timestamp) / 1000, sample.Value.String()},
+				}
+			}
+		} else {
+			slog.Info("ExecuteInstantQueryHandler executed successfully (unknown format)", "result", result)
+		}
+
+		if warnings, ok := result["warnings"].([]string); ok {
+			output.Warnings = warnings
+		}
+
+		jsonResult, err := json.Marshal(output)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to marshal result: %s", err.Error()))
+		}
+
+		return mcp.NewToolResultStructured(output, string(jsonResult)), nil
+	}
+}
+
+// GetLabelNamesHandler handles the retrieval of label names.
+func GetLabelNamesHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.Info("GetLabelNamesHandler called")
+		slog.Debug("GetLabelNamesHandler params", "params", req.Params)
+
+		promClient, err := getPromClient(ctx, opts)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to create Prometheus client: %s", err.Error()))
+		}
+
+		// Get optional parameters
+		metric := req.GetString("metric", "")
+		startStr := req.GetString("start", "")
+		endStr := req.GetString("end", "")
+
+		// Default to last hour if not specified
+		var startTime, endTime time.Time
+		if startStr == "" && endStr == "" {
+			endTime = time.Now()
+			startTime = endTime.Add(-prometheus.ListMetricsTimeRange)
+		} else {
+			if startStr != "" {
+				startTime, err = prometheus.ParseTimestamp(startStr)
+				if err != nil {
+					return errorResult(fmt.Sprintf("invalid start time format: %s", err.Error()))
+				}
+			}
+			if endStr != "" {
+				endTime, err = prometheus.ParseTimestamp(endStr)
+				if err != nil {
+					return errorResult(fmt.Sprintf("invalid end time format: %s", err.Error()))
+				}
+			}
+		}
+
+		// Get label names
+		labels, err := promClient.GetLabelNames(ctx, metric, startTime, endTime)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to get label names: %s", err.Error()))
+		}
+
+		output := LabelNamesOutput{Labels: labels}
+
+		slog.Info("GetLabelNamesHandler executed successfully", "labelCount", len(labels))
+		slog.Debug("GetLabelNamesHandler results", "results", labels)
+
+		jsonResult, err := json.Marshal(output)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to marshal label names: %s", err.Error()))
+		}
+
+		return mcp.NewToolResultStructured(output, string(jsonResult)), nil
+	}
+}
+
+// GetLabelValuesHandler handles the retrieval of label values.
+func GetLabelValuesHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.Info("GetLabelValuesHandler called")
+		slog.Debug("GetLabelValuesHandler params", "params", req.Params)
+
+		promClient, err := getPromClient(ctx, opts)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to create Prometheus client: %s", err.Error()))
+		}
+
+		// Get required label parameter
+		label, err := req.RequireString("label")
+		if err != nil {
+			return errorResult("label parameter is required and must be a string")
+		}
+
+		// Get optional parameters
+		metric := req.GetString("metric", "")
+		startStr := req.GetString("start", "")
+		endStr := req.GetString("end", "")
+
+		// Default to last hour if not specified
+		var startTime, endTime time.Time
+		if startStr == "" && endStr == "" {
+			endTime = time.Now()
+			startTime = endTime.Add(-prometheus.ListMetricsTimeRange)
+		} else {
+			if startStr != "" {
+				startTime, err = prometheus.ParseTimestamp(startStr)
+				if err != nil {
+					return errorResult(fmt.Sprintf("invalid start time format: %s", err.Error()))
+				}
+			}
+			if endStr != "" {
+				endTime, err = prometheus.ParseTimestamp(endStr)
+				if err != nil {
+					return errorResult(fmt.Sprintf("invalid end time format: %s", err.Error()))
+				}
+			}
+		}
+
+		// Get label values
+		values, err := promClient.GetLabelValues(ctx, label, metric, startTime, endTime)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to get label values: %s", err.Error()))
+		}
+
+		output := LabelValuesOutput{Values: values}
+
+		slog.Info("GetLabelValuesHandler executed successfully", "valueCount", len(values))
+		slog.Debug("GetLabelValuesHandler results", "results", values)
+
+		jsonResult, err := json.Marshal(output)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to marshal label values: %s", err.Error()))
+		}
+
+		return mcp.NewToolResultStructured(output, string(jsonResult)), nil
+	}
+}
+
+// GetSeriesHandler handles the retrieval of time series.
+func GetSeriesHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.Info("GetSeriesHandler called")
+		slog.Debug("GetSeriesHandler params", "params", req.Params)
+
+		promClient, err := getPromClient(ctx, opts)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to create Prometheus client: %s", err.Error()))
+		}
+
+		// Get required matches parameter
+		matchesStr, err := req.RequireString("matches")
+		if err != nil {
+			return errorResult("matches parameter is required and must be a string")
+		}
+
+		// Parse matches - could be comma-separated
+		matches := []string{matchesStr}
+		// If it contains comma outside of braces, split it
+		// For simplicity, treat the entire string as one match for now
+		// Users can make multiple calls if needed
+
+		// Get optional parameters
+		startStr := req.GetString("start", "")
+		endStr := req.GetString("end", "")
+
+		// Default to last hour if not specified
+		var startTime, endTime time.Time
+		if startStr == "" && endStr == "" {
+			endTime = time.Now()
+			startTime = endTime.Add(-prometheus.ListMetricsTimeRange)
+		} else {
+			if startStr != "" {
+				startTime, err = prometheus.ParseTimestamp(startStr)
+				if err != nil {
+					return errorResult(fmt.Sprintf("invalid start time format: %s", err.Error()))
+				}
+			}
+			if endStr != "" {
+				endTime, err = prometheus.ParseTimestamp(endStr)
+				if err != nil {
+					return errorResult(fmt.Sprintf("invalid end time format: %s", err.Error()))
+				}
+			}
+		}
+
+		// Get series
+		series, err := promClient.GetSeries(ctx, matches, startTime, endTime)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to get series: %s", err.Error()))
+		}
+
+		output := SeriesOutput{
+			Series:      series,
+			Cardinality: len(series),
+		}
+
+		slog.Info("GetSeriesHandler executed successfully", "cardinality", len(series))
+		slog.Debug("GetSeriesHandler results", "results", series)
+
+		jsonResult, err := json.Marshal(output)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to marshal series: %s", err.Error()))
+		}
+
+		return mcp.NewToolResultStructured(output, string(jsonResult)), nil
+	}
+}
