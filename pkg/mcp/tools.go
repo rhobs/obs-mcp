@@ -134,7 +134,7 @@ type GetDashboardPanelsOutput struct {
 	Name      string                  `json:"name" jsonschema:"description=Name of the dashboard"`
 	Namespace string                  `json:"namespace" jsonschema:"description=Namespace of the dashboard"`
 	Duration  string                  `json:"duration,omitempty" jsonschema:"description=Default time duration for queries extracted from dashboard spec (e.g. 1h, 24h)"`
-	Panels    []perses.DashboardPanel `json:"panels" jsonschema:"description=List of panel metadata including IDs, titles, queries, and chart types for LLM selection"`
+	Panels    []*perses.DashboardPanel `json:"panels" jsonschema:"description=List of panel metadata including IDs, titles, queries, and chart types for LLM selection"`
 }
 
 // GetDashboardPanelsInput defines the input schema for the get_dashboard_panels tool.

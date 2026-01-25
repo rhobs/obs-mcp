@@ -8,13 +8,11 @@ import (
 // ExtractPanels extracts panel information from a dashboard spec.
 // If fullDetails is true, includes position, step, and duration for UI rendering.
 // If panelIDs is provided, only extracts those specific panels.
-func ExtractPanels(dashboardName, dashboardNamespace string, spec map[string]any, fullDetails bool, panelIDs []string) ([]DashboardPanel, error) {
-	var panels []DashboardPanel
-
+func ExtractPanels(dashboardName, dashboardNamespace string, spec map[string]any, fullDetails bool, panelIDs []string) (panels []*DashboardPanel) {
 	panelsMap, ok := spec["panels"].(map[string]any)
 	if !ok {
 		slog.Debug("No panels found in dashboard spec", "dashboard", dashboardName)
-		return panels, nil
+		return panels
 	}
 
 	// Build a lookup set for requested panel IDs
@@ -63,7 +61,7 @@ func ExtractPanels(dashboardName, dashboardNamespace string, spec map[string]any
 				continue
 			}
 
-			panel := DashboardPanel{
+			panel := &DashboardPanel{
 				ID:          panelID,
 				Title:       title,
 				Description: description,
@@ -90,7 +88,7 @@ func ExtractPanels(dashboardName, dashboardNamespace string, spec map[string]any
 		"fullDetails", fullDetails,
 		"panelCount", len(panels))
 
-	return panels, nil
+	return panels
 }
 
 // panelQuery represents a query extracted from a panel

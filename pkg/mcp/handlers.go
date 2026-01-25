@@ -208,16 +208,16 @@ func GetDashboardHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[GetDashboardInput, 
 	return func(ctx context.Context, req *mcp.CallToolRequest, input GetDashboardInput) (*mcp.CallToolResult, GetDashboardOutput, error) {
 		slog.Info("GetDashboardHandler called")
 
-		dashboardName, dashboardNamespace, spec, err := k8s.GetDashboard(ctx, input.Namespace, input.Name)
+		spec, err := k8s.GetDashboard(ctx, input.Namespace, input.Name)
 		if err != nil {
 			return nil, GetDashboardOutput{}, fmt.Errorf("failed to get Dashboard: %w", err)
 		}
 
-		slog.Info("GetDashboardHandler executed successfully", "name", dashboardName, "namespace", dashboardNamespace)
+		slog.Info("GetDashboardHandler executed successfully", "name", input.Name, "namespace", input.Namespace)
 
 		return nil, GetDashboardOutput{
-			Name:      dashboardName,
-			Namespace: dashboardNamespace,
+			Name:      input.Name,
+			Namespace: input.Namespace,
 			Spec:      spec,
 		}, nil
 	}
@@ -237,15 +237,12 @@ func GetDashboardPanelsHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[GetDashboardP
 			}
 		}
 
-		dashboardName, dashboardNamespace, spec, err := k8s.GetDashboard(ctx, input.Namespace, input.Name)
+		spec, err := k8s.GetDashboard(ctx, input.Namespace, input.Name)
 		if err != nil {
 			return nil, GetDashboardPanelsOutput{}, fmt.Errorf("failed to get dashboard: %w", err)
 		}
 
-		panels, err := perses.ExtractPanels(dashboardName, dashboardNamespace, spec, false, panelIDs)
-		if err != nil {
-			return nil, GetDashboardPanelsOutput{}, fmt.Errorf("failed to extract panels: %w", err)
-		}
+		panels := perses.ExtractPanels(input.Name, input.Namespace, spec, false, panelIDs)
 
 		duration := "1h"
 		if d, ok := spec["duration"].(string); ok {
@@ -253,14 +250,14 @@ func GetDashboardPanelsHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[GetDashboardP
 		}
 
 		slog.Info("GetDashboardPanelsHandler executed successfully",
-			"name", dashboardName,
-			"namespace", dashboardNamespace,
+			"name", input.Name,
+			"namespace", input.Namespace,
 			"requested", len(panelIDs),
 			"returned", len(panels))
 
 		return nil, GetDashboardPanelsOutput{
-			Name:      dashboardName,
-			Namespace: dashboardNamespace,
+			Name:      input.Name,
+			Namespace: input.Namespace,
 			Duration:  duration,
 			Panels:    panels,
 		}, nil
@@ -281,15 +278,12 @@ func FormatPanelsForUIHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[FormatPanelsFo
 			}
 		}
 
-		_, _, spec, err := k8s.GetDashboard(ctx, input.Namespace, input.Name)
+		spec, err := k8s.GetDashboard(ctx, input.Namespace, input.Name)
 		if err != nil {
 			return nil, FormatPanelsForUIOutput{}, fmt.Errorf("failed to get Dashboard: %w", err)
 		}
 
-		panels, err := perses.ExtractPanels(input.Name, input.Namespace, spec, true, panelIDs)
-		if err != nil {
-			return nil, FormatPanelsForUIOutput{}, fmt.Errorf("failed to extract panels: %w", err)
-		}
+		panels := perses.ExtractPanels(input.Name, input.Namespace, spec, true, panelIDs)
 
 		widgets := convertPanelsToDashboardWidgets(panels)
 
@@ -344,7 +338,7 @@ func isWhitespace(b byte) bool {
 }
 
 // convertPanelsToDashboardWidgets converts DashboardPanel objects to DashboardWidget format expected by UI.
-func convertPanelsToDashboardWidgets(panels []perses.DashboardPanel) []perses.DashboardWidget {
+func convertPanelsToDashboardWidgets(panels []*perses.DashboardPanel) []perses.DashboardWidget {
 	widgets := make([]perses.DashboardWidget, 0, len(panels))
 
 	for _, panel := range panels {
