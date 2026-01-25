@@ -193,11 +193,11 @@ Returns an array of DashboardWidget objects ready for direct rendering, with:
 
 Panel IDs (fetched using get_dashboard_panels) must be provided to specify which panels to format.
 `),
-		mcp.WithString("dashboard_name",
+		mcp.WithString("name",
 			mcp.Required(),
 			mcp.Description("Name of the dashboard containing the panels"),
 		),
-		mcp.WithString("dashboard_namespace",
+		mcp.WithString("namespace",
 			mcp.Required(),
 			mcp.Description("Namespace of the dashboard"),
 		),

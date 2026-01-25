@@ -8,7 +8,6 @@ import (
 // ExtractPanels extracts panel information from a dashboard spec.
 // If fullDetails is true, includes position, step, and duration for UI rendering.
 // If panelIDs is provided, only extracts those specific panels.
-// TODO: Sometimes, the dashboard description may be present in a dedicated panel rather than the dashboard metadata. Consider extracting that as well.
 func ExtractPanels(dashboardName, dashboardNamespace string, spec map[string]any, fullDetails bool, panelIDs []string) ([]DashboardPanel, error) {
 	var panels []DashboardPanel
 

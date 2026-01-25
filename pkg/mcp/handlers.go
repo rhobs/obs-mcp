@@ -327,17 +327,20 @@ func FormatPanelsForUIHandler(_ ObsMCPOptions) func(context.Context, mcp.CallToo
 		slog.Info("FormatPanelsForUIHandler called")
 		slog.Debug("FormatPanelsForUIHandler params", "params", req.Params)
 
-		dashboardName, err := req.RequireString("dashboard_name")
+		name, err := req.RequireString("name")
 		if err != nil {
-			return errorResult("dashboard_name parameter is required and must be a string")
+			return errorResult("name parameter is required and must be a string")
 		}
 
-		dashboardNamespace, err := req.RequireString("dashboard_namespace")
+		namespace, err := req.RequireString("namespace")
 		if err != nil {
-			return errorResult("dashboard_namespace parameter is required and must be a string")
+			return errorResult("namespace parameter is required and must be a string")
 		}
 
-		panelIDsStr := req.GetString("panel_ids", "")
+		panelIDsStr, err := req.RequireString("panel_ids")
+		if err != nil {
+			return errorResult("panel_ids parameter is required and must be a string")
+		}
 
 		// Parse comma-separated panel IDs
 		var panelIDs []string
@@ -349,13 +352,13 @@ func FormatPanelsForUIHandler(_ ObsMCPOptions) func(context.Context, mcp.CallToo
 			}
 		}
 
-		_, _, spec, err := k8s.GetDashboard(ctx, dashboardNamespace, dashboardName)
+		_, _, spec, err := k8s.GetDashboard(ctx, namespace, name)
 		if err != nil {
 			return errorResult(fmt.Sprintf("failed to get Dashboard: %s", err.Error()))
 		}
 
 		// Extract full panel details for UI
-		panels, err := perses.ExtractPanels(dashboardName, dashboardNamespace, spec, true, panelIDs)
+		panels, err := perses.ExtractPanels(name, namespace, spec, true, panelIDs)
 		if err != nil {
 			return errorResult(fmt.Sprintf("failed to extract panels: %s", err.Error()))
 		}
@@ -364,8 +367,8 @@ func FormatPanelsForUIHandler(_ ObsMCPOptions) func(context.Context, mcp.CallToo
 		widgets := convertPanelsToDashboardWidgets(panels)
 
 		slog.Info("FormatPanelsForUIHandler executed successfully",
-			"dashboard", dashboardName,
-			"namespace", dashboardNamespace,
+			"dashboard", name,
+			"namespace", namespace,
 			"requestedPanels", len(panelIDs),
 			"formattedWidgets", len(widgets))
 

@@ -357,3 +357,154 @@ func getErrorMessage(t *testing.T, result *mcp.CallToolResult) string {
 		return fmt.Sprintf("%v", content)
 	}
 }
+
+func TestGetDashboardPanelsHandler_RequiredParameters(t *testing.T) {
+	tests := []struct {
+		name          string
+		params        map[string]interface{}
+		expectedError string
+	}{
+		{
+			name:          "missing name parameter",
+			params:        map[string]interface{}{"namespace": "default"},
+			expectedError: "name parameter is required and must be a string",
+		},
+		{
+			name:          "missing namespace parameter",
+			params:        map[string]interface{}{"name": "test-dashboard"},
+			expectedError: "namespace parameter is required and must be a string",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := GetDashboardPanelsHandler(ObsMCPOptions{})
+			req := mcp.CallToolRequest{
+				Params: mcp.CallToolParams{
+					Name:      "get_dashboard_panels",
+					Arguments: tt.params,
+				},
+			}
+
+			result, _ := handler(context.Background(), req)
+			errorMsg := getErrorMessage(t, result)
+			if errorMsg != tt.expectedError {
+				t.Errorf("expected error %q, got %q", tt.expectedError, errorMsg)
+			}
+		})
+	}
+}
+
+func TestFormatPanelsForUIHandler_RequiredParameters(t *testing.T) {
+	tests := []struct {
+		name          string
+		params        map[string]interface{}
+		expectedError string
+	}{
+		{
+			name: "missing name",
+			params: map[string]interface{}{
+				"namespace": "default",
+				"panel_ids": "0_0",
+			},
+			expectedError: "name parameter is required and must be a string",
+		},
+		{
+			name: "missing namespace",
+			params: map[string]interface{}{
+				"name":      "test-dashboard",
+				"panel_ids": "0_0",
+			},
+			expectedError: "namespace parameter is required and must be a string",
+		},
+		{
+			name: "missing panel_ids",
+			params: map[string]interface{}{
+				"name":      "test-dashboard",
+				"namespace": "default",
+			},
+			expectedError: "panel_ids parameter is required and must be a string",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := FormatPanelsForUIHandler(ObsMCPOptions{})
+			req := mcp.CallToolRequest{
+				Params: mcp.CallToolParams{
+					Name:      "format_panels_for_ui",
+					Arguments: tt.params,
+				},
+			}
+
+			result, _ := handler(context.Background(), req)
+			errorMsg := getErrorMessage(t, result)
+			if errorMsg != tt.expectedError {
+				t.Errorf("expected error %q, got %q", tt.expectedError, errorMsg)
+			}
+		})
+	}
+}
+
+func TestGetDashboardPanelsHandler_OptionalPanelIDs(t *testing.T) {
+	// This test verifies that panel_ids is optional
+	handler := GetDashboardPanelsHandler(ObsMCPOptions{})
+	req := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "get_dashboard_panels",
+			Arguments: map[string]interface{}{
+				"name":      "test-dashboard",
+				"namespace": "default",
+				// panel_ids is optional - not provided
+			},
+		},
+	}
+
+	// Should fail with dashboard not found, not parameter error
+	result, _ := handler(context.Background(), req)
+	errorMsg := getErrorMessage(t, result)
+	if errorMsg == "panel_ids parameter is required and must be a string" {
+		t.Errorf("panel_ids should be optional, but got required parameter error")
+	}
+	// Expected to fail with "failed to get dashboard" since we don't have a real cluster
+	if len(errorMsg) > 0 && len(errorMsg) >= 23 && errorMsg[:23] != "failed to get dashboard" {
+		t.Logf("Got expected error: %s", errorMsg)
+	}
+}
+
+func TestGetDashboardHandler_RequiredParameters(t *testing.T) {
+	tests := []struct {
+		name          string
+		params        map[string]interface{}
+		expectedError string
+	}{
+		{
+			name:          "missing name parameter",
+			params:        map[string]interface{}{"namespace": "default"},
+			expectedError: "name parameter is required and must be a string",
+		},
+		{
+			name:          "missing namespace parameter",
+			params:        map[string]interface{}{"name": "test-dashboard"},
+			expectedError: "namespace parameter is required and must be a string",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := GetDashboardHandler(ObsMCPOptions{})
+			req := mcp.CallToolRequest{
+				Params: mcp.CallToolParams{
+					Name:      "get_dashboard",
+					Arguments: tt.params,
+				},
+			}
+
+			result, _ := handler(context.Background(), req)
+			errorMsg := getErrorMessage(t, result)
+			if errorMsg != tt.expectedError {
+				t.Errorf("expected error %q, got %q", tt.expectedError, errorMsg)
+			}
+		})
+	}
+}
