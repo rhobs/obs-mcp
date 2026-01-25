@@ -34,7 +34,6 @@ func CreateExecuteRangeQueryTool() mcp.Tool {
 }
 
 func CreateShowTimeseriesTool() mcp.Tool {
-	// For UI purposes only, no additional data to be sent to the LLM context.
 	return *tools.ShowTimeseries.ToMCPTool()
 }
 
@@ -58,114 +57,178 @@ func CreateGetSilencesTool() mcp.Tool {
 	return *tools.GetSilences.ToMCPTool()
 }
 
-// ListPersesDashboardsOutput defines the output schema for the list_perses_dashboards tool.
-type ListPersesDashboardsOutput struct {
-	Dashboards []perses.PersesDashboardInfo `json:"dashboards" jsonschema:"description=List of PersesDashboard objects from the cluster"`
+// DashboardsOutput defines the output schema for the list_dashboards tool.
+type DashboardsOutput struct {
+	Dashboards []perses.DashboardInfo `json:"dashboards" jsonschema:"description=List of all PersesDashboard resources from the cluster with their metadata"`
 }
 
-// ListPersesDashboardsInput defines the input schema for the list_perses_dashboards tool.
-type ListPersesDashboardsInput struct {
-	Namespace     string `json:"namespace"`
-	LabelSelector string `json:"label_selector"`
-}
+var ListDashboards = tools.ToolDef[DashboardsOutput]{
+	Name: "list_dashboards",
+	Description: `List all PersesDashboard resources from the cluster.
 
-var ListPersesDashboards = tools.ToolDef[ListPersesDashboardsOutput]{
-	Name: "list_perses_dashboards",
-	Description: `List all PersesDashboard custom resources from the Kubernetes cluster.
+Start here when there is a need to visualize metrics.
 
-PersesDashboard is a Custom Resource from the Perses operator (https://github.com/perses/perses-operator) that defines
-dashboard configurations. This tool returns summary information about all available dashboards in the form of a list of names, namespaces, labels, and descriptions.
+Returns dashboard summaries with name, namespace, labels, and descriptions.
 
-IMPORTANT: Before using this tool, first check out_of_the_box_perses_dashboards for curated platform dashboards that are more likely to answer common user questions.
-Only use this tool if the out-of-the-box dashboards don't have what the user is looking for.
+Use the descriptions to identify dashboards relevant to the user's question.
 
-You can optionally filter by namespace and/or labels.
+In the case that there is insufficient information in the description, use get_dashboard to fetch the full dashboard spec for more context. Doing so is an expensive operation, so only do this when necessary.
 
-Once you have found the dashboard you need, you can use the get_perses_dashboard tool to get the dashboard's panels and configuration.
-
-IMPORTANT: If you are looking for a specific dashboard, use this tool first to see if it exists. If it does, use the get_perses_dashboard tool to get the dashboard's panels and configuration.
+Follow up with get_dashboard_panels to see what panels are available in the relevant dashboard(s).
 `,
-	Title:    "List Perses Dashboards",
-	ReadOnly: true,
-	Params: []tools.ParamDef{
-		{
-			Name:        "namespace",
-			Type:        tools.ParamTypeString,
-			Description: "Optional namespace to filter dashboards. Leave empty to list from all namespaces.",
-		},
-		{
-			Name:        "label_selector",
-			Type:        tools.ParamTypeString,
-			Description: "Optional Kubernetes label selector to filter dashboards (e.g., 'app=myapp', 'env=prod,team=platform', 'app in (foo,bar)'). Leave empty to list all dashboards.",
-		},
-	},
-}
-
-func CreateListPersesDashboardsTool() *mcp.Tool {
-	return ListPersesDashboards.ToMCPTool()
-}
-
-// OOTBPersesDashboardsOutput defines the output schema for the out_of_the_box_perses_dashboards tool.
-type OOTBPersesDashboardsOutput struct {
-	Dashboards []perses.PersesDashboardInfo `json:"dashboards" jsonschema:"description=List of curated out-of-the-box PersesDashboard definitions"`
-}
-
-var OOTBPersesDashboards = tools.ToolDef[OOTBPersesDashboardsOutput]{
-	Name: "out_of_the_box_perses_dashboards",
-	Description: `List curated out-of-the-box PersesDashboard definitions for the platform.
-
-IMPORTANT: Use this tool FIRST when looking for dashboards. These are pre-configured, curated dashboards that cover common platform observability needs and are
-most likely to answer user questions about the platform.
-
-Only fall back to list_perses_dashboards if the dashboards returned here don't have
-what the user is looking for.
-
-Returns a list of dashboard summaries with name, namespace, labels, and description explaining what each dashboard contains.
-`,
-	Title:    "Out of the Box Perses Dashboards",
+	Title:    "List Dashboards",
 	ReadOnly: true,
 }
 
-func CreateOOTBPersesDashboardsTool() *mcp.Tool {
-	return OOTBPersesDashboards.ToMCPTool()
+func CreateListDashboardsTool() *mcp.Tool {
+	return ListDashboards.ToMCPTool()
 }
 
-// GetPersesDashboardOutput defines the output schema for the get_perses_dashboard tool.
-type GetPersesDashboardOutput struct {
-	Name      string                 `json:"name" jsonschema:"description=Name of the PersesDashboard"`
-	Namespace string                 `json:"namespace" jsonschema:"description=Namespace where the PersesDashboard is located"`
+// GetDashboardOutput defines the output schema for the get_dashboard tool.
+type GetDashboardOutput struct {
+	Name      string                 `json:"name" jsonschema:"description=Name of the Dashboard"`
+	Namespace string                 `json:"namespace" jsonschema:"description=Namespace where the Dashboard is located"`
 	Spec      map[string]interface{} `json:"spec" jsonschema:"description=The full dashboard specification including panels, layouts, variables, and datasources"`
 }
 
-// GetPersesDashboardInput defines the input schema for the get_perses_dashboard tool.
-type GetPersesDashboardInput struct {
+// GetDashboardInput defines the input schema for the get_dashboard tool.
+type GetDashboardInput struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 }
 
-var GetPersesDashboard = tools.ToolDef[GetPersesDashboardOutput]{
-	Name: "get_perses_dashboard",
-	Description: `Get a specific PersesDashboard by name and namespace. This tool is used to get the dashboard's panels and configuration.
+var GetDashboard = tools.ToolDef[GetDashboardOutput]{
+	Name: "get_dashboard",
+	Description: `Get a specific Dashboard by name and namespace. This tool is used to get the dashboard's panels and configuration.
 
-Use the list_perses_dashboards or out_of_the_box_perses_dashboards tool first to find available dashboards, then use this tool to get the full specification of a specific dashboard.
+Use the list_dashboards tool first to find available dashboards, then use this tool to get the full specification of a specific dashboard, if needed (to gather more context).
+
+The intended use of this tool is only to gather more context on one or more dashboards when the description from list_dashboards is insufficient.
+
+Information about panels themselves should be gathered using get_dashboard_panels instead (e.g., looking at a "kind: Markdown" panel to gather more context).
 
 Returns the dashboard's full specification including panels, layouts, variables, and datasources in JSON format.
 
-You can glean PromQL queries from the dashboard's panels and variables, as well as production context to allow you to answer a user's questions better.
+For most use cases, you will want to follow up with get_dashboard_panels to extract panel metadata for selection.
 `,
-	Title:    "Get Perses Dashboard",
+	Title:    "Get Dashboard",
 	ReadOnly: true,
 	Params: []tools.ParamDef{
 		{
 			Name:        "name",
 			Type:        tools.ParamTypeString,
-			Description: "Name of the PersesDashboard",
+			Description: "Name of the Dashboard",
 			Required:    true,
 		},
 		{
 			Name:        "namespace",
 			Type:        tools.ParamTypeString,
-			Description: "Namespace of the PersesDashboard",
+			Description: "Namespace of the Dashboard",
+			Required:    true,
+		},
+	},
+}
+
+// GetDashboardPanelsOutput defines the output schema for the get_dashboard_panels tool.
+type GetDashboardPanelsOutput struct {
+	Name      string                  `json:"name" jsonschema:"description=Name of the dashboard"`
+	Namespace string                  `json:"namespace" jsonschema:"description=Namespace of the dashboard"`
+	Duration  string                  `json:"duration,omitempty" jsonschema:"description=Default time duration for queries extracted from dashboard spec (e.g. 1h, 24h)"`
+	Panels    []perses.DashboardPanel `json:"panels" jsonschema:"description=List of panel metadata including IDs, titles, queries, and chart types for LLM selection"`
+}
+
+// GetDashboardPanelsInput defines the input schema for the get_dashboard_panels tool.
+type GetDashboardPanelsInput struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	PanelIDs  string `json:"panel_ids"`
+}
+
+var GetDashboardPanels = tools.ToolDef[GetDashboardPanelsOutput]{
+	Name: "get_dashboard_panels",
+	Description: `Get panel(s) information from a specific Dashboard.
+
+After finding a relevant dashboard (using list_dashboards and conditionally, get_dashboard), use this to see what panels it contains.
+
+Returns panel metadata including:
+- Panel IDs (format: 'panelName' or 'panelName-N' for multi-query panels)
+- Titles and descriptions
+- PromQL queries (may contain variables like $namespace)
+- Chart types (TimeSeriesChart, PieChart, Table)
+
+You can optionally provide specific panel IDs to fetch only those panels. This is useful when you remember panel IDs from earlier calls and want to re-fetch just their metadata without retrieving the entire dashboard's panels.
+
+Use this information to identify which panels answer the user's question, then use format_panels_for_ui with the selected panel IDs to prepare them for display.
+`,
+	Title:    "Get Dashboard Panels",
+	ReadOnly: true,
+	Params: []tools.ParamDef{
+		{
+			Name:        "name",
+			Type:        tools.ParamTypeString,
+			Description: "Name of the Dashboard",
+			Required:    true,
+		},
+		{
+			Name:        "namespace",
+			Type:        tools.ParamTypeString,
+			Description: "Namespace of the Dashboard",
+			Required:    true,
+		},
+		{
+			Name:        "panel_ids",
+			Type:        tools.ParamTypeString,
+			Description: "Optional comma-separated list of panel IDs to filter. Panel IDs follow the format 'panelName' or 'panelName-N' where N is the query index (e.g. 'cpuUsage,memoryUsage-0,networkTraffic-1'). Use this to fetch metadata for specific panels you've seen in earlier calls. Leave empty to get all panels.",
+		},
+	},
+}
+
+// FormatPanelsForUIOutput defines the output schema for the format_panels_for_ui tool.
+type FormatPanelsForUIOutput struct {
+	Widgets []perses.DashboardWidget `json:"widgets" jsonschema:"description=Dashboard widgets in DashboardWidget format ready for direct rendering by genie-plugin UI"`
+}
+
+// FormatPanelsForUIInput defines the input schema for the format_panels_for_ui tool.
+type FormatPanelsForUIInput struct {
+	DashboardName      string `json:"dashboard_name"`
+	DashboardNamespace string `json:"dashboard_namespace"`
+	PanelIDs           string `json:"panel_ids"`
+}
+
+var FormatPanelsForUI = tools.ToolDef[FormatPanelsForUIOutput]{
+	Name: "format_panels_for_ui",
+	Description: `Format selected dashboard panels for UI rendering in DashboardWidget format.
+
+After choosing relevant panels, use this to prepare them for display.
+
+Returns an array of DashboardWidget objects ready for direct rendering, with:
+- id: Unique panel identifier
+- componentType: Perses component name (PersesTimeSeries, PersesPieChart, PersesTable)
+- position: Grid layout coordinates (x, y, w, h) in 24-column grid
+- breakpoint: Responsive grid breakpoint (xl/lg/md/sm) inferred from panel width
+- props: Component properties (query, duration, step, start, end)
+
+Panel IDs (fetched using get_dashboard_panels) must be provided to specify which panels to format.
+`,
+	Title:    "Format Panels for UI",
+	ReadOnly: true,
+	Params: []tools.ParamDef{
+		{
+			Name:        "dashboard_name",
+			Type:        tools.ParamTypeString,
+			Description: "Name of the dashboard containing the panels",
+			Required:    true,
+		},
+		{
+			Name:        "dashboard_namespace",
+			Type:        tools.ParamTypeString,
+			Description: "Namespace of the dashboard",
+			Required:    true,
+		},
+		{
+			Name:        "panel_ids",
+			Type:        tools.ParamTypeString,
+			Description: "Comma-separated list of panel IDs to format (e.g. 'myPanelID-1,0_1-2')",
 			Required:    true,
 		},
 	},

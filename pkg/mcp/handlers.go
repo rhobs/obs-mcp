@@ -170,65 +170,241 @@ func GetSilencesHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[tools.SilencesInp
 	}
 }
 
-// ListPersesDashboardsHandler handles listing PersesDashboard CRD objects from the cluster.
-func ListPersesDashboardsHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[ListPersesDashboardsInput, ListPersesDashboardsOutput] {
-	return func(ctx context.Context, req *mcp.CallToolRequest, input ListPersesDashboardsInput) (*mcp.CallToolResult, ListPersesDashboardsOutput, error) {
-		slog.Info("ListPersesDashboardsHandler called")
+// DashboardsHandler handles returning all dashboards from the cluster.
+func DashboardsHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[struct{}, DashboardsOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, DashboardsOutput, error) {
+		slog.Info("DashboardsHandler called")
 
-		dashboards, err := k8s.ListPersesDashboards(ctx, input.Namespace, input.LabelSelector)
+		dashboards, err := k8s.ListDashboards(ctx, "", "")
 		if err != nil {
-			return nil, ListPersesDashboardsOutput{}, fmt.Errorf("failed to list PersesDashboards: %w", err)
+			return nil, DashboardsOutput{}, fmt.Errorf("failed to list dashboards: %w", err)
 		}
 
-		slog.Info("ListPersesDashboardsHandler executed successfully", "resultLength", len(dashboards))
-
-		dashboardInfos := make([]perses.PersesDashboardInfo, len(dashboards))
-		for i, db := range dashboards {
-			dashboardInfo := perses.PersesDashboardInfo{
-				Name:      db.Name,
-				Namespace: db.Namespace,
-				Labels:    db.GetLabels(),
+		dashboardInfos := make([]perses.DashboardInfo, 0, len(dashboards))
+		for _, dashboard := range dashboards {
+			info := perses.DashboardInfo{
+				Name:      dashboard.Name,
+				Namespace: dashboard.Namespace,
+				Labels:    dashboard.Labels,
 			}
 
-			// Extract MCP help description from annotation if present
-			if annotations := db.GetAnnotations(); annotations != nil {
-				if description, ok := annotations[k8s.PersesMCPHelpAnnotation]; ok {
-					dashboardInfo.Description = description
+			if dashboard.Annotations != nil {
+				if desc, ok := dashboard.Annotations[k8s.MCPHelpAnnotation]; ok {
+					info.Description = desc
 				}
 			}
 
-			dashboardInfos[i] = dashboardInfo
+			dashboardInfos = append(dashboardInfos, info)
 		}
 
-		return nil, ListPersesDashboardsOutput{Dashboards: dashboardInfos}, nil
+		slog.Info("DashboardsHandler executed successfully", "dashboardCount", len(dashboardInfos))
+
+		return nil, DashboardsOutput{Dashboards: dashboardInfos}, nil
 	}
 }
 
-// OOTBPersesDashboardsHandler handles returning pre-configured out-of-the-box dashboards.
-func OOTBPersesDashboardsHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[struct{}, OOTBPersesDashboardsOutput] {
-	return func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, OOTBPersesDashboardsOutput, error) {
-		slog.Info("OOTBPersesDashboardsHandler called")
-		slog.Info("OOTBPersesDashboardsHandler executed successfully", "resultLength", len(opts.OOTBDashboards))
-		return nil, OOTBPersesDashboardsOutput{Dashboards: opts.OOTBDashboards}, nil
-	}
-}
+// GetDashboardHandler handles getting a specific dashboard by name and namespace.
+func GetDashboardHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[GetDashboardInput, GetDashboardOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input GetDashboardInput) (*mcp.CallToolResult, GetDashboardOutput, error) {
+		slog.Info("GetDashboardHandler called")
 
-// GetPersesDashboardHandler handles getting a specific PersesDashboard by name and namespace.
-func GetPersesDashboardHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[GetPersesDashboardInput, GetPersesDashboardOutput] {
-	return func(ctx context.Context, req *mcp.CallToolRequest, input GetPersesDashboardInput) (*mcp.CallToolResult, GetPersesDashboardOutput, error) {
-		slog.Info("GetPersesDashboardHandler called")
-
-		dashboardName, dashboardNamespace, spec, err := k8s.GetPersesDashboard(ctx, input.Namespace, input.Name)
+		dashboardName, dashboardNamespace, spec, err := k8s.GetDashboard(ctx, input.Namespace, input.Name)
 		if err != nil {
-			return nil, GetPersesDashboardOutput{}, fmt.Errorf("failed to get PersesDashboard: %w", err)
+			return nil, GetDashboardOutput{}, fmt.Errorf("failed to get Dashboard: %w", err)
 		}
 
-		slog.Info("GetPersesDashboardHandler executed successfully", "name", dashboardName, "namespace", dashboardNamespace)
+		slog.Info("GetDashboardHandler executed successfully", "name", dashboardName, "namespace", dashboardNamespace)
 
-		return nil, GetPersesDashboardOutput{
+		return nil, GetDashboardOutput{
 			Name:      dashboardName,
 			Namespace: dashboardNamespace,
 			Spec:      spec,
 		}, nil
 	}
+}
+
+// GetDashboardPanelsHandler handles getting panel metadata from a dashboard for LLM selection.
+func GetDashboardPanelsHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[GetDashboardPanelsInput, GetDashboardPanelsOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input GetDashboardPanelsInput) (*mcp.CallToolResult, GetDashboardPanelsOutput, error) {
+		slog.Info("GetDashboardPanelsHandler called")
+
+		var panelIDs []string
+		if input.PanelIDs != "" {
+			for _, part := range splitByComma(input.PanelIDs) {
+				if part != "" {
+					panelIDs = append(panelIDs, part)
+				}
+			}
+		}
+
+		dashboardName, dashboardNamespace, spec, err := k8s.GetDashboard(ctx, input.Namespace, input.Name)
+		if err != nil {
+			return nil, GetDashboardPanelsOutput{}, fmt.Errorf("failed to get dashboard: %w", err)
+		}
+
+		panels, err := perses.ExtractPanels(dashboardName, dashboardNamespace, spec, false, panelIDs)
+		if err != nil {
+			return nil, GetDashboardPanelsOutput{}, fmt.Errorf("failed to extract panels: %w", err)
+		}
+
+		duration := "1h"
+		if d, ok := spec["duration"].(string); ok {
+			duration = d
+		}
+
+		slog.Info("GetDashboardPanelsHandler executed successfully",
+			"name", dashboardName,
+			"namespace", dashboardNamespace,
+			"requested", len(panelIDs),
+			"returned", len(panels))
+
+		return nil, GetDashboardPanelsOutput{
+			Name:      dashboardName,
+			Namespace: dashboardNamespace,
+			Duration:  duration,
+			Panels:    panels,
+		}, nil
+	}
+}
+
+// FormatPanelsForUIHandler handles formatting selected panels for UI rendering.
+func FormatPanelsForUIHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[FormatPanelsForUIInput, FormatPanelsForUIOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input FormatPanelsForUIInput) (*mcp.CallToolResult, FormatPanelsForUIOutput, error) {
+		slog.Info("FormatPanelsForUIHandler called")
+
+		var panelIDs []string
+		if input.PanelIDs != "" {
+			for _, part := range splitByComma(input.PanelIDs) {
+				if part != "" {
+					panelIDs = append(panelIDs, part)
+				}
+			}
+		}
+
+		_, _, spec, err := k8s.GetDashboard(ctx, input.DashboardNamespace, input.DashboardName)
+		if err != nil {
+			return nil, FormatPanelsForUIOutput{}, fmt.Errorf("failed to get Dashboard: %w", err)
+		}
+
+		panels, err := perses.ExtractPanels(input.DashboardName, input.DashboardNamespace, spec, true, panelIDs)
+		if err != nil {
+			return nil, FormatPanelsForUIOutput{}, fmt.Errorf("failed to extract panels: %w", err)
+		}
+
+		widgets := convertPanelsToDashboardWidgets(panels)
+
+		slog.Info("FormatPanelsForUIHandler executed successfully",
+			"dashboard", input.DashboardName,
+			"namespace", input.DashboardNamespace,
+			"requestedPanels", len(panelIDs),
+			"formattedWidgets", len(widgets))
+
+		return nil, FormatPanelsForUIOutput{Widgets: widgets}, nil
+	}
+}
+
+func splitByComma(s string) []string {
+	var parts []string
+	current := ""
+	for i := 0; i < len(s); i++ {
+		if s[i] == ',' {
+			trimmed := trimWhitespace(current)
+			if trimmed != "" {
+				parts = append(parts, trimmed)
+			}
+			current = ""
+		} else {
+			current += string(s[i])
+		}
+	}
+	trimmed := trimWhitespace(current)
+	if trimmed != "" {
+		parts = append(parts, trimmed)
+	}
+	return parts
+}
+
+func trimWhitespace(s string) string {
+	start := 0
+	end := len(s)
+
+	for start < end && isWhitespace(s[start]) {
+		start++
+	}
+
+	for end > start && isWhitespace(s[end-1]) {
+		end--
+	}
+
+	return s[start:end]
+}
+
+func isWhitespace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+}
+
+// convertPanelsToDashboardWidgets converts DashboardPanel objects to DashboardWidget format expected by UI.
+func convertPanelsToDashboardWidgets(panels []perses.DashboardPanel) []perses.DashboardWidget {
+	widgets := make([]perses.DashboardWidget, 0, len(panels))
+
+	for _, panel := range panels {
+		step := panel.Step
+		if step == "" {
+			step = "15s"
+		}
+		duration := panel.Duration
+		if duration == "" {
+			duration = "1h"
+		}
+
+		breakpoint := "lg"
+		if panel.Position != nil {
+			breakpoint = inferBreakpointFromWidth(panel.Position.W)
+		}
+
+		widget := perses.DashboardWidget{
+			ID:            panel.ID,
+			ComponentType: mapChartTypeToComponent(panel.ChartType),
+			Breakpoint:    breakpoint,
+			Props: perses.DashboardWidgetProps{
+				Query:    panel.Query,
+				Duration: duration,
+				Start:    panel.Start,
+				End:      panel.End,
+				Step:     step,
+			},
+		}
+
+		if panel.Position != nil {
+			widget.Position = *panel.Position
+		}
+
+		widgets = append(widgets, widget)
+	}
+
+	return widgets
+}
+
+func mapChartTypeToComponent(chartType string) string {
+	switch chartType {
+	case "TimeSeriesChart":
+		return "PersesTimeSeries"
+	case "PieChart", "StatChart":
+		return "PersesPieChart"
+	case "Table":
+		return "PersesTable"
+	default:
+		return "PersesTimeSeries"
+	}
+}
+
+func inferBreakpointFromWidth(width int) string {
+	if width >= 18 {
+		return "xl"
+	} else if width >= 12 {
+		return "lg"
+	} else if width >= 6 {
+		return "md"
+	}
+	return "sm"
 }
