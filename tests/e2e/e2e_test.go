@@ -149,8 +149,6 @@ func sendMCPRequest(t *testing.T, req MCPRequest) (*MCPResponse, error) {
 }
 
 func getFirstDashboard(t *testing.T) (name, namespace string) {
-	t.Helper()
-
 	req := MCPRequest{
 		JSONRPC: "2.0",
 		ID:      1,
@@ -297,7 +295,6 @@ func TestListMetrics(t *testing.T) {
 		t.Error("Expected result, got nil")
 	}
 
-	t.Logf("list_metrics returned successfully")
 }
 
 func TestListMetricsReturnsKnownMetrics(t *testing.T) {
@@ -357,7 +354,6 @@ func TestExecuteRangeQuery(t *testing.T) {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
 
-	t.Logf("execute_range_query returned successfully")
 }
 
 func TestRangeQueryWithInvalidPromQL(t *testing.T) {
@@ -518,8 +514,6 @@ func TestListDashboards(t *testing.T) {
 	if !strings.Contains(resultStr, "dashboards") {
 		t.Error("Expected 'dashboards' field in result")
 	}
-
-	t.Logf("list_dashboards returned successfully with valid structure")
 }
 
 func TestGetDashboardPanels(t *testing.T) {
@@ -551,8 +545,6 @@ func TestGetDashboardPanels(t *testing.T) {
 		if resp.Result == nil {
 			t.Fatal("Expected result, got nil")
 		}
-
-		t.Logf("get_dashboard_panels returned successfully for %s/%s", dashboardNamespace, dashboardName)
 	})
 
 	t.Run("WithPanelIDsFilter", func(t *testing.T) {
