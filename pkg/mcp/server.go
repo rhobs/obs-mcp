@@ -70,7 +70,6 @@ func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
 	mcpServer.AddTool(listMetricsTool, listMetricsHandler)
 	mcpServer.AddTool(executeRangeQueryTool, executeRangeQueryHandler)
 	mcpServer.AddTool(listDashboardsTool, dashboardsHandler)
-	mcpServer.AddTool(listDashboardsTool, dashboardsHandler)
 	mcpServer.AddTool(getDashboardTool, getDashboardHandler)
 	mcpServer.AddTool(getDashboardPanelsTool, getDashboardPanelsHandler)
 	mcpServer.AddTool(formatPanelsForUITool, formatPanelsForUIHandler)

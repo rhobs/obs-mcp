@@ -71,21 +71,22 @@ For historical data queries, use explicit 'start' and 'end' times.
 	)
 }
 
-// DashboardsOutput defines the output schema for the list_dashboards tool.
+// DashboardsOutput defines the output schema for the list_perses_dashboards tool.
 type DashboardsOutput struct {
 	Dashboards []perses.DashboardInfo `json:"dashboards" jsonschema:"description=List of all PersesDashboard resources from the cluster with their metadata"`
 }
 
-// GetDashboardOutput defines the output schema for the get_dashboard tool.
+// GetDashboardOutput defines the output schema for the get_perses_dashboard tool.
 type GetDashboardOutput struct {
 	Name      string         `json:"name" jsonschema:"description=Name of the Dashboard"`
 	Namespace string         `json:"namespace" jsonschema:"description=Namespace where the Dashboard is located"`
 	Spec      map[string]any `json:"spec" jsonschema:"description=The full dashboard specification including panels, layouts, variables, and datasources"`
 }
 
-// CreateListDashboardsTool creates the list_dashboards tool definition.
+// CreateListDashboardsTool creates the list_perses_dashboards tool definition.
 func CreateListDashboardsTool() mcp.Tool {
-	tool := mcp.NewTool("list_dashboards",
+	// "list_dashboards" conflicts with the same tool in layout-manager, and makes LCS throw duplicate tool name errors
+	tool := mcp.NewTool("list_perses_dashboards",
 		mcp.WithDescription(`List all PersesDashboard resources from the cluster.
 
 Start here when there is a need to visualize metrics.
@@ -94,7 +95,7 @@ Returns dashboard summaries with name, namespace, labels, and descriptions.
 
 Use the descriptions to identify dashboards relevant to the user's question.
 
-In the case that there is insufficient information in the description, use get_dashboard to fetch the full dashboard spec for more context. Doing so is an expensive operation, so only do this when necessary.
+In the case that there is insufficient information in the description, use get_perses_dashboard to fetch the full dashboard spec for more context. Doing so is an expensive operation, so only do this when necessary.
 
 Follow up with get_dashboard_panels to see what panels are available in the relevant dashboard(s).
 `),
@@ -106,14 +107,15 @@ Follow up with get_dashboard_panels to see what panels are available in the rele
 	return tool
 }
 
-// CreateGetDashboardTool creates the get_dashboard tool definition.
+// CreateGetDashboardTool creates the get_perses_dashboard tool definition.
 func CreateGetDashboardTool() mcp.Tool {
-	return mcp.NewTool("get_dashboard",
+	// "get_dashboard" conflicts with the same tool in layout-manager, and makes LCS throw duplicate tool name errors
+	return mcp.NewTool("get_perses_dashboard",
 		mcp.WithDescription(`Get a specific Dashboard by name and namespace. This tool is used to get the dashboard's panels and configuration.
 
-Use the list_dashboards tool first to find available dashboards, then use this tool to get the full specification of a specific dashboard, if needed (to gather more context).
+Use the list_perses_dashboards tool first to find available dashboards, then use this tool to get the full specification of a specific dashboard, if needed (to gather more context).
 
-The intended use of this tool is only to gather more context on one or more dashboards when the description from list_dashboards is insufficient.
+The intended use of this tool is only to gather more context on one or more dashboards when the description from list_perses_dashboards is insufficient.
 
 Information about panels themselves should be gathered using get_dashboard_panels instead (e.g., looking at a "kind: Markdown" panel to gather more context).
 
@@ -146,7 +148,7 @@ func CreateGetDashboardPanelsTool() mcp.Tool {
 	return mcp.NewTool("get_dashboard_panels",
 		mcp.WithDescription(`Get panel(s) information from a specific Dashboard.
 
-After finding a relevant dashboard (using list_dashboards and conditionally, get_dashboard), use this to see what panels it contains.
+After finding a relevant dashboard (using list_perses_dashboards and conditionally, get_perses_dashboard), use this to see what panels it contains.
 
 Returns panel metadata including:
 - Panel IDs (format: 'panelName' or 'panelName-N' for multi-query panels)

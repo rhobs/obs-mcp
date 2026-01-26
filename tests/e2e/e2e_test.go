@@ -154,14 +154,14 @@ func getFirstDashboard(t *testing.T) (name, namespace string) {
 		ID:      1,
 		Method:  "tools/call",
 		Params: map[string]any{
-			"name":      "list_dashboards",
+			"name":      "list_perses_dashboards",
 			"arguments": map[string]any{},
 		},
 	}
 
 	resp, err := sendMCPRequest(t, req)
 	if err != nil {
-		t.Fatalf("Failed to call list_dashboards: %v", err)
+		t.Fatalf("Failed to call list_perses_dashboards: %v", err)
 	}
 
 	if resp.Error != nil {
@@ -489,14 +489,14 @@ func TestListDashboards(t *testing.T) {
 		ID:      8,
 		Method:  "tools/call",
 		Params: map[string]any{
-			"name":      "list_dashboards",
+			"name":      "list_perses_dashboards",
 			"arguments": map[string]any{},
 		},
 	}
 
 	resp, err := sendMCPRequest(t, req)
 	if err != nil {
-		t.Fatalf("Failed to call list_dashboards: %v", err)
+		t.Fatalf("Failed to call list_perses_dashboards: %v", err)
 	}
 
 	if resp.Error != nil {

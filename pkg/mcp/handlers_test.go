@@ -496,7 +496,7 @@ func TestGetDashboardHandler_RequiredParameters(t *testing.T) {
 			handler := GetDashboardHandler(ObsMCPOptions{})
 			req := mcp.CallToolRequest{
 				Params: mcp.CallToolParams{
-					Name:      "get_dashboard",
+					Name:      "get_perses_dashboard",
 					Arguments: tt.params,
 				},
 			}
