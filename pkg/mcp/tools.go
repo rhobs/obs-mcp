@@ -57,13 +57,13 @@ func CreateGetSilencesTool() mcp.Tool {
 	return *tools.GetSilences.ToMCPTool()
 }
 
-// DashboardsOutput defines the output schema for the list_dashboards tool.
+// DashboardsOutput defines the output schema for the list_perses_dashboards tool.
 type DashboardsOutput struct {
 	Dashboards []perses.DashboardInfo `json:"dashboards" jsonschema:"description=List of all PersesDashboard resources from the cluster with their metadata"`
 }
 
 var ListDashboards = tools.ToolDef[DashboardsOutput]{
-	Name: "list_dashboards",
+	Name: "list_perses_dashboards",
 	Description: `List all PersesDashboard resources from the cluster.
 
 Start here when there is a need to visualize metrics.
@@ -72,7 +72,7 @@ Returns dashboard summaries with name, namespace, labels, and descriptions.
 
 Use the descriptions to identify dashboards relevant to the user's question.
 
-In the case that there is insufficient information in the description, use get_dashboard to fetch the full dashboard spec for more context. Doing so is an expensive operation, so only do this when necessary.
+In the case that there is insufficient information in the description, use get_perses_dashboard to fetch the full dashboard spec for more context. Doing so is an expensive operation, so only do this when necessary.
 
 Follow up with get_dashboard_panels to see what panels are available in the relevant dashboard(s).
 `,
@@ -84,26 +84,26 @@ func CreateListDashboardsTool() *mcp.Tool {
 	return ListDashboards.ToMCPTool()
 }
 
-// GetDashboardOutput defines the output schema for the get_dashboard tool.
+// GetDashboardOutput defines the output schema for the get_perses_dashboard tool.
 type GetDashboardOutput struct {
 	Name      string                 `json:"name" jsonschema:"description=Name of the Dashboard"`
 	Namespace string                 `json:"namespace" jsonschema:"description=Namespace where the Dashboard is located"`
 	Spec      map[string]interface{} `json:"spec" jsonschema:"description=The full dashboard specification including panels, layouts, variables, and datasources"`
 }
 
-// GetDashboardInput defines the input schema for the get_dashboard tool.
+// GetDashboardInput defines the input schema for the get_perses_dashboard tool.
 type GetDashboardInput struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 }
 
 var GetDashboard = tools.ToolDef[GetDashboardOutput]{
-	Name: "get_dashboard",
+	Name: "get_perses_dashboard",
 	Description: `Get a specific Dashboard by name and namespace. This tool is used to get the dashboard's panels and configuration.
 
-Use the list_dashboards tool first to find available dashboards, then use this tool to get the full specification of a specific dashboard, if needed (to gather more context).
+Use the list_perses_dashboards tool first to find available dashboards, then use this tool to get the full specification of a specific dashboard, if needed (to gather more context).
 
-The intended use of this tool is only to gather more context on one or more dashboards when the description from list_dashboards is insufficient.
+The intended use of this tool is only to gather more context on one or more dashboards when the description from list_perses_dashboards is insufficient.
 
 Information about panels themselves should be gathered using get_dashboard_panels instead (e.g., looking at a "kind: Markdown" panel to gather more context).
 
@@ -148,7 +148,7 @@ var GetDashboardPanels = tools.ToolDef[GetDashboardPanelsOutput]{
 	Name: "get_dashboard_panels",
 	Description: `Get panel(s) information from a specific Dashboard.
 
-After finding a relevant dashboard (using list_dashboards and conditionally, get_dashboard), use this to see what panels it contains.
+After finding a relevant dashboard (using list_perses_dashboards and conditionally, get_perses_dashboard), use this to see what panels it contains.
 
 Returns panel metadata including:
 - Panel IDs (format: 'panelName' or 'panelName-N' for multi-query panels)
