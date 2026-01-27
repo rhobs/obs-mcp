@@ -443,10 +443,10 @@ func TestExecuteInstantQueryHandler_NOWKeyword_CaseInsensitive(t *testing.T) {
 
 func TestExecuteRangeQueryHandler_RelativeTime(t *testing.T) {
 	tests := []struct {
-		name        string
-		start       string
-		end         string
-		validateFn  func(t *testing.T, start, end time.Time)
+		name       string
+		start      string
+		end        string
+		validateFn func(t *testing.T, start, end time.Time)
 	}{
 		{
 			name:  "NOW-5m to NOW",

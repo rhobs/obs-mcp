@@ -7,10 +7,10 @@ import (
 
 func TestParseTimestamp(t *testing.T) {
 	tests := []struct {
-		name          string
-		input         string
-		expectError   bool
-		validateTime  func(t *testing.T, result time.Time)
+		name         string
+		input        string
+		expectError  bool
+		validateTime func(t *testing.T, result time.Time)
 	}{
 		{
 			name:        "NOW keyword uppercase",

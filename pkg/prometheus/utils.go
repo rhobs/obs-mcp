@@ -21,7 +21,7 @@ func ParseTimestamp(timestamp string) (time.Time, error) {
 		rest := timestamp[3:]
 
 		// Check if the next character is + or -
-		if len(rest) > 0 && (rest[0] == '+' || rest[0] == '-') {
+		if rest != "" && (rest[0] == '+' || rest[0] == '-') {
 			isNegative := rest[0] == '-'
 			durationStr := rest[1:]
 
