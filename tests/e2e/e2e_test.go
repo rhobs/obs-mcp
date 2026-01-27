@@ -374,3 +374,265 @@ func TestGuardrailsBlockDangerousQuery(t *testing.T) {
 		t.Error("Expected guardrails to block the dangerous query")
 	}
 }
+
+func TestExecuteInstantQuery(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      8,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name": "execute_instant_query",
+			"arguments": map[string]any{
+				"query": `up{job="prometheus"}`,
+				"time":  "NOW",
+			},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call execute_instant_query: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+
+	// Verify we got result
+	if resp.Result == nil {
+		t.Error("Expected result, got nil")
+	}
+
+	t.Logf("execute_instant_query returned successfully")
+}
+
+func TestInstantQueryWithInvalidPromQL(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      9,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name": "execute_instant_query",
+			"arguments": map[string]any{
+				"query": `up{{{invalid`, // Invalid PromQL syntax
+			},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call execute_instant_query: %v", err)
+	}
+
+	// Should return an error for invalid syntax
+	if resp.Result != nil {
+		if isError, ok := resp.Result["isError"].(bool); ok && isError {
+			t.Log("Correctly returned error for invalid PromQL")
+		} else {
+			t.Error("Expected error for invalid PromQL syntax")
+		}
+	}
+}
+
+func TestGetLabelNames(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      10,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name": "get_label_names",
+			"arguments": map[string]any{
+				"metric": "up",
+			},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call get_label_names: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+
+	// Verify we got some labels back
+	if resp.Result == nil {
+		t.Error("Expected result, got nil")
+	}
+
+	// Verify we have common labels
+	resultJSON, _ := json.Marshal(resp.Result)
+	resultStr := string(resultJSON)
+
+	expectedLabels := []string{"job", "instance"}
+	for _, label := range expectedLabels {
+		if !strings.Contains(resultStr, label) {
+			t.Errorf("Expected label %q not found in results", label)
+		}
+	}
+
+	t.Logf("get_label_names returned successfully")
+}
+
+func TestGetLabelNamesAllMetrics(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      11,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name":      "get_label_names",
+			"arguments": map[string]any{},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call get_label_names: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+
+	// Verify we got some labels back
+	if resp.Result == nil {
+		t.Error("Expected result, got nil")
+	}
+
+	t.Logf("get_label_names (all metrics) returned successfully")
+}
+
+func TestGetLabelValues(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      12,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name": "get_label_values",
+			"arguments": map[string]any{
+				"label":  "job",
+				"metric": "up",
+			},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call get_label_values: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+
+	// Verify we got some values back
+	if resp.Result == nil {
+		t.Error("Expected result, got nil")
+	}
+
+	// Verify we have the prometheus job
+	resultJSON, _ := json.Marshal(resp.Result)
+	resultStr := string(resultJSON)
+
+	if !strings.Contains(resultStr, "prometheus") {
+		t.Errorf("Expected 'prometheus' job value not found in results")
+	}
+
+	t.Logf("get_label_values returned successfully")
+}
+
+func TestGetLabelValuesMissingRequiredParam(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      13,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name": "get_label_values",
+			"arguments": map[string]any{
+				// Missing "label" parameter
+				"metric": "up",
+			},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call get_label_values: %v", err)
+	}
+
+	// Should return an error for missing required param
+	if resp.Result != nil {
+		if isError, ok := resp.Result["isError"].(bool); ok && isError {
+			t.Log("Correctly returned error for missing label parameter")
+		} else {
+			t.Error("Expected error for missing required parameter")
+		}
+	}
+}
+
+func TestGetSeries(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      14,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name": "get_series",
+			"arguments": map[string]any{
+				"matches": `up{job="prometheus"}`,
+			},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call get_series: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+
+	// Verify we got some series back
+	if resp.Result == nil {
+		t.Error("Expected result, got nil")
+	}
+
+	// Verify we have cardinality information
+	resultJSON, _ := json.Marshal(resp.Result)
+	resultStr := string(resultJSON)
+
+	if !strings.Contains(resultStr, "cardinality") {
+		t.Errorf("Expected 'cardinality' field not found in results")
+	}
+
+	t.Logf("get_series returned successfully")
+}
+
+func TestGetSeriesMissingRequiredParam(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      15,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name": "get_series",
+			"arguments": map[string]any{
+				// Missing "matches" parameter
+			},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call get_series: %v", err)
+	}
+
+	// Should return an error for missing required param
+	if resp.Result != nil {
+		if isError, ok := resp.Result["isError"].(bool); ok && isError {
+			t.Log("Correctly returned error for missing matches parameter")
+		} else {
+			t.Error("Expected error for missing required parameter")
+		}
+	}
+}

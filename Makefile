@@ -34,7 +34,7 @@ clean: ## Clean obs-mcp build artifacts
 
 .PHONY: container
 container: build ## Build obs-mcp container image
-	$(CONTAINER_CLI) build -f Containerfile -t $(IMAGE):$(TAG) .
+	$(CONTAINER_CLI) build --load -f Containerfile -t $(IMAGE):$(TAG) .
 
 .PHONY: format
 format: ## Format all code

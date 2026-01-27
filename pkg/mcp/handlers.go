@@ -81,10 +81,6 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 		endStr := req.GetString("end", "")
 		durationStr := req.GetString("duration", "")
 
-		if endStr == "NOW" {
-			endStr = ""
-		}
-
 		// Validate parameter combinations
 		if startStr != "" && endStr != "" && durationStr != "" {
 			return errorResult("cannot specify both start/end and duration parameters")
@@ -192,7 +188,7 @@ func ExecuteInstantQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Ca
 		timeStr := req.GetString("time", "")
 
 		var queryTime time.Time
-		if timeStr == "" || timeStr == "NOW" {
+		if timeStr == "" {
 			queryTime = time.Now()
 		} else {
 			queryTime, err = prometheus.ParseTimestamp(timeStr)

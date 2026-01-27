@@ -226,7 +226,7 @@ func TestExecuteRangeQueryHandler_RequiredParameters(t *testing.T) {
 				"start": "invalid",
 				"end":   "2024-01-01T01:00:00Z",
 			},
-			expectedError: "invalid start time format: timestamp must be RFC3339 format or Unix timestamp",
+			expectedError: "invalid start time format: timestamp must be RFC3339 format, Unix timestamp, or NOW",
 		},
 		{
 			name: "invalid end time",
@@ -236,7 +236,7 @@ func TestExecuteRangeQueryHandler_RequiredParameters(t *testing.T) {
 				"start": "2024-01-01T00:00:00Z",
 				"end":   "invalid",
 			},
-			expectedError: "invalid end time format: timestamp must be RFC3339 format or Unix timestamp",
+			expectedError: "invalid end time format: timestamp must be RFC3339 format, Unix timestamp, or NOW",
 		},
 		{
 			name: "invalid duration",
@@ -343,7 +343,7 @@ func TestExecuteRangeQueryHandler_DurationMode_NOWKeyword(t *testing.T) {
 		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
 			duration := end.Sub(start)
 			if duration < 59*time.Minute || duration > 61*time.Minute {
-				t.Errorf("expected duration ~1h when NOW is used, got %v", duration)
+				t.Errorf("expected duration ~1h when using duration mode, got %v", duration)
 			}
 			return map[string]any{"resultType": "matrix", "result": []any{}}, nil
 		},
@@ -352,11 +352,11 @@ func TestExecuteRangeQueryHandler_DurationMode_NOWKeyword(t *testing.T) {
 	ctx := withMockClient(context.Background(), mockClient)
 	handler := ExecuteRangeQueryHandler(ObsMCPOptions{})
 
-	// Test with NOW in end
+	// Test with duration parameter (defaults to 1h ending at NOW)
 	req := newMockRequest(map[string]any{
-		"query": "up{job=\"api\"}",
-		"step":  "1m",
-		"end":   "NOW",
+		"query":    "up{job=\"api\"}",
+		"step":     "1m",
+		"duration": "1h",
 	})
 	result, err := handler(ctx, req)
 	if err != nil {
@@ -364,6 +364,80 @@ func TestExecuteRangeQueryHandler_DurationMode_NOWKeyword(t *testing.T) {
 	}
 	if result.IsError {
 		t.Fatalf("unexpected error result: %v", getErrorMessage(t, result))
+	}
+}
+
+func TestExecuteRangeQueryHandler_NOWKeyword_CaseInsensitive(t *testing.T) {
+	nowVariations := []string{"NOW", "now", "Now", "nOw", "NoW"}
+	expectedStart, _ := prometheus.ParseTimestamp("2024-01-01T00:00:00Z")
+
+	for _, nowStr := range nowVariations {
+		t.Run(nowStr, func(t *testing.T) {
+			mockClient := &MockedLoader{
+				ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+					// Verify end time is close to now
+					if time.Since(end) > 2*time.Second {
+						t.Errorf("expected end to be approximately now, got %v ago", time.Since(end))
+					}
+					// Verify start time matches the expected timestamp
+					if !start.Equal(expectedStart) {
+						t.Errorf("expected start %v, got %v", expectedStart, start)
+					}
+					return map[string]any{"resultType": "matrix", "result": []any{}}, nil
+				},
+			}
+
+			ctx := withMockClient(context.Background(), mockClient)
+			handler := ExecuteRangeQueryHandler(ObsMCPOptions{})
+
+			// Test with different case variations in end parameter
+			req := newMockRequest(map[string]any{
+				"query": "up{job=\"api\"}",
+				"step":  "1m",
+				"start": "2024-01-01T00:00:00Z",
+				"end":   nowStr,
+			})
+			result, err := handler(ctx, req)
+			if err != nil {
+				t.Fatalf("unexpected error with %q: %v", nowStr, err)
+			}
+			if result.IsError {
+				t.Fatalf("unexpected error result with %q: %v", nowStr, getErrorMessage(t, result))
+			}
+		})
+	}
+}
+
+func TestExecuteInstantQueryHandler_NOWKeyword_CaseInsensitive(t *testing.T) {
+	nowVariations := []string{"NOW", "now", "Now", "nOw", "NoW"}
+
+	for _, nowStr := range nowVariations {
+		t.Run(nowStr, func(t *testing.T) {
+			mockClient := &MockedLoader{
+				ExecuteInstantQueryFunc: func(ctx context.Context, query string, queryTime time.Time) (map[string]any, error) {
+					// Verify time is close to now
+					if time.Since(queryTime) > 2*time.Second {
+						t.Errorf("expected query time to be approximately now, got %v ago", time.Since(queryTime))
+					}
+					return map[string]any{"resultType": "vector", "result": []any{}}, nil
+				},
+			}
+
+			ctx := withMockClient(context.Background(), mockClient)
+			handler := ExecuteInstantQueryHandler(ObsMCPOptions{})
+
+			req := newMockRequest(map[string]any{
+				"query": "up{job=\"api\"}",
+				"time":  nowStr,
+			})
+			result, err := handler(ctx, req)
+			if err != nil {
+				t.Fatalf("unexpected error with %q: %v", nowStr, err)
+			}
+			if result.IsError {
+				t.Fatalf("unexpected error result with %q: %v", nowStr, getErrorMessage(t, result))
+			}
+		})
 	}
 }
 
