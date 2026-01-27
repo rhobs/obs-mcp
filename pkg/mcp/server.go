@@ -56,6 +56,8 @@ const (
 1. **NEVER query a metric without first calling list_metrics** - You must verify the metric exists
 2. **Use EXACT metric names from list_metrics output** - Do not modify or guess metric names
 3. **If list_metrics doesn't return a relevant metric, tell the user** - Don't fabricate queries
+4. **BE PROACTIVE** - Complete all steps automatically without asking for confirmation. When you find a relevant metric, proceed to query.
+5. **UNDERSTAND TIME FRAMES** - Use the start and end parameters to specify the time frame for your queries. You can use NOW for current time liberally across parameters, and NOW±duration for relative time frames.
 
 ## Query Type Selection
 

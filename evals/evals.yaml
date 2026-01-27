@@ -239,7 +239,7 @@
               server_label: obs
         - - tool_name: execute_instant_query
             arguments:
-              query: .*prometheus_tsdb_wal_storage_size_bytes.*
+              query: prometheus_tsdb_wal_storage_size_bytes.*
               server_label: obs
       turn_metrics:
         - "custom:tool_eval"

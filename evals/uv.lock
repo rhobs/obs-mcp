@@ -1470,7 +1470,7 @@ wheels = [
 [[package]]
 name = "lightspeed-evaluation"
 version = "0.4.0"
-source = { git = "https://github.com/lightspeed-core/lightspeed-evaluation.git#51fb13a136d1ade7e900f6bea352a4ea82845ede" }
+source = { git = "https://github.com/lightspeed-core/lightspeed-evaluation.git#debf62f665caaad99f613595aa5a547472ead4f8" }
 dependencies = [
     { name = "click" },
     { name = "datasets" },
