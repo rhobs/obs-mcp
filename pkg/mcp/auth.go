@@ -35,8 +35,8 @@ const (
 type ContextKey string
 
 const (
-	// AuthHeaderKey is the context key for the Kubernetes authorization header
-	AuthHeaderKey ContextKey = "kubernetes-authorization"
+	// AuthHeaderKey is the context key for the authorization header
+	AuthHeaderKey ContextKey = "Authorization"
 
 	// TestPromClientKey is the context key for injecting a test Prometheus client
 	TestPromClientKey ContextKey = "test-prometheus-client"
