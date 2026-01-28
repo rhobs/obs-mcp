@@ -90,7 +90,7 @@ func (p *RealLoader) ValidateMetricsExist(ctx context.Context, query string) err
 
 	for _, metricName := range metricNames {
 		if !availableMetrics[metricName] {
-			return fmt.Errorf("metric %q does not exist in Prometheus TSDB, please check the query and try again", metricName)
+			return fmt.Errorf("metric %q does not exist in the metrics backend, please check the query and try again", metricName)
 		}
 	}
 

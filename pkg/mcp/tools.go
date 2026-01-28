@@ -6,12 +6,12 @@ import (
 
 // ListMetricsOutput defines the output schema for the list_metrics tool.
 type ListMetricsOutput struct {
-	Metrics []string `json:"metrics" jsonschema:"description=List of all available metric names in Prometheus"`
+	Metrics []string `json:"metrics" jsonschema:"description=List of all available metric names"`
 }
 
 // RangeQueryOutput defines the output schema for the execute_range_query tool.
 type RangeQueryOutput struct {
-	ResultType string         `json:"resultType" jsonschema:"description=The type of result returned (e.g. matrix, vector, scalar)"`
+	ResultType string         `json:"resultType" jsonschema:"description=The type of result returned: matrix or vector or scalar"`
 	Result     []SeriesResult `json:"result" jsonschema:"description=The query results as an array of time series"`
 	Warnings   []string       `json:"warnings,omitempty" jsonschema:"description=Any warnings generated during query execution"`
 }
@@ -22,9 +22,18 @@ type SeriesResult struct {
 	Values [][]any           `json:"values" jsonschema:"description=Array of [timestamp, value] pairs"`
 }
 
+// AllTools returns all available MCP tools.
+// When adding a new tool, add it here to keep documentation in sync.
+func AllTools() []mcp.Tool {
+	return []mcp.Tool{
+		CreateListMetricsTool(),
+		CreateExecuteRangeQueryTool(),
+	}
+}
+
 func CreateListMetricsTool() mcp.Tool {
 	tool := mcp.NewTool("list_metrics",
-		mcp.WithDescription("List all available metrics in Prometheus"),
+		mcp.WithDescription("List all available metrics"),
 		mcp.WithOutputSchema[ListMetricsOutput](),
 	)
 	// workaround for tool with no parameter

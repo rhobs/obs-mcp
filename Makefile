@@ -59,6 +59,22 @@ setup: check-tools ## Install dependencies for all components
 	go mod download
 	cd $(TOOLS_DIR) && go mod download
 
+.PHONY: generate-tools-doc
+generate-tools-doc: ## Generate TOOLS.md from tool definitions
+	go run ./cmd/generate-tools-doc/main.go
+
+.PHONY: check-tools-doc
+check-tools-doc: generate-tools-doc ## Check if TOOLS.md is up to date
+	@git diff --exit-code TOOLS.md || { \
+		echo ""; \
+		echo "❌ TOOLS.md is out of sync with tool definitions!"; \
+		echo ""; \
+		echo "To fix, run: make generate-tools-doc"; \
+		echo "Then commit the updated TOOLS.md"; \
+		echo ""; \
+		exit 1; \
+	}
+
 # E2E Testing
 KIND_CLUSTER_NAME ?= obs-mcp-e2e
 
