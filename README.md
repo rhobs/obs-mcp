@@ -3,6 +3,7 @@
 [![lint](https://github.com/rhobs/obs-mcp/actions/workflows/lint.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/lint.yaml)
 [![unit](https://github.com/rhobs/obs-mcp/actions/workflows/unit.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/unit.yaml)
 [![e2e](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml)
+[![docs](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml)
 
 obs-mcp is a [mcp](https://modelcontextprotocol.io/introduction) server to allow LLMs to interact with [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/) instances via the API.
 
@@ -169,6 +170,10 @@ curl -X POST http://localhost:9100/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"execute_range_query","arguments":{"query":"up{job=\"prometheus\"}","step":"1m","end":"NOW","duration":"1h"}}}' | jq
 ```
+
+## Available Tools
+
+See [TOOLS.md](TOOLS.md) for detailed documentation of all available MCP tools.
 
 ## License
 
