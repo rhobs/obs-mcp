@@ -56,7 +56,11 @@ type SeriesResult struct {
 func AllTools() []mcp.Tool {
 	return []mcp.Tool{
 		CreateListMetricsTool(),
+		CreateExecuteInstantQueryTool(),
 		CreateExecuteRangeQueryTool(),
+		CreateGetLabelNamesTool(),
+		CreateGetLabelValuesTool(),
+		CreateGetSeriesTool(),
 	}
 }
 

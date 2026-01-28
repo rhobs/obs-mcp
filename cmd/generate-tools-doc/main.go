@@ -19,6 +19,11 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println("✓ TOOLS.md generated successfully")
+	fmt.Printf("  Documented %d tools:\n", len(tools))
+	for i := range tools {
+		fmt.Printf("    - %s\n", tools[i].Name)
+	}
+	fmt.Println("\n💡 Reminder: When adding a new tool, register it in pkg/mcp/tools.go AllTools()")
 }
 
 type fieldInfo struct {
@@ -171,6 +176,9 @@ func extractOutputSchema(tool *mcplib.Tool) []fieldInfo {
 
 func generateMarkdown(tools []mcplib.Tool, filename string) error {
 	var sb strings.Builder
+
+	sb.WriteString("<!-- This file is auto-generated. Do not edit manually. -->\n")
+	sb.WriteString("<!-- Run 'make generate-tools-doc' to regenerate. -->\n\n")
 
 	sb.WriteString("# Available Tools\n\n")
 	sb.WriteString("This MCP server exposes the following tools for interacting with Prometheus/Thanos:\n\n")
