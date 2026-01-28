@@ -314,6 +314,11 @@ func TestToolsHaveOutputSchema(t *testing.T) {
 	tools := []mcp.Tool{
 		CreateListMetricsTool(),
 		CreateExecuteRangeQueryTool(),
+		CreateListDashboardsTool(),
+		CreateListDashboardsTool(),
+		CreateGetDashboardTool(),
+		CreateGetDashboardPanelsTool(),
+		CreateFormatPanelsForUITool(),
 	}
 
 	if len(tools) == 0 {

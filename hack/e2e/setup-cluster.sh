@@ -26,6 +26,10 @@ fi
 
 # Apply CRDs and namespace setup first
 kubectl apply --server-side -f "${KUBE_PROMETHEUS_DIR}/manifests/setup"
+
+echo "==> Installing Perses CRD..."
+kubectl apply -f "${ROOT_DIR}/hack/e2e/manifests/perses-crd.yaml"
+
 echo "==> Waiting for CRDs to be established..."
 kubectl wait --for condition=Established --all CustomResourceDefinition --namespace=monitoring --timeout=5m
 
@@ -43,6 +47,9 @@ echo "==> Installing Alertmanager..."
 for f in "${KUBE_PROMETHEUS_DIR}"/manifests/alertmanager-*.yaml; do
     kubectl apply -f "$f"
 done
+
+echo "==> Installing Perses sample dashboard..."
+kubectl apply -f "${ROOT_DIR}/hack/e2e/manifests/perses-sample-dashboard.yaml"
 
 echo "==> Waiting for Prometheus Operator to be ready..."
 kubectl -n monitoring rollout status deployment/prometheus-operator --timeout=5m

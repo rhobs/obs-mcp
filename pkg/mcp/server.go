@@ -32,6 +32,7 @@ const (
 	defaultShutdownTimeout = 10 * time.Second
 )
 
+// NewMCPServer creates and configures a new MCP server instance
 func NewMCPServer(opts ObsMCPOptions) (*server.MCPServer, error) {
 	mcpServer := server.NewMCPServer(
 		serverName,
@@ -47,18 +48,31 @@ func NewMCPServer(opts ObsMCPOptions) (*server.MCPServer, error) {
 	return mcpServer, nil
 }
 
+// SetupTools registers all MCP tools and their handlers with the server
 func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
 	// Create tool definitions
 	listMetricsTool := CreateListMetricsTool()
 	executeRangeQueryTool := CreateExecuteRangeQueryTool()
+	listDashboardsTool := CreateListDashboardsTool()
+	getDashboardTool := CreateGetDashboardTool()
+	getDashboardPanelsTool := CreateGetDashboardPanelsTool()
+	formatPanelsForUITool := CreateFormatPanelsForUITool()
 
 	// Create handlers
 	listMetricsHandler := ListMetricsHandler(opts)
 	executeRangeQueryHandler := ExecuteRangeQueryHandler(opts)
+	dashboardsHandler := DashboardsHandler(opts)
+	getDashboardHandler := GetDashboardHandler(opts)
+	getDashboardPanelsHandler := GetDashboardPanelsHandler(opts)
+	formatPanelsForUIHandler := FormatPanelsForUIHandler(opts)
 
 	// Add tools to server
 	mcpServer.AddTool(listMetricsTool, listMetricsHandler)
 	mcpServer.AddTool(executeRangeQueryTool, executeRangeQueryHandler)
+	mcpServer.AddTool(listDashboardsTool, dashboardsHandler)
+	mcpServer.AddTool(getDashboardTool, getDashboardHandler)
+	mcpServer.AddTool(getDashboardPanelsTool, getDashboardPanelsHandler)
+	mcpServer.AddTool(formatPanelsForUITool, formatPanelsForUIHandler)
 
 	return nil
 }
@@ -83,6 +97,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// Serve starts the MCP server and listens for incoming HTTP requests
 func Serve(ctx context.Context, mcpServer *server.MCPServer, listenAddr string) error {
 	mux := http.NewServeMux()
 
@@ -100,7 +115,7 @@ func Serve(ctx context.Context, mcpServer *server.MCPServer, listenAddr string) 
 
 	mux.Handle("/", streamableHTTPServer)
 
-	mux.HandleFunc(healthEndpoint, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(healthEndpoint, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	})

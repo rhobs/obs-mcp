@@ -148,6 +148,116 @@ func sendMCPRequest(t *testing.T, req MCPRequest) (*MCPResponse, error) {
 	return &mcpResp, nil
 }
 
+func getFirstDashboard(t *testing.T) (name, namespace string) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name":      "list_perses_dashboards",
+			"arguments": map[string]any{},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call list_perses_dashboards: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Fatalf("MCP error getting dashboards: %s", resp.Error.Message)
+	}
+
+	content, ok := resp.Result["content"].([]any)
+	if !ok || len(content) == 0 {
+		t.Fatalf("No dashboards available")
+	}
+
+	firstContent, ok := content[0].(map[string]any)
+	if !ok {
+		t.Fatalf("Unexpected content structure")
+	}
+
+	text, ok := firstContent["text"].(string)
+	if !ok {
+		t.Fatalf("No text field in content")
+	}
+
+	var dashboardData struct {
+		Dashboards []struct {
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+		} `json:"dashboards"`
+	}
+
+	if err := json.Unmarshal([]byte(text), &dashboardData); err != nil {
+		t.Fatalf("Failed to parse dashboard data: %v", err)
+	}
+
+	if len(dashboardData.Dashboards) == 0 {
+		t.Fatalf("No dashboards found")
+	}
+
+	return dashboardData.Dashboards[0].Name, dashboardData.Dashboards[0].Namespace
+}
+
+func getDashboardPanelIDs(t *testing.T, dashboardName, dashboardNamespace string) []string {
+	t.Helper()
+
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      2,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name": "get_dashboard_panels",
+			"arguments": map[string]any{
+				"name":      dashboardName,
+				"namespace": dashboardNamespace,
+			},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call get_dashboard_panels: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+
+	content, ok := resp.Result["content"].([]any)
+	if !ok || len(content) == 0 {
+		t.Fatalf("No panel content available")
+	}
+
+	text, ok := content[0].(map[string]any)["text"].(string)
+	if !ok {
+		t.Fatalf("No text field in panel content")
+	}
+
+	var panelsData struct {
+		Panels []struct {
+			ID string `json:"id"`
+		} `json:"panels"`
+	}
+
+	if err := json.Unmarshal([]byte(text), &panelsData); err != nil {
+		t.Fatalf("Failed to parse panels data: %v", err)
+	}
+
+	if len(panelsData.Panels) == 0 {
+		t.Fatalf("No panels found in dashboard")
+	}
+
+	panelIDs := make([]string, len(panelsData.Panels))
+	for i, panel := range panelsData.Panels {
+		panelIDs[i] = panel.ID
+	}
+
+	return panelIDs
+}
+
 func TestHealthEndpoint(t *testing.T) {
 	resp, err := http.Get(obsMCPURL + "/health")
 	if err != nil {
@@ -185,7 +295,6 @@ func TestListMetrics(t *testing.T) {
 		t.Error("Expected result, got nil")
 	}
 
-	t.Logf("list_metrics returned successfully")
 }
 
 func TestListMetricsReturnsKnownMetrics(t *testing.T) {
@@ -245,7 +354,6 @@ func TestExecuteRangeQuery(t *testing.T) {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
 
-	t.Logf("execute_range_query returned successfully")
 }
 
 func TestRangeQueryWithInvalidPromQL(t *testing.T) {
@@ -373,4 +481,177 @@ func TestGuardrailsBlockDangerousQuery(t *testing.T) {
 	} else {
 		t.Error("Expected guardrails to block the dangerous query")
 	}
+}
+
+func TestListDashboards(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      8,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name":      "list_perses_dashboards",
+			"arguments": map[string]any{},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call list_perses_dashboards: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+
+	if resp.Result == nil {
+		t.Fatal("Expected result, got nil")
+	}
+
+	// Verify the result structure contains dashboards
+	resultJSON, _ := json.Marshal(resp.Result)
+	resultStr := string(resultJSON)
+
+	if !strings.Contains(resultStr, "dashboards") {
+		t.Error("Expected 'dashboards' field in result")
+	}
+}
+
+func TestGetDashboardPanels(t *testing.T) {
+	t.Run("WithListDashboards", func(t *testing.T) {
+		dashboardName, dashboardNamespace := getFirstDashboard(t)
+
+		req := MCPRequest{
+			JSONRPC: "2.0",
+			ID:      12,
+			Method:  "tools/call",
+			Params: map[string]any{
+				"name": "get_dashboard_panels",
+				"arguments": map[string]any{
+					"name":      dashboardName,
+					"namespace": dashboardNamespace,
+				},
+			},
+		}
+
+		resp, err := sendMCPRequest(t, req)
+		if err != nil {
+			t.Fatalf("Failed to call get_dashboard_panels: %v", err)
+		}
+
+		if resp.Error != nil {
+			t.Fatalf("MCP error: %s", resp.Error.Message)
+		}
+
+		if resp.Result == nil {
+			t.Fatal("Expected result, got nil")
+		}
+	})
+
+	t.Run("WithPanelIDsFilter", func(t *testing.T) {
+		dashboardName, dashboardNamespace := getFirstDashboard(t)
+		// Get panel IDs without filter first
+		panelIDs := getDashboardPanelIDs(t, dashboardName, dashboardNamespace)
+
+		req := MCPRequest{
+			JSONRPC: "2.0",
+			ID:      14,
+			Method:  "tools/call",
+			Params: map[string]any{
+				"name": "get_dashboard_panels",
+				"arguments": map[string]any{
+					"name":      dashboardName,
+					"namespace": dashboardNamespace,
+					"panel_ids": fmt.Sprintf("%s,%s", panelIDs[0], panelIDs[1]),
+				},
+			},
+		}
+
+		resp, err := sendMCPRequest(t, req)
+		if err != nil {
+			t.Fatalf("Failed to call get_dashboard_panels: %v", err)
+		}
+
+		if resp.Error != nil {
+			t.Errorf("Unexpected error: %s", resp.Error.Message)
+		}
+
+		t.Log("get_dashboard_panels with panel_ids filter handled correctly")
+	})
+}
+
+func TestFormatPanelsForUI(t *testing.T) {
+	t.Run("SinglePanel", func(t *testing.T) {
+		dashboardName, dashboardNamespace := getFirstDashboard(t)
+		panelIDs := getDashboardPanelIDs(t, dashboardName, dashboardNamespace)
+
+		req := MCPRequest{
+			JSONRPC: "2.0",
+			ID:      18,
+			Method:  "tools/call",
+			Params: map[string]any{
+				"name": "format_panels_for_ui",
+				"arguments": map[string]any{
+					"name":      dashboardName,
+					"namespace": dashboardNamespace,
+					"panel_ids": panelIDs[0],
+				},
+			},
+		}
+
+		resp, err := sendMCPRequest(t, req)
+		if err != nil {
+			t.Fatalf("Failed to call format_panels_for_ui: %v", err)
+		}
+
+		if resp.Error != nil {
+			t.Fatalf("MCP error: %s", resp.Error.Message)
+		}
+
+		if resp.Result == nil {
+			t.Fatal("Expected result, got nil")
+		}
+
+		resultJSON, _ := json.Marshal(resp.Result)
+		resultStr := string(resultJSON)
+
+		if !strings.Contains(resultStr, "widgets") {
+			t.Error("Expected 'widgets' field in result")
+		}
+
+		t.Log("format_panels_for_ui returned successfully")
+	})
+
+	t.Run("MultiplePanels", func(t *testing.T) {
+		dashboardName, dashboardNamespace := getFirstDashboard(t)
+		panelIDs := getDashboardPanelIDs(t, dashboardName, dashboardNamespace)
+
+		if len(panelIDs) < 2 {
+			t.Skip("Need at least 2 panels for this test")
+		}
+
+		req := MCPRequest{
+			JSONRPC: "2.0",
+			ID:      21,
+			Method:  "tools/call",
+			Params: map[string]any{
+				"name": "format_panels_for_ui",
+				"arguments": map[string]any{
+					"name":      dashboardName,
+					"namespace": dashboardNamespace,
+					"panel_ids": fmt.Sprintf("%s,%s", panelIDs[0], panelIDs[1]),
+				},
+			},
+		}
+
+		resp, err := sendMCPRequest(t, req)
+		if err != nil {
+			t.Fatalf("Failed to call format_panels_for_ui: %v", err)
+		}
+
+		if resp.Error != nil {
+			t.Fatalf("MCP error: %s", resp.Error.Message)
+		}
+
+		t.Log("format_panels_for_ui with multiple panel IDs handled correctly")
+	})
 }

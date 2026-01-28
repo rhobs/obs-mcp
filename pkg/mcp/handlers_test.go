@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -68,7 +69,7 @@ func TestExecuteRangeQueryHandler_ExplicitTimeRange_RFC3339(t *testing.T) {
 	expectedEnd, _ := prometheus.ParseTimestamp("2024-01-01T01:00:00Z")
 
 	mockClient := &MockedLoader{
-		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+		ExecuteRangeQueryFunc: func(_ context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
 			if query != "up{job=\"api\"}" {
 				t.Errorf("expected query 'up{job=\"api\"}', got %q", query)
 			}
@@ -105,7 +106,7 @@ func TestExecuteRangeQueryHandler_ExplicitTimeRange_RFC3339(t *testing.T) {
 
 func TestExecuteRangeQueryHandler_StepParsing_ValidSteps(t *testing.T) {
 	mockClient := &MockedLoader{
-		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+		ExecuteRangeQueryFunc: func(_ context.Context, _ string, _, _ time.Time, _ time.Duration) (map[string]any, error) {
 			return map[string]any{"resultType": "matrix", "result": []any{}}, nil
 		},
 	}
@@ -246,7 +247,7 @@ func TestExecuteRangeQueryHandler_RequiredParameters(t *testing.T) {
 
 func TestExecuteRangeQueryHandler_DurationMode_DefaultOneHour(t *testing.T) {
 	mockClient := &MockedLoader{
-		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+		ExecuteRangeQueryFunc: func(_ context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
 			if query != "up{job=\"api\"}" {
 				t.Errorf("expected query 'up{job=\"api\"}', got %q", query)
 			}
@@ -282,7 +283,7 @@ func TestExecuteRangeQueryHandler_DurationMode_DefaultOneHour(t *testing.T) {
 
 func TestExecuteRangeQueryHandler_DurationMode_CustomDuration(t *testing.T) {
 	mockClient := &MockedLoader{
-		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+		ExecuteRangeQueryFunc: func(_ context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
 			if query != "rate(http_requests_total{job=\"api\"}[5m])" {
 				t.Errorf("expected query 'rate(http_requests_total{job=\"api\"}[5m])', got %q", query)
 			}
@@ -316,7 +317,7 @@ func TestExecuteRangeQueryHandler_DurationMode_CustomDuration(t *testing.T) {
 
 func TestExecuteRangeQueryHandler_DurationMode_NOWKeyword(t *testing.T) {
 	mockClient := &MockedLoader{
-		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+		ExecuteRangeQueryFunc: func(_ context.Context, _ string, start, end time.Time, _ time.Duration) (map[string]any, error) {
 			duration := end.Sub(start)
 			if duration < 59*time.Minute || duration > 61*time.Minute {
 				t.Errorf("expected duration ~1h when NOW is used, got %v", duration)
@@ -355,5 +356,156 @@ func getErrorMessage(t *testing.T, result *mcp.CallToolResult) string {
 		return content.Text
 	default:
 		return fmt.Sprintf("%v", content)
+	}
+}
+
+func TestGetDashboardPanelsHandler_RequiredParameters(t *testing.T) {
+	tests := []struct {
+		name          string
+		params        map[string]any
+		expectedError string
+	}{
+		{
+			name:          "missing name parameter",
+			params:        map[string]any{"namespace": "default"},
+			expectedError: "name parameter is required and must be a string",
+		},
+		{
+			name:          "missing namespace parameter",
+			params:        map[string]any{"name": "test-dashboard"},
+			expectedError: "namespace parameter is required and must be a string",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := GetDashboardPanelsHandler(ObsMCPOptions{})
+			req := mcp.CallToolRequest{
+				Params: mcp.CallToolParams{
+					Name:      "get_dashboard_panels",
+					Arguments: tt.params,
+				},
+			}
+
+			result, _ := handler(context.Background(), req)
+			errorMsg := getErrorMessage(t, result)
+			if errorMsg != tt.expectedError {
+				t.Errorf("expected error %q, got %q", tt.expectedError, errorMsg)
+			}
+		})
+	}
+}
+
+func TestFormatPanelsForUIHandler_RequiredParameters(t *testing.T) {
+	tests := []struct {
+		name          string
+		params        map[string]any
+		expectedError string
+	}{
+		{
+			name: "missing name",
+			params: map[string]any{
+				"namespace": "default",
+				"panel_ids": "0_0",
+			},
+			expectedError: "name parameter is required and must be a string",
+		},
+		{
+			name: "missing namespace",
+			params: map[string]any{
+				"name":      "test-dashboard",
+				"panel_ids": "0_0",
+			},
+			expectedError: "namespace parameter is required and must be a string",
+		},
+		{
+			name: "missing panel_ids",
+			params: map[string]any{
+				"name":      "test-dashboard",
+				"namespace": "default",
+			},
+			expectedError: "panel_ids parameter is required and must be a string",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := FormatPanelsForUIHandler(ObsMCPOptions{})
+			req := mcp.CallToolRequest{
+				Params: mcp.CallToolParams{
+					Name:      "format_panels_for_ui",
+					Arguments: tt.params,
+				},
+			}
+
+			result, _ := handler(context.Background(), req)
+			errorMsg := getErrorMessage(t, result)
+			if errorMsg != tt.expectedError {
+				t.Errorf("expected error %q, got %q", tt.expectedError, errorMsg)
+			}
+		})
+	}
+}
+
+func TestGetDashboardPanelsHandler_OptionalPanelIDs(t *testing.T) {
+	// This test verifies that panel_ids is optional
+	handler := GetDashboardPanelsHandler(ObsMCPOptions{})
+	req := mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
+			Name: "get_dashboard_panels",
+			Arguments: map[string]any{
+				"name":      "test-dashboard",
+				"namespace": "default",
+				// panel_ids is optional - not provided
+			},
+		},
+	}
+
+	// Should fail with dashboard not found, not parameter error
+	result, _ := handler(context.Background(), req)
+	errorMsg := getErrorMessage(t, result)
+	if errorMsg == "panel_ids parameter is required and must be a string" {
+		t.Errorf("panel_ids should be optional, but got required parameter error")
+	}
+	// Expected to fail with "failed to get dashboard" since we don't have a real cluster
+	if errorMsg != "" && strings.HasPrefix(errorMsg, "failed to get Dashboard") {
+		t.Logf("Got expected error: %s", errorMsg)
+	}
+}
+
+func TestGetDashboardHandler_RequiredParameters(t *testing.T) {
+	tests := []struct {
+		name          string
+		params        map[string]any
+		expectedError string
+	}{
+		{
+			name:          "missing name parameter",
+			params:        map[string]any{"namespace": "default"},
+			expectedError: "name parameter is required and must be a string",
+		},
+		{
+			name:          "missing namespace parameter",
+			params:        map[string]any{"name": "test-dashboard"},
+			expectedError: "namespace parameter is required and must be a string",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := GetDashboardHandler(ObsMCPOptions{})
+			req := mcp.CallToolRequest{
+				Params: mcp.CallToolParams{
+					Name:      "get_perses_dashboard",
+					Arguments: tt.params,
+				},
+			}
+
+			result, _ := handler(context.Background(), req)
+			errorMsg := getErrorMessage(t, result)
+			if errorMsg != tt.expectedError {
+				t.Errorf("expected error %q, got %q", tt.expectedError, errorMsg)
+			}
+		})
 	}
 }
