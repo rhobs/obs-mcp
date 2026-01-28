@@ -5,6 +5,7 @@ image_name: minimal-viable-llama-stack-configuration
 
 apis:
   - agents
+  - files
   - safety
   - vector_io
   - tool_runtime
@@ -28,6 +29,14 @@ providers:
       provider_type: remote::openai
       config:
         api_key: ${env.OPENAI_API_KEY}
+  files:
+    - config:
+        metadata_store:
+          table_name: files_metadata
+          backend: sql_default
+        storage_dir: .llama/storage/files
+      provider_id: meta-reference-files
+      provider_type: inline::localfs
   agents:
     - config:
         persistence:
