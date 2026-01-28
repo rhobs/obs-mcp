@@ -11,9 +11,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
+	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
+	"github.com/rhobs/obs-mcp/pkg/tempo"
 )
 
 // ObsMCPOptions contains configuration options for the MCP server
@@ -69,14 +72,29 @@ If the user mentions a specific alert by name, use get_alerts with a filter to r
 ## Query Type Selection
 
 - **execute_instant_query**: Current values, point-in-time snapshots, "right now" questions
-- **execute_range_query**: Trends over time, rate calculations, historical analysis`
+- **execute_range_query**: Trends over time, rate calculations, historical analysis
+
+## Instructions for using the Tempo tools
+Do not query across multiple instances unless specifically asked by the user.
+Do not query across multiple tenants unless specifically asked by the user.
+Ask the user which Tempo instance and tenant to query if the user did not specify it explicitly.
+`
 )
 
 func NewMCPServer(opts ObsMCPOptions) (*server.MCPServer, error) {
+	hooks := &server.Hooks{}
+	hooks.AddBeforeCallTool(func(ctx context.Context, id any, message *mcp.CallToolRequest) {
+		slog.Debug("MCP tool call", "tool", message.Params.Name, "arguments", message.Params.Arguments)
+	})
+	hooks.AddAfterCallTool(func(ctx context.Context, id any, message *mcp.CallToolRequest, result *mcp.CallToolResult) {
+		slog.Debug("MCP tool result", "tool", message.Params.Name, "isError", result.IsError, "content", result.Content)
+	})
+
 	mcpServer := server.NewMCPServer(
 		serverName,
 		serverVersion,
 		server.WithLogging(),
+		server.WithHooks(hooks),
 		server.WithToolCapabilities(true),
 		server.WithInstructions(serverInstructions),
 	)
@@ -98,6 +116,7 @@ func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
 	getSeriesTool := CreateGetSeriesTool()
 	getAlertsTool := CreateGetAlertsTool()
 	getSilencesTool := CreateGetSilencesTool()
+	getCurrentTimeTool := CreateGetCurrentTimeTool()
 
 	// Create handlers
 	listMetricsHandler := ListMetricsHandler(opts)
@@ -118,6 +137,28 @@ func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
 	mcpServer.AddTool(getSeriesTool, getSeriesHandler)
 	mcpServer.AddTool(getAlertsTool, getAlertsHandler)
 	mcpServer.AddTool(getSilencesTool, getSilencesHandler)
+	mcpServer.AddTool(getCurrentTimeTool, CurrentTimeHandler)
+
+	k8sClient, err := k8s.GetDynamicClient()
+	if err != nil {
+		return err
+	}
+
+	// Workaround to break import cycle of mcp pkg imports tempo pkg (to register tools),
+	// and tempo pkg imports mcp pkg (to use auth functionality).
+	httpClientFactory := func(ctx context.Context) (*http.Client, error) {
+		// This will be called for every MCP tool request.
+		// When using "header" auth mode, it will forward the authorization header to the Tempo gateway.
+		return getTempoHTTPClient(ctx, opts)
+	}
+	useRoute := opts.AuthMode == AuthModeKubeConfig
+
+	tempoToolset := tempo.NewTempoToolset(k8sClient, useRoute, httpClientFactory)
+	mcpServer.AddTool(tempo.ListInstancesTool(), tempoToolset.ListInstancesHandler)
+	mcpServer.AddTool(tempo.GetTraceByIdTool(), tempoToolset.GetTraceByIdHandler)
+	mcpServer.AddTool(tempo.SearchTracesTool(), tempoToolset.SearchTracesHandler)
+	mcpServer.AddTool(tempo.SearchTagsTool(), tempoToolset.SearchTagsHandler)
+	mcpServer.AddTool(tempo.SearchTagValuesTool(), tempoToolset.SearchTagValuesHandler)
 
 	return nil
 }

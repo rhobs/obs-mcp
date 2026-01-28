@@ -84,6 +84,21 @@ func getPromClient(ctx context.Context, opts ObsMCPOptions) (prometheus.Loader, 
 	return promClient, nil
 }
 
+func getTempoHTTPClient(ctx context.Context, opts ObsMCPOptions) (*http.Client, error) {
+	// Re-use the http.Client or http.RoundTripper from the generated Prometheus API config
+	apiConfig, err := createAPIConfig(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API config: %v", err)
+	}
+
+	if apiConfig.Client != nil {
+		return apiConfig.Client, nil
+	}
+	return &http.Client{
+		Transport: apiConfig.RoundTripper,
+	}, nil
+}
+
 func createAPIConfig(ctx context.Context, opts ObsMCPOptions) (promapi.Config, error) {
 	switch opts.AuthMode {
 	case AuthModeKubeConfig:
