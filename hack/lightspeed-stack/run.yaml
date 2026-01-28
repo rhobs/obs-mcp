@@ -34,7 +34,7 @@ providers:
         metadata_store:
           table_name: files_metadata
           backend: sql_default
-        storage_dir: ~/.llama/storage/files
+        storage_dir: .llama/storage/files
       provider_id: meta-reference-files
       provider_type: inline::localfs
   agents:
