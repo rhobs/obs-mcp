@@ -280,6 +280,108 @@ var (
 			},
 		},
 	}
+
+	GetCurrentTime = ToolDef[CurrentTimeOutput]{
+		Name:        "get_current_time",
+		Description: "Get the current date and time in RFC3339 format (UTC). Useful for time windows in Tempo queries.",
+		Title:       "Get Current Time",
+		ReadOnly:    true,
+		Destructive: false,
+		Idempotent:  true,
+		OpenWorld:   true,
+		Params:      []ParamDef{},
+	}
+
+	TempoListInstances = ToolDef[TempoListInstancesOutput]{
+		Name:        "tempo_list_instances",
+		Description: "List all Tempo instances. The assistant should display the instances in a table.",
+		Title:       "List Tempo Instances",
+		ReadOnly:    true,
+		Destructive: false,
+		Idempotent:  true,
+		OpenWorld:   true,
+		Params:      []ParamDef{},
+	}
+
+	TempoGetTraceByID = ToolDef[TempoTextOutput]{
+		Name:        "tempo_get_trace_by_id",
+		Description: "Get a trace by trace ID",
+		Title:       "Tempo Get Trace By ID",
+		ReadOnly:    true,
+		Destructive: false,
+		Idempotent:  true,
+		OpenWorld:   true,
+		Params: []ParamDef{
+			{Name: "tempoNamespace", Type: ParamTypeString, Description: "The namespace of the Tempo instance to query", Required: true},
+			{Name: "tempoName", Type: ParamTypeString, Description: "The name of the Tempo instance to query", Required: true},
+			{Name: "tenant", Type: ParamTypeString, Description: "The tenant to query", Required: true},
+			{Name: "traceid", Type: ParamTypeString, Description: "Trace ID of the trace", Required: true},
+			{Name: "start", Type: ParamTypeString, Description: "Start time in RFC 3339 format", Required: false},
+			{Name: "end", Type: ParamTypeString, Description: "End time in RFC 3339 format", Required: false},
+		},
+	}
+
+	TempoSearchTraces = ToolDef[TempoTextOutput]{
+		Name:        "tempo_search_traces",
+		Description: "Search for traces in Tempo",
+		Title:       "Tempo Search Traces",
+		ReadOnly:    true,
+		Destructive: false,
+		Idempotent:  true,
+		OpenWorld:   true,
+		Params: []ParamDef{
+			{Name: "tempoNamespace", Type: ParamTypeString, Description: "The namespace of the Tempo instance to query", Required: true},
+			{Name: "tempoName", Type: ParamTypeString, Description: "The name of the Tempo instance to query", Required: true},
+			{Name: "tenant", Type: ParamTypeString, Description: "The tenant to query", Required: true},
+			{Name: "query", Type: ParamTypeString, Description: "Search query in the TraceQL query language", Required: true},
+			{Name: "limit", Type: ParamTypeString, Description: "Maximum search results (integer as string; omit for server default)", Required: false},
+			{Name: "start", Type: ParamTypeString, Description: "Start time in RFC 3339 format", Required: false},
+			{Name: "end", Type: ParamTypeString, Description: "End time in RFC 3339 format", Required: false},
+			{Name: "spss", Type: ParamTypeString, Description: "Spans per span-set limit (integer as string; omit for server default)", Required: false},
+		},
+	}
+
+	TempoSearchTags = ToolDef[TempoTextOutput]{
+		Name:        "tempo_search_tags",
+		Description: "Search for tag names in Tempo",
+		Title:       "Tempo Search Tags",
+		ReadOnly:    true,
+		Destructive: false,
+		Idempotent:  true,
+		OpenWorld:   true,
+		Params: []ParamDef{
+			{Name: "tempoNamespace", Type: ParamTypeString, Description: "The namespace of the Tempo instance to query", Required: true},
+			{Name: "tempoName", Type: ParamTypeString, Description: "The name of the Tempo instance to query", Required: true},
+			{Name: "tenant", Type: ParamTypeString, Description: "The tenant to query", Required: true},
+			{Name: "scope", Type: ParamTypeString, Description: "Scope to filter tags: resource, span, intrinsic, event, link, or instrumentation", Required: false},
+			{Name: "query", Type: ParamTypeString, Description: "TraceQL query for filtering tag names", Required: false},
+			{Name: "start", Type: ParamTypeString, Description: "Start time in RFC 3339 format", Required: false},
+			{Name: "end", Type: ParamTypeString, Description: "End time in RFC 3339 format", Required: false},
+			{Name: "limit", Type: ParamTypeString, Description: "Maximum number of tag names per scope (integer as string)", Required: false},
+			{Name: "maxStaleValues", Type: ParamTypeString, Description: "Search termination threshold for stale values (integer as string)", Required: false},
+		},
+	}
+
+	TempoSearchTagValues = ToolDef[TempoTextOutput]{
+		Name:        "tempo_search_tag_values",
+		Description: "Search for tag values in Tempo",
+		Title:       "Tempo Search Tag Values",
+		ReadOnly:    true,
+		Destructive: false,
+		Idempotent:  true,
+		OpenWorld:   true,
+		Params: []ParamDef{
+			{Name: "tempoNamespace", Type: ParamTypeString, Description: "The namespace of the Tempo instance to query", Required: true},
+			{Name: "tempoName", Type: ParamTypeString, Description: "The name of the Tempo instance to query", Required: true},
+			{Name: "tenant", Type: ParamTypeString, Description: "The tenant to query", Required: true},
+			{Name: "tag", Type: ParamTypeString, Description: "The tag name to get values for", Required: true},
+			{Name: "query", Type: ParamTypeString, Description: "TraceQL query for filtering tag values", Required: false},
+			{Name: "start", Type: ParamTypeString, Description: "Start time in RFC 3339 format", Required: false},
+			{Name: "end", Type: ParamTypeString, Description: "End time in RFC 3339 format", Required: false},
+			{Name: "limit", Type: ParamTypeString, Description: "Maximum number of tag values to return (integer as string)", Required: false},
+			{Name: "maxStaleValues", Type: ParamTypeString, Description: "Search termination threshold for stale values (integer as string)", Required: false},
+		},
+	}
 )
 
 // AllTools returns all tool definitions
@@ -294,5 +396,11 @@ func AllTools() []ToolDefInterface {
 		GetSeries,
 		GetAlerts,
 		GetSilences,
+		GetCurrentTime,
+		TempoListInstances,
+		TempoGetTraceByID,
+		TempoSearchTraces,
+		TempoSearchTags,
+		TempoSearchTagValues,
 	}
 }

@@ -1,0 +1,79 @@
+apiVersion: tempo.grafana.com/v1alpha1
+kind:  TempoStack
+metadata:
+  name: tempo1
+  namespace: obs-mcp-tracing
+spec:
+  images:
+    tempo: grafana/tempo:2.10.0
+  storage:
+    secret:
+      name: minio
+      type: s3
+  storageSize: 1Gi
+  tenants:
+    mode: openshift
+    authentication:
+    - tenantName: project1
+      tenantId: 1610b0c3-c509-4592-a256-a1871353dbfa
+    - tenantName: project2
+      tenantId: 1610b0c3-c509-4592-a256-a1871353dbfb
+  observability:
+    tracing:
+      # collect operational traces from Tempo itself
+      otlp_http_endpoint: http://otel-collector.obs-mcp-tracing:4318
+      sampling_fraction: "1"
+  template:
+    gateway:
+      enabled: true
+    queryFrontend:
+      jaegerQuery:
+        enabled: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: obs-mcp-tracing-traces-reader-project1
+rules:
+- apiGroups: [tempo.grafana.com]
+  resources: [project1]
+  resourceNames: [traces]
+  verbs: [get]
+---
+# allow any authenticated user to read traces from the 'project1' tenant in Tempo
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: obs-mcp-tracing-traces-reader-project1
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: obs-mcp-tracing-traces-reader-project1
+subjects:
+- kind: Group
+  apiGroup: rbac.authorization.k8s.io
+  name: system:authenticated
+---
+apiVersion: tempo.grafana.com/v1alpha1
+kind:  TempoStack
+metadata:
+  name: tempo2
+  namespace: obs-mcp-tracing
+spec:
+  images:
+    tempo: grafana/tempo:2.10.0
+  storage:
+    secret:
+      name: minio
+      type: s3
+  storageSize: 1Gi
+  tenants:
+    mode: openshift
+    authentication:
+    - tenantName: stage
+      tenantId: 1610b0c3-c509-4592-a256-a1871353dbfc
+    - tenantName: prod
+      tenantId: 1610b0c3-c509-4592-a256-a1871353dbfd
+  template:
+    gateway:
+      enabled: true

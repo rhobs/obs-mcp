@@ -3,10 +3,13 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/rhobs/obs-mcp/pkg/resultutil"
+	"github.com/rhobs/obs-mcp/pkg/tempo"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
@@ -165,4 +168,103 @@ func GetSilencesHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[tools.SilencesInp
 		}
 		return nil, output, nil
 	}
+}
+
+// GetCurrentTimeHandler returns the current UTC time in RFC3339 format.
+func GetCurrentTimeHandler() mcp.ToolHandlerFor[any, tools.CurrentTimeOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, tools.CurrentTimeOutput, error) {
+		return nil, tools.CurrentTimeOutput{Time: time.Now().UTC().Format(time.RFC3339)}, nil
+	}
+}
+
+// TempoListInstancesHandler lists Tempo instances visible in the cluster.
+func TempoListInstancesHandler(ts *tempo.TempoToolset) mcp.ToolHandlerFor[any, tools.TempoListInstancesOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, tools.TempoListInstancesOutput, error) {
+		instances, err := ts.ListInstances(ctx)
+		if err != nil {
+			return nil, tools.TempoListInstancesOutput{}, err
+		}
+		return nil, tools.TempoListInstancesOutput{Instances: instances}, nil
+	}
+}
+
+// TempoGetTraceByIDHandler fetches a single trace from Tempo.
+func TempoGetTraceByIDHandler(ts *tempo.TempoToolset) mcp.ToolHandlerFor[tools.TempoGetTraceByIDInput, tools.TempoTextOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input tools.TempoGetTraceByIDInput) (*mcp.CallToolResult, tools.TempoTextOutput, error) {
+		if input.Traceid == "" {
+			return nil, tools.TempoTextOutput{}, fmt.Errorf("traceid parameter must not be empty")
+		}
+		body, err := ts.GetTraceByID(ctx, input.TempoNamespace, input.TempoName, input.Tenant, input.Traceid, input.Start, input.End)
+		if err != nil {
+			return nil, tools.TempoTextOutput{}, err
+		}
+		return nil, tools.TempoTextOutput{Result: body}, nil
+	}
+}
+
+// TempoSearchTracesHandler runs a TraceQL search against Tempo.
+func TempoSearchTracesHandler(ts *tempo.TempoToolset) mcp.ToolHandlerFor[tools.TempoSearchTracesInput, tools.TempoTextOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input tools.TempoSearchTracesInput) (*mcp.CallToolResult, tools.TempoTextOutput, error) {
+		limit, err := optionalAtoi(input.Limit)
+		if err != nil {
+			return nil, tools.TempoTextOutput{}, fmt.Errorf("limit: %w", err)
+		}
+		spss, err := optionalAtoi(input.Spss)
+		if err != nil {
+			return nil, tools.TempoTextOutput{}, fmt.Errorf("spss: %w", err)
+		}
+		body, err := ts.SearchTraces(ctx, input.TempoNamespace, input.TempoName, input.Tenant, input.Query, limit, input.Start, input.End, spss)
+		if err != nil {
+			return nil, tools.TempoTextOutput{}, err
+		}
+		return nil, tools.TempoTextOutput{Result: body}, nil
+	}
+}
+
+// TempoSearchTagsHandler lists tag names from Tempo.
+func TempoSearchTagsHandler(ts *tempo.TempoToolset) mcp.ToolHandlerFor[tools.TempoSearchTagsInput, tools.TempoTextOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input tools.TempoSearchTagsInput) (*mcp.CallToolResult, tools.TempoTextOutput, error) {
+		limit, err := optionalAtoi(input.Limit)
+		if err != nil {
+			return nil, tools.TempoTextOutput{}, fmt.Errorf("limit: %w", err)
+		}
+		maxStale, err := optionalAtoi(input.MaxStaleValues)
+		if err != nil {
+			return nil, tools.TempoTextOutput{}, fmt.Errorf("maxStaleValues: %w", err)
+		}
+		body, err := ts.SearchTags(ctx, input.TempoNamespace, input.TempoName, input.Tenant, input.Scope, input.Query, input.Start, input.End, limit, maxStale)
+		if err != nil {
+			return nil, tools.TempoTextOutput{}, err
+		}
+		return nil, tools.TempoTextOutput{Result: body}, nil
+	}
+}
+
+// TempoSearchTagValuesHandler lists values for a tag in Tempo.
+func TempoSearchTagValuesHandler(ts *tempo.TempoToolset) mcp.ToolHandlerFor[tools.TempoSearchTagValuesInput, tools.TempoTextOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input tools.TempoSearchTagValuesInput) (*mcp.CallToolResult, tools.TempoTextOutput, error) {
+		if input.Tag == "" {
+			return nil, tools.TempoTextOutput{}, fmt.Errorf("tag parameter must not be empty")
+		}
+		limit, err := optionalAtoi(input.Limit)
+		if err != nil {
+			return nil, tools.TempoTextOutput{}, fmt.Errorf("limit: %w", err)
+		}
+		maxStale, err := optionalAtoi(input.MaxStaleValues)
+		if err != nil {
+			return nil, tools.TempoTextOutput{}, fmt.Errorf("maxStaleValues: %w", err)
+		}
+		body, err := ts.SearchTagValues(ctx, input.TempoNamespace, input.TempoName, input.Tenant, input.Tag, input.Query, input.Start, input.End, limit, maxStale)
+		if err != nil {
+			return nil, tools.TempoTextOutput{}, err
+		}
+		return nil, tools.TempoTextOutput{Result: body}, nil
+	}
+}
+
+func optionalAtoi(s string) (int, error) {
+	if s == "" {
+		return 0, nil
+	}
+	return strconv.Atoi(s)
 }

@@ -56,3 +56,7 @@ func CreateGetAlertsTool() mcp.Tool {
 func CreateGetSilencesTool() mcp.Tool {
 	return *tools.GetSilences.ToMCPTool()
 }
+
+func CreateGetCurrentTimeTool() mcp.Tool {
+	return *tools.GetCurrentTime.ToMCPTool()
+}

@@ -244,6 +244,48 @@
       turn_metrics:
         - "custom:tool_eval"
 
+# TODO: gpt-4o-mini has issues creating valid TraceQL queries.
+# - conversation_group_id: "tempo-search-error-traces"
+#   description: "Search for traces with errors"
+
+#   conversation_metrics: []
+#   conversation_metrics_metadata: {}
+
+#   turns:
+#     - turn_id: "turn-1"
+#       query: "Find traces with errors in the last hour. Use tenent project1."
+#       expected_tool_calls:
+#         - - tool_name: tempo_list_instances
+#         - - tool_name: tempo_search_traces
+#             arguments:
+#               tempoNamespace: obs-mcp-tracing
+#               tempoName: tempo1
+#               tenant: project1
+#               query: '{ status = error }'
+#       turn_metrics:
+#         - "custom:tool_eval"
+        
+# - conversation_group_id: "tempo-latency-investigation"
+#   description: "Find high latency traces for a specific service"
+
+#   conversation_metrics: []
+#   conversation_metrics_metadata: {}
+
+#   turns:
+#     - turn_id: "turn-1"
+#       query: "Find traces where the shop-backend service took more than 500ms"
+#       expected_tool_calls:
+#         - - tool_name: tempo_list_instances
+#         - - tool_name: tempo_search_traces
+#             arguments:
+#               tempoNamespace: obs-mcp-tracing
+#               tempoName: tempo1
+#               tenant: project1
+#               query: '{ resource.service.name = "shop-backend" && duration > 500ms }'
+#       turn_metrics:
+#         - "custom:tool_eval"
+
+        
 # TODO: Add this eval once we have the nodes-cpu-usage-query rule in a Prometheus.
 # - conversation_group_id: "nodes-cpu-usage-query"
 #   description: "Asks about basic metrics in the cluster."

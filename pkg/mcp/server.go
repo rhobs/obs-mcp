@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,7 +14,9 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
+	"github.com/rhobs/obs-mcp/pkg/tempo"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
@@ -64,6 +67,25 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	mcp.AddTool(mcpServer, tools.GetSeries.ToMCPTool(), GetSeriesHandler(opts))
 	mcp.AddTool(mcpServer, tools.GetAlerts.ToMCPTool(), GetAlertsHandler(opts))
 	mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(), GetSilencesHandler(opts))
+	mcp.AddTool(mcpServer, tools.GetCurrentTime.ToMCPTool(), GetCurrentTimeHandler())
+
+	k8sClient, err := k8s.GetDynamicClient()
+	if err != nil {
+		return fmt.Errorf("tempo: dynamic client: %w", err)
+	}
+
+	httpClientFactory := func(ctx context.Context) (*http.Client, error) {
+		return getTempoHTTPClient(ctx, opts)
+	}
+	useRoute := opts.AuthMode == AuthModeKubeConfig
+	tempoToolset := tempo.NewTempoToolset(k8sClient, useRoute, httpClientFactory)
+
+	mcp.AddTool(mcpServer, tools.TempoListInstances.ToMCPTool(), TempoListInstancesHandler(tempoToolset))
+	mcp.AddTool(mcpServer, tools.TempoGetTraceByID.ToMCPTool(), TempoGetTraceByIDHandler(tempoToolset))
+	mcp.AddTool(mcpServer, tools.TempoSearchTraces.ToMCPTool(), TempoSearchTracesHandler(tempoToolset))
+	mcp.AddTool(mcpServer, tools.TempoSearchTags.ToMCPTool(), TempoSearchTagsHandler(tempoToolset))
+	mcp.AddTool(mcpServer, tools.TempoSearchTagValues.ToMCPTool(), TempoSearchTagValuesHandler(tempoToolset))
+
 	return nil
 }
 

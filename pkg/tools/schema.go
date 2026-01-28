@@ -1,5 +1,7 @@
 package tools
 
+import "github.com/rhobs/obs-mcp/pkg/tempo/discovery"
+
 // ListMetricsOutput defines the output schema for the list_metrics tool.
 type ListMetricsOutput struct {
 	Metrics []string `json:"metrics" jsonschema:"List of all available metric names"`
@@ -179,4 +181,67 @@ type AlertsInput struct {
 // SilencesInput defines the input parameters for GetSilencesHandler.
 type SilencesInput struct {
 	Filter string `json:"filter,omitempty"`
+}
+
+// CurrentTimeOutput defines the output schema for get_current_time.
+type CurrentTimeOutput struct {
+	Time string `json:"time" jsonschema:"Current time in RFC3339 UTC"`
+}
+
+// TempoListInstancesOutput is returned by tempo_list_instances.
+type TempoListInstancesOutput struct {
+	Instances []discovery.TempoInstance `json:"instances" jsonschema:"Discovered TempoStack and TempoMonolithic instances"`
+}
+
+// TempoTextOutput holds a raw JSON text body from the Tempo HTTP API.
+type TempoTextOutput struct {
+	Result string `json:"result" jsonschema:"JSON response body from the Tempo HTTP API"`
+}
+
+// TempoGetTraceByIDInput defines input for tempo_get_trace_by_id.
+type TempoGetTraceByIDInput struct {
+	TempoNamespace string `json:"tempoNamespace"`
+	TempoName      string `json:"tempoName"`
+	Tenant         string `json:"tenant"`
+	Traceid        string `json:"traceid"`
+	Start          string `json:"start,omitempty"`
+	End            string `json:"end,omitempty"`
+}
+
+// TempoSearchTracesInput defines input for tempo_search_traces.
+type TempoSearchTracesInput struct {
+	TempoNamespace string `json:"tempoNamespace"`
+	TempoName      string `json:"tempoName"`
+	Tenant         string `json:"tenant"`
+	Query          string `json:"query"`
+	Limit          string `json:"limit,omitempty"`
+	Start          string `json:"start,omitempty"`
+	End            string `json:"end,omitempty"`
+	Spss           string `json:"spss,omitempty"`
+}
+
+// TempoSearchTagsInput defines input for tempo_search_tags.
+type TempoSearchTagsInput struct {
+	TempoNamespace string `json:"tempoNamespace"`
+	TempoName      string `json:"tempoName"`
+	Tenant         string `json:"tenant"`
+	Scope          string `json:"scope,omitempty"`
+	Query          string `json:"query,omitempty"`
+	Start          string `json:"start,omitempty"`
+	End            string `json:"end,omitempty"`
+	Limit          string `json:"limit,omitempty"`
+	MaxStaleValues string `json:"maxStaleValues,omitempty"`
+}
+
+// TempoSearchTagValuesInput defines input for tempo_search_tag_values.
+type TempoSearchTagValuesInput struct {
+	TempoNamespace string `json:"tempoNamespace"`
+	TempoName      string `json:"tempoName"`
+	Tenant         string `json:"tenant"`
+	Tag            string `json:"tag"`
+	Query          string `json:"query,omitempty"`
+	Start          string `json:"start,omitempty"`
+	End            string `json:"end,omitempty"`
+	Limit          string `json:"limit,omitempty"`
+	MaxStaleValues string `json:"maxStaleValues,omitempty"`
 }
