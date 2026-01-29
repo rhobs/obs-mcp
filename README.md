@@ -25,16 +25,14 @@ The easiest way to get the obs-mcp connected to the cluster is via a kubeconfig:
 
 This will auto-discover the metrics backend in OpenShift. By default, it tries `thanos-querier` route first, then falls back to `prometheus-k8s` route. Use `--metrics-backend` to control which route is preferred.
 
-Use the `--metrics-backend` flag to specify which metrics backend to discover:
-
-| Flag Value           | Behavior                                                              |
-|----------------------|-----------------------------------------------------------------------|
-| `thanos` (default)   | Tries `thanos-querier` route first, falls back to `prometheus-k8s`    |
-| `prometheus`         | Uses `prometheus-k8s` route only (no fallback)                        |
-
 > [!WARNING]
-> This procedure would not work if you're not using token-based auth (`oc > whoami -t` to validate).
-> In that case, consider using serviceaccount + token auth.
+> `kubeconfig` auth mode requires a bearer token.
+> Run `oc whoami -t` to verify you have one.
+>
+> If it fails, either:
+>
+> - Re-login with: `oc login --token=<token>` or `oc login -u user -p password`
+> - Use [port-forwarding](#2-port-forwarding-alternative) with `--auth-mode header` instead
 
 **Example using Prometheus as the preferred backend:**
 
@@ -73,18 +71,15 @@ This scenario opens a local port via port-forward that the obs-mcp will connect 
 
  1. Log into your OpenShift cluster
 
- 2. Port forward the OpenShift in-cluster Prometheus instance to a local port
+ 2. Port forward the OpenShift in-cluster Prometheus service to a local port
 
   ```shell
-  PROM_POD=$(kubectl get pods -n openshift-monitoring -l app.kubernetes.io/instance=k8s -l app.kubernetes.io/component=prometheus -o jsonpath="{.items[0].metadata.name}")
-
-  kubectl port-forward -n openshift-monitoring $PROM_POD 9090:9090
+  kubectl port-forward -n openshift-monitoring svc/prometheus-operated 9090:9090
   ```
 
   Run the server with:
 
   ```shell
-  export PROMETHEUS_URL=http://localhost:9090
   go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode header
   ```
 
@@ -171,9 +166,13 @@ curl -X POST http://localhost:9100/mcp \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"execute_range_query","arguments":{"query":"up{job=\"prometheus\"}","step":"1m","end":"NOW","duration":"1h"}}}' | jq
 ```
 
-## Available Tools
+## Documentation
 
-See [TOOLS.md](TOOLS.md) for detailed documentation of all available MCP tools.
+| Document | Description |
+|----------|-------------|
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Authentication modes, in-cluster deployment, configuration |
+| [TOOLS.md](TOOLS.md) | Available MCP tools |
+| [TESTING.md](TESTING.md) | Testing guide |
 
 ## License
 
