@@ -2,9 +2,10 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
-	"strings"
+	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -17,7 +18,15 @@ const (
 	routesResource         = "routes"
 	thanosQuerierRouteName = "thanos-querier"
 	prometheusRouteName    = "prometheus-k8s"
+	routeDiscoveryTimeout  = 10 * time.Second
 )
+
+// routeResponse represents the OpenShift Route API response structure
+type routeResponse struct {
+	Spec struct {
+		Host string `json:"host"`
+	} `json:"spec"`
+}
 
 // MetricsBackend represents the type of metrics backend
 type MetricsBackend string
@@ -84,7 +93,8 @@ func discoverRoute(routeName string) (string, error) {
 }
 
 func getRouteURL(routeName string) (string, error) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), routeDiscoveryTimeout)
+	defer cancel()
 
 	kubeClient, err := GetKubeClient()
 	if err != nil {
@@ -108,22 +118,23 @@ func getRouteURL(routeName string) (string, error) {
 		return "", fmt.Errorf("failed to parse the route results: %w", err)
 	}
 
-	host := parseHostFromRouteBody(string(body))
+	host, err := parseHostFromRouteBody(body)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse route %s: %w", routeName, err)
+	}
 	if host == "" {
 		return "", fmt.Errorf("no host found in route %s", routeName)
 	}
 	return host, nil
 }
 
-func parseHostFromRouteBody(body string) string {
-	if strings.Contains(body, `"host":`) {
-		parts := strings.Split(body, `"host":"`)
-		if len(parts) > 1 {
-			hostPart := strings.Split(parts[1], `"`)[0]
-			if hostPart != "" {
-				return "https://" + hostPart
-			}
-		}
+func parseHostFromRouteBody(body []byte) (string, error) {
+	var route routeResponse
+	if err := json.Unmarshal(body, &route); err != nil {
+		return "", fmt.Errorf("failed to unmarshal route response: %w", err)
 	}
-	return ""
+	if route.Spec.Host == "" {
+		return "", nil
+	}
+	return "https://" + route.Spec.Host, nil
 }
