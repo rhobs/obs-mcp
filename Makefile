@@ -22,11 +22,11 @@ check-tools: ## Check if required tools are installed
 
 .PHONY: build
 build: ## Build obs-mcp binary
-	go build -tags strictfipsruntime -o obs-mcp ./cmd/obs-mcp
+	go build -mod=mod -tags strictfipsruntime -o obs-mcp ./cmd/obs-mcp
 
 .PHONY: test-unit
 test-unit: ## Run obs-mcp unit tests
-	go test -v -race ./...
+	go test -mod=mod -v -race ./...
 
 .PHONY: clean
 clean: ## Clean obs-mcp build artifacts
@@ -103,7 +103,7 @@ test-e2e-deploy: test-e2e-images ## Deploy obs-mcp to Kind cluster
 
 .PHONY: test-e2e
 test-e2e: ## Run E2E tests (requires cluster to be running)
-	go test -v -tags=e2e -timeout=10m ./tests/e2e/...
+	go test -mod=mod -v -tags=e2e -timeout=10m ./tests/e2e/...
 
 .PHONY: test-e2e-teardown
 test-e2e-teardown: ## Teardown E2E test cluster
