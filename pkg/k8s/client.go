@@ -18,8 +18,8 @@ const (
 	routesResource         = "routes"
 	thanosQuerierRouteName = "thanos-querier"
 	prometheusRouteName    = "prometheus-k8s"
-	routeDiscoveryTimeout  = 10 * time.Second
 	alertmanagerRouteName  = "alertmanager-main"
+	routeDiscoveryTimeout  = 10 * time.Second
 )
 
 // routeResponse represents the OpenShift Route API response structure

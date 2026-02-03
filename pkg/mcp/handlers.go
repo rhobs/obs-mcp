@@ -504,7 +504,7 @@ func GetAlertsHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequ
 				StartsAt:    alert.StartsAt.String(),
 				EndsAt:      alert.EndsAt.String(),
 				Status: AlertStatus{
-					State:       string(*alert.Status.State),
+					State:       *alert.Status.State,
 					SilencedBy:  silencedBy,
 					InhibitedBy: inhibitedBy,
 				},
@@ -571,7 +571,7 @@ func GetSilencesHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRe
 			output.Silences[i] = Silence{
 				ID: *silence.ID,
 				Status: SilenceStatus{
-					State: string(*silence.Status.State),
+					State: *silence.Status.State,
 				},
 				Matchers:  matchers,
 				StartsAt:  silence.StartsAt.String(),

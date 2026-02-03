@@ -165,3 +165,57 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 | `cardinality` | `integer`  | Total number of series matching the selector |
 | `series`      | `object[]` | List of time series matching the selector    |
 
+---
+
+## `get_alerts`
+
+> Get alerts from Alertmanager.
+
+**Usage Tips:**
+
+- WHEN TO USE: - START HERE when investigating issues: if the user asks about things breaking, errors, failures, outages, services being down, or anything going wrong in the cluster - When the user mentions a specific alert name - use this tool to get the alert's full labels (namespace, pod, service, etc.) which are essential for further investigation with other tools - To see currently firing alerts in the cluster - To check which alerts are active, silenced, or inhibited - To understand what's happening before diving into metrics or logs
+- INVESTIGATION TIP: Alert labels often contain the exact identifiers (pod names, namespaces, job names) needed for targeted queries with prometheus tools.
+- FILTERING: - Use 'active' to filter for only active alerts (not resolved) - Use 'silenced' to filter for silenced alerts - Use 'inhibited' to filter for inhibited alerts - Use 'filter' to apply label matchers (e.g., "alertname=HighCPU") - Use 'receiver' to filter alerts by receiver name
+- All filter parameters are optional. Without filters, all alerts are returned.
+
+**Parameters:**
+
+| Parameter     | Type      | Required | Description                                                           |
+| :------------ | :-------- | :------: | :-------------------------------------------------------------------- |
+| `active`      | `boolean` |          | Filter for active alerts only (true/false, optional)                  |
+| `filter`      | `string`  |          | Label matchers to filter alerts (e.g., 'alertname=HighCPU', optional) |
+| `inhibited`   | `boolean` |          | Filter for inhibited alerts only (true/false, optional)               |
+| `receiver`    | `string`  |          | Receiver name to filter alerts (optional)                             |
+| `silenced`    | `boolean` |          | Filter for silenced alerts only (true/false, optional)                |
+| `unprocessed` | `boolean` |          | Filter for unprocessed alerts only (true/false, optional)             |
+
+**Output Schema:**
+
+| Field    | Type       | Description                      |
+| :------- | :--------- | :------------------------------- |
+| `alerts` | `object[]` | List of alerts from Alertmanager |
+
+---
+
+## `get_silences`
+
+> Get silences from Alertmanager.
+
+**Usage Tips:**
+
+- WHEN TO USE: - To see which alerts are currently silenced - To check active, pending, or expired silences - To investigate why certain alerts are not firing notifications
+- FILTERING: - Use 'filter' to apply label matchers to find specific silences
+- Silences are used to temporarily mute alerts based on label matchers. This tool helps you understand what is currently silenced in your environment.
+
+**Parameters:**
+
+| Parameter | Type     | Required | Description                                                             |
+| :-------- | :------- | :------: | :---------------------------------------------------------------------- |
+| `filter`  | `string` |          | Label matchers to filter silences (e.g., 'alertname=HighCPU', optional) |
+
+**Output Schema:**
+
+| Field      | Type       | Description                        |
+| :--------- | :--------- | :--------------------------------- |
+| `silences` | `object[]` | List of silences from Alertmanager |
+

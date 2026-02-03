@@ -79,13 +79,13 @@ type SilencesOutput struct {
 
 // Silence represents a single silence from Alertmanager.
 type Silence struct {
-	ID        string            `json:"id" jsonschema:"description=Unique identifier of the silence"`
-	Status    SilenceStatus     `json:"status" jsonschema:"description=Current status of the silence"`
-	Matchers  []Matcher         `json:"matchers" jsonschema:"description=Label matchers for this silence"`
-	StartsAt  string            `json:"startsAt" jsonschema:"description=Start time of the silence"`
-	EndsAt    string            `json:"endsAt" jsonschema:"description=End time of the silence"`
-	CreatedBy string            `json:"createdBy" jsonschema:"description=Creator of the silence"`
-	Comment   string            `json:"comment" jsonschema:"description=Comment describing the silence"`
+	ID        string        `json:"id" jsonschema:"description=Unique identifier of the silence"`
+	Status    SilenceStatus `json:"status" jsonschema:"description=Current status of the silence"`
+	Matchers  []Matcher     `json:"matchers" jsonschema:"description=Label matchers for this silence"`
+	StartsAt  string        `json:"startsAt" jsonschema:"description=Start time of the silence"`
+	EndsAt    string        `json:"endsAt" jsonschema:"description=End time of the silence"`
+	CreatedBy string        `json:"createdBy" jsonschema:"description=Creator of the silence"`
+	Comment   string        `json:"comment" jsonschema:"description=Comment describing the silence"`
 }
 
 // SilenceStatus represents the status of a silence.

@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	defaultPrometheusURL    = "http://localhost:9090"
-	defaultAlertmanagerURL  = "http://localhost:9093"
+	defaultPrometheusURL   = "http://localhost:9090"
+	defaultAlertmanagerURL = "http://localhost:9093"
 )
 
 func main() {
