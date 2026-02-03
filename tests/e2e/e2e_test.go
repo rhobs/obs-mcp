@@ -615,7 +615,7 @@ func TestGetSeriesMissingRequiredParam(t *testing.T) {
 		ID:      15,
 		Method:  "tools/call",
 		Params: map[string]any{
-			"name": "get_series",
+			"name":      "get_series",
 			"arguments": map[string]any{
 				// Missing "matches" parameter
 			},
@@ -635,4 +635,175 @@ func TestGetSeriesMissingRequiredParam(t *testing.T) {
 			t.Error("Expected error for missing required parameter")
 		}
 	}
+}
+
+func TestGetAlerts(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      16,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name":      "get_alerts",
+			"arguments": map[string]any{},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call get_alerts: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+
+	// Verify we got some result back
+	if resp.Result == nil {
+		t.Error("Expected result, got nil")
+	}
+
+	// Verify the result doesn't contain an error
+	if isError, ok := resp.Result["isError"].(bool); ok && isError {
+		t.Error("Result contains an error")
+	}
+
+	t.Logf("get_alerts returned successfully")
+}
+
+func TestGetAlertsWithActiveFilter(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      17,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name": "get_alerts",
+			"arguments": map[string]any{
+				"active": true,
+			},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call get_alerts with active filter: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+
+	// Verify we got some result back
+	if resp.Result == nil {
+		t.Error("Expected result, got nil")
+	}
+
+	// Verify the result doesn't contain an error
+	if isError, ok := resp.Result["isError"].(bool); ok && isError {
+		t.Error("Result contains an error")
+	}
+
+	t.Logf("get_alerts with active filter returned successfully")
+}
+
+func TestGetAlertsWithFilter(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      18,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name": "get_alerts",
+			"arguments": map[string]any{
+				"filter": "alertname=Watchdog",
+			},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call get_alerts with filter: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+
+	// Verify we got some result back
+	if resp.Result == nil {
+		t.Error("Expected result, got nil")
+	}
+
+	// Verify the result doesn't contain an error
+	if isError, ok := resp.Result["isError"].(bool); ok && isError {
+		t.Error("Result contains an error")
+	}
+
+	t.Logf("get_alerts with filter returned successfully")
+}
+
+func TestGetSilences(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      19,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name":      "get_silences",
+			"arguments": map[string]any{},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call get_silences: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+
+	// Verify we got some result back
+	if resp.Result == nil {
+		t.Error("Expected result, got nil")
+	}
+
+	// Verify the result doesn't contain an error
+	if isError, ok := resp.Result["isError"].(bool); ok && isError {
+		t.Error("Result contains an error")
+	}
+
+	t.Logf("get_silences returned successfully")
+}
+
+func TestGetSilencesWithFilter(t *testing.T) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      20,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name": "get_silences",
+			"arguments": map[string]any{
+				"filter": "alertname=Watchdog",
+			},
+		},
+	}
+
+	resp, err := sendMCPRequest(t, req)
+	if err != nil {
+		t.Fatalf("Failed to call get_silences with filter: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+
+	// Verify we got some result back
+	if resp.Result == nil {
+		t.Error("Expected result, got nil")
+	}
+
+	// Verify the result doesn't contain an error
+	if isError, ok := resp.Result["isError"].(bool); ok && isError {
+		t.Error("Result contains an error")
+	}
+
+	t.Logf("get_silences with filter returned successfully")
 }

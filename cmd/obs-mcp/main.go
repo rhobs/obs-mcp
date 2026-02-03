@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	defaultPrometheusURL = "http://localhost:9090"
+	defaultPrometheusURL   = "http://localhost:9090"
+	defaultAlertmanagerURL = "http://localhost:9093"
 )
 
 func main() {
@@ -52,6 +53,9 @@ func main() {
 	// Determine metrics backend URL - pass the backend type
 	metricsBackendURL := determineMetricsBackendURL(parsedAuthMode, parsedMetricsBackend)
 
+	// Determine Alertmanager URL
+	alertmanagerURL := determineAlertmanagerURL(parsedAuthMode)
+
 	// Parse guardrails configuration
 	parsedGuardrails, err := prometheus.ParseGuardrails(*guardrails)
 	if err != nil {
@@ -68,6 +72,7 @@ func main() {
 	opts := mcp.ObsMCPOptions{
 		AuthMode:          parsedAuthMode,
 		MetricsBackendURL: metricsBackendURL,
+		AlertmanagerURL:   alertmanagerURL,
 		Insecure:          *insecure,
 		Guardrails:        parsedGuardrails,
 	}
@@ -78,7 +83,7 @@ func main() {
 		log.Fatalf("Failed to create MCP server: %v", err)
 	}
 
-	slog.Info("Starting server", "MetricsBackendURL", opts.MetricsBackendURL, "AuthMode", opts.AuthMode, "Guardrails", opts.Guardrails)
+	slog.Info("Starting server", "MetricsBackendURL", opts.MetricsBackendURL, "AlertmanagerURL", opts.AlertmanagerURL, "AuthMode", opts.AuthMode, "Guardrails", opts.Guardrails)
 
 	// Choose server mode based on flags
 	if *listen != "" {
@@ -133,6 +138,34 @@ func determineMetricsBackendURL(authMode mcp.AuthMode, backend k8s.MetricsBacken
 
 	// Default to localhost for all other auth modes
 	return defaultPrometheusURL
+}
+
+// determineAlertmanagerURL determines the Alertmanager URL based on auth mode and environment.
+func determineAlertmanagerURL(authMode mcp.AuthMode) string {
+	// Get Alertmanager URL from environment variable ALERTMANAGER_URL
+	alertmanagerURL := os.Getenv("ALERTMANAGER_URL")
+
+	// If URL is provided, use it
+	if alertmanagerURL != "" {
+		return alertmanagerURL
+	}
+
+	// For kubeconfig mode, attempt to discover route
+	if authMode == mcp.AuthModeKubeConfig {
+		slog.Info("No Alertmanager URL provided, attempting to discover via kubeconfig")
+
+		url, err := k8s.GetAlertmanagerURL()
+		if err != nil {
+			slog.Warn("Failed to discover Alertmanager via kubeconfig", "err", err, "fallback_url", defaultAlertmanagerURL)
+			return defaultAlertmanagerURL
+		}
+
+		slog.Info("Discovered Alertmanager URL", "url", url)
+		return url
+	}
+
+	// Default to localhost for all other auth modes
+	return defaultAlertmanagerURL
 }
 
 // configureLogging sets up the slog logger with the specified log level
