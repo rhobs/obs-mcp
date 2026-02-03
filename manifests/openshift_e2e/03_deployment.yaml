@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: obs-mcp
+  namespace: obs-mcp
+  labels:
+    app.kubernetes.io/name: obs-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: obs-mcp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: obs-mcp
+    spec:
+      serviceAccountName: obs-mcp
+      automountServiceAccountToken: true
+      containers:
+        - name: obs-mcp
+          # Note: This image doesn't exist yet
+          image: ghcr.io/rhobs/obs-mcp:latest
+          # To use the local image in openshift registry, uncomment the following line and comment the previous line
+          # image: image-registry.openshift-image-registry.svc:5000/obs-mcp/obs-mcp:v1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --listen
+            - ":9100"
+            - --auth-mode
+            - serviceaccount
+            - --insecure
+            - --log-level
+            - debug
+          env:
+            - name: PROMETHEUS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: obs-mcp-config
+                  key: prometheus-url
+            - name: ALERTMANAGER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: obs-mcp-config
+                  key: alertmanager-url
+          ports:
+            - containerPort: 9100
+              name: mcp
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: mcp
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: mcp
+            initialDelaySeconds: 5
+            periodSeconds: 5
