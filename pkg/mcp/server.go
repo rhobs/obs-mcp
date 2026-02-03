@@ -20,6 +20,7 @@ import (
 type ObsMCPOptions struct {
 	AuthMode          AuthMode
 	MetricsBackendURL string
+	AlertmanagerURL   string
 	Insecure          bool
 	Guardrails        *prometheus.Guardrails
 }
@@ -31,9 +32,15 @@ const (
 	serverVersion          = "1.0.0"
 	defaultShutdownTimeout = 10 * time.Second
 
-	serverInstructions = `You are an expert Kubernetes and OpenShift observability assistant with direct access to Prometheus metrics through this MCP server.
+	serverInstructions = `You are an expert Kubernetes and OpenShift observability assistant with direct access to Prometheus metrics and Alertmanager alerts through this MCP server.
 
-## MANDATORY WORKFLOW - ALWAYS FOLLOW THIS ORDER
+## INVESTIGATION STARTING POINT
+
+When the user asks about issues, errors, failures, outages, or things going wrong - consider calling get_alerts first to see what's currently firing. Alert labels provide exact identifiers (namespaces, pods, services) useful for targeted metric queries.
+
+If the user mentions a specific alert by name, use get_alerts with a filter to retrieve its full labels before investigating further.
+
+## MANDATORY WORKFLOW FOR QUERYING - ALWAYS FOLLOW THIS ORDER
 
 **STEP 1: ALWAYS call list_metrics FIRST**
 - This is NON-NEGOTIABLE for EVERY question
@@ -89,6 +96,8 @@ func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
 	getLabelNamesTool := CreateGetLabelNamesTool()
 	getLabelValuesTool := CreateGetLabelValuesTool()
 	getSeriesTool := CreateGetSeriesTool()
+	getAlertsTool := CreateGetAlertsTool()
+	getSilencesTool := CreateGetSilencesTool()
 
 	// Create handlers
 	listMetricsHandler := ListMetricsHandler(opts)
@@ -97,6 +106,8 @@ func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
 	getLabelNamesHandler := GetLabelNamesHandler(opts)
 	getLabelValuesHandler := GetLabelValuesHandler(opts)
 	getSeriesHandler := GetSeriesHandler(opts)
+	getAlertsHandler := GetAlertsHandler(opts)
+	getSilencesHandler := GetSilencesHandler(opts)
 
 	// Add tools to server
 	mcpServer.AddTool(listMetricsTool, listMetricsHandler)
@@ -105,6 +116,8 @@ func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
 	mcpServer.AddTool(getLabelNamesTool, getLabelNamesHandler)
 	mcpServer.AddTool(getLabelValuesTool, getLabelValuesHandler)
 	mcpServer.AddTool(getSeriesTool, getSeriesHandler)
+	mcpServer.AddTool(getAlertsTool, getAlertsHandler)
+	mcpServer.AddTool(getSilencesTool, getSilencesHandler)
 
 	return nil
 }

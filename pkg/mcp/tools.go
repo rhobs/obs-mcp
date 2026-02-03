@@ -51,6 +51,56 @@ type SeriesResult struct {
 	Values [][]any           `json:"values" jsonschema:"description=Array of [timestamp, value] pairs"`
 }
 
+// AlertsOutput defines the output schema for the get_alerts tool.
+type AlertsOutput struct {
+	Alerts []Alert `json:"alerts" jsonschema:"description=List of alerts from Alertmanager"`
+}
+
+// Alert represents a single alert from Alertmanager.
+type Alert struct {
+	Labels      map[string]string `json:"labels" jsonschema:"description=Labels of the alert"`
+	Annotations map[string]string `json:"annotations" jsonschema:"description=Annotations of the alert"`
+	StartsAt    string            `json:"startsAt" jsonschema:"description=Start time of the alert"`
+	EndsAt      string            `json:"endsAt,omitempty" jsonschema:"description=End time of the alert (if resolved)"`
+	Status      AlertStatus       `json:"status" jsonschema:"description=Current status of the alert"`
+}
+
+// AlertStatus represents the status of an alert.
+type AlertStatus struct {
+	State       string   `json:"state" jsonschema:"description=State of the alert (active, suppressed, unprocessed)"`
+	SilencedBy  []string `json:"silencedBy,omitempty" jsonschema:"description=List of silences that are silencing this alert"`
+	InhibitedBy []string `json:"inhibitedBy,omitempty" jsonschema:"description=List of alerts that are inhibiting this alert"`
+}
+
+// SilencesOutput defines the output schema for the get_silences tool.
+type SilencesOutput struct {
+	Silences []Silence `json:"silences" jsonschema:"description=List of silences from Alertmanager"`
+}
+
+// Silence represents a single silence from Alertmanager.
+type Silence struct {
+	ID        string            `json:"id" jsonschema:"description=Unique identifier of the silence"`
+	Status    SilenceStatus     `json:"status" jsonschema:"description=Current status of the silence"`
+	Matchers  []Matcher         `json:"matchers" jsonschema:"description=Label matchers for this silence"`
+	StartsAt  string            `json:"startsAt" jsonschema:"description=Start time of the silence"`
+	EndsAt    string            `json:"endsAt" jsonschema:"description=End time of the silence"`
+	CreatedBy string            `json:"createdBy" jsonschema:"description=Creator of the silence"`
+	Comment   string            `json:"comment" jsonschema:"description=Comment describing the silence"`
+}
+
+// SilenceStatus represents the status of a silence.
+type SilenceStatus struct {
+	State string `json:"state" jsonschema:"description=State of the silence (active, pending, expired)"`
+}
+
+// Matcher represents a label matcher for a silence.
+type Matcher struct {
+	Name    string `json:"name" jsonschema:"description=Label name to match"`
+	Value   string `json:"value" jsonschema:"description=Label value to match"`
+	IsRegex bool   `json:"isRegex" jsonschema:"description=Whether the match is a regex match"`
+	IsEqual bool   `json:"isEqual" jsonschema:"description=Whether the match is an equality match (true) or inequality match (false)"`
+}
+
 // AllTools returns all available MCP tools.
 // When adding a new tool, add it here to keep documentation in sync.
 func AllTools() []mcp.Tool {
@@ -61,6 +111,8 @@ func AllTools() []mcp.Tool {
 		CreateGetLabelNamesTool(),
 		CreateGetLabelValuesTool(),
 		CreateGetSeriesTool(),
+		CreateGetAlertsTool(),
+		CreateGetSilencesTool(),
 	}
 }
 
@@ -227,5 +279,68 @@ The selector should use metric names from list_metrics output.`),
 			mcp.Description("End time for series discovery as RFC3339 or Unix timestamp (optional, defaults to now)"),
 		),
 		mcp.WithOutputSchema[SeriesOutput](),
+	)
+}
+
+func CreateGetAlertsTool() mcp.Tool {
+	return mcp.NewTool("get_alerts",
+		mcp.WithDescription(`Get alerts from Alertmanager.
+
+WHEN TO USE:
+- START HERE when investigating issues: if the user asks about things breaking, errors, failures, outages, services being down, or anything going wrong in the cluster
+- When the user mentions a specific alert name - use this tool to get the alert's full labels (namespace, pod, service, etc.) which are essential for further investigation with other tools
+- To see currently firing alerts in the cluster
+- To check which alerts are active, silenced, or inhibited
+- To understand what's happening before diving into metrics or logs
+
+INVESTIGATION TIP: Alert labels often contain the exact identifiers (pod names, namespaces, job names) needed for targeted queries with prometheus tools.
+
+FILTERING:
+- Use 'active' to filter for only active alerts (not resolved)
+- Use 'silenced' to filter for silenced alerts
+- Use 'inhibited' to filter for inhibited alerts
+- Use 'filter' to apply label matchers (e.g., "alertname=HighCPU")
+- Use 'receiver' to filter alerts by receiver name
+
+All filter parameters are optional. Without filters, all alerts are returned.`),
+		mcp.WithBoolean("active",
+			mcp.Description("Filter for active alerts only (true/false, optional)"),
+		),
+		mcp.WithBoolean("silenced",
+			mcp.Description("Filter for silenced alerts only (true/false, optional)"),
+		),
+		mcp.WithBoolean("inhibited",
+			mcp.Description("Filter for inhibited alerts only (true/false, optional)"),
+		),
+		mcp.WithBoolean("unprocessed",
+			mcp.Description("Filter for unprocessed alerts only (true/false, optional)"),
+		),
+		mcp.WithString("filter",
+			mcp.Description("Label matchers to filter alerts (e.g., 'alertname=HighCPU', optional)"),
+		),
+		mcp.WithString("receiver",
+			mcp.Description("Receiver name to filter alerts (optional)"),
+		),
+		mcp.WithOutputSchema[AlertsOutput](),
+	)
+}
+
+func CreateGetSilencesTool() mcp.Tool {
+	return mcp.NewTool("get_silences",
+		mcp.WithDescription(`Get silences from Alertmanager.
+
+WHEN TO USE:
+- To see which alerts are currently silenced
+- To check active, pending, or expired silences
+- To investigate why certain alerts are not firing notifications
+
+FILTERING:
+- Use 'filter' to apply label matchers to find specific silences
+
+Silences are used to temporarily mute alerts based on label matchers. This tool helps you understand what is currently silenced in your environment.`),
+		mcp.WithString("filter",
+			mcp.Description("Label matchers to filter silences (e.g., 'alertname=HighCPU', optional)"),
+		),
+		mcp.WithOutputSchema[SilencesOutput](),
 	)
 }

@@ -19,6 +19,7 @@ const (
 	thanosQuerierRouteName = "thanos-querier"
 	prometheusRouteName    = "prometheus-k8s"
 	routeDiscoveryTimeout  = 10 * time.Second
+	alertmanagerRouteName  = "alertmanager-main"
 )
 
 // routeResponse represents the OpenShift Route API response structure
@@ -137,4 +138,9 @@ func parseHostFromRouteBody(body []byte) (string, error) {
 		return "", nil
 	}
 	return "https://" + route.Spec.Host, nil
+}
+
+// GetAlertmanagerURL discovers the Alertmanager endpoint in OpenShift.
+func GetAlertmanagerURL() (string, error) {
+	return discoverRoute(alertmanagerRouteName)
 }

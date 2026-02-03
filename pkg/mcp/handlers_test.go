@@ -6,8 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/prometheus/alertmanager/api/v2/models"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanager"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
@@ -72,6 +75,29 @@ func (m *MockedLoader) GetSeries(ctx context.Context, matches []string, start, e
 // Ensure MockPromClient implements prometheus.PromClient at compile time
 var _ prometheus.Loader = (*MockedLoader)(nil)
 
+// MockedAlertmanagerLoader is a mock implementation of alertmanager.Loader for testing
+type MockedAlertmanagerLoader struct {
+	GetAlertsFunc   func(ctx context.Context, active, silenced, inhibited, unprocessed *bool, filter []string, receiver string) (models.GettableAlerts, error)
+	GetSilencesFunc func(ctx context.Context, filter []string) (models.GettableSilences, error)
+}
+
+func (m *MockedAlertmanagerLoader) GetAlerts(ctx context.Context, active, silenced, inhibited, unprocessed *bool, filter []string, receiver string) (models.GettableAlerts, error) {
+	if m.GetAlertsFunc != nil {
+		return m.GetAlertsFunc(ctx, active, silenced, inhibited, unprocessed, filter, receiver)
+	}
+	return models.GettableAlerts{}, nil
+}
+
+func (m *MockedAlertmanagerLoader) GetSilences(ctx context.Context, filter []string) (models.GettableSilences, error) {
+	if m.GetSilencesFunc != nil {
+		return m.GetSilencesFunc(ctx, filter)
+	}
+	return models.GettableSilences{}, nil
+}
+
+// Ensure MockedAlertmanagerLoader implements alertmanager.Loader at compile time
+var _ alertmanager.Loader = (*MockedAlertmanagerLoader)(nil)
+
 // newMockRequest creates a CallToolRequest with the given parameters
 func newMockRequest(params map[string]any) mcp.CallToolRequest {
 	return mcp.CallToolRequest{
@@ -85,6 +111,11 @@ func newMockRequest(params map[string]any) mcp.CallToolRequest {
 // withMockClient returns a context with the mock client injected
 func withMockClient(ctx context.Context, client prometheus.Loader) context.Context {
 	return context.WithValue(ctx, TestPromClientKey, client)
+}
+
+// withMockAlertmanagerClient returns a context with the mock alertmanager client injected
+func withMockAlertmanagerClient(ctx context.Context, client alertmanager.Loader) context.Context {
+	return context.WithValue(ctx, TestAlertmanagerClientKey, client)
 }
 
 func TestExecuteRangeQueryHandler_ExplicitTimeRange_RFC3339(t *testing.T) {
@@ -636,4 +667,321 @@ func getErrorMessage(t *testing.T, result *mcp.CallToolResult) string {
 	default:
 		return fmt.Sprintf("%v", content)
 	}
+}
+
+func TestGetAlertsHandler_AllAlerts(t *testing.T) {
+	activeState := "active"
+	now := strfmt.DateTime(time.Now())
+	mockClient := &MockedAlertmanagerLoader{
+		GetAlertsFunc: func(ctx context.Context, active, silenced, inhibited, unprocessed *bool, filter []string, receiver string) (models.GettableAlerts, error) {
+			// Verify no filters are applied
+			if active != nil || silenced != nil || inhibited != nil || unprocessed != nil {
+				t.Error("expected no boolean filters")
+			}
+			if len(filter) != 0 {
+				t.Errorf("expected no filters, got %v", filter)
+			}
+			if receiver != "" {
+				t.Errorf("expected no receiver, got %s", receiver)
+			}
+
+			return models.GettableAlerts{
+				&models.GettableAlert{
+					Alert: models.Alert{
+						Labels: models.LabelSet{
+							"alertname": "HighCPU",
+							"severity":  "warning",
+						},
+					},
+					Annotations: models.LabelSet{
+						"description": "CPU usage is high",
+					},
+					StartsAt: &now,
+					EndsAt:   &now,
+					Status: &models.AlertStatus{
+						State:       &activeState,
+						SilencedBy:  []string{},
+						InhibitedBy: []string{},
+					},
+				},
+			}, nil
+		},
+	}
+
+	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
+	handler := GetAlertsHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{})
+
+	result, err := handler(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", getErrorMessage(t, result))
+	}
+}
+
+func TestGetAlertsHandler_WithActiveFilter(t *testing.T) {
+	active := true
+	activeState := "active"
+	now := strfmt.DateTime(time.Now())
+
+	mockClient := &MockedAlertmanagerLoader{
+		GetAlertsFunc: func(ctx context.Context, activeParam, silenced, inhibited, unprocessed *bool, filter []string, receiver string) (models.GettableAlerts, error) {
+			if activeParam == nil || !*activeParam {
+				t.Error("expected active parameter to be true")
+			}
+
+			return models.GettableAlerts{
+				&models.GettableAlert{
+					Alert: models.Alert{
+						Labels: models.LabelSet{
+							"alertname": "HighCPU",
+						},
+					},
+					Annotations: models.LabelSet{},
+					StartsAt:    &now,
+					EndsAt:      &now,
+					Status: &models.AlertStatus{
+						State:       &activeState,
+						SilencedBy:  []string{},
+						InhibitedBy: []string{},
+					},
+				},
+			}, nil
+		},
+	}
+
+	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
+	handler := GetAlertsHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{
+		"active": active,
+	})
+
+	result, err := handler(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", getErrorMessage(t, result))
+	}
+}
+
+func TestGetAlertsHandler_WithFilter(t *testing.T) {
+	activeState := "active"
+	now := strfmt.DateTime(time.Now())
+
+	mockClient := &MockedAlertmanagerLoader{
+		GetAlertsFunc: func(ctx context.Context, active, silenced, inhibited, unprocessed *bool, filterParam []string, receiver string) (models.GettableAlerts, error) {
+			if len(filterParam) != 1 || filterParam[0] != "alertname=HighCPU" {
+				t.Errorf("expected filter 'alertname=HighCPU', got %v", filterParam)
+			}
+
+			return models.GettableAlerts{
+				&models.GettableAlert{
+					Alert: models.Alert{
+						Labels: models.LabelSet{
+							"alertname": "HighCPU",
+						},
+					},
+					Annotations: models.LabelSet{},
+					StartsAt:    &now,
+					EndsAt:      &now,
+					Status: &models.AlertStatus{
+						State:       &activeState,
+						SilencedBy:  []string{},
+						InhibitedBy: []string{},
+					},
+				},
+			}, nil
+		},
+	}
+
+	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
+	handler := GetAlertsHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{
+		"filter": "alertname=HighCPU",
+	})
+
+	result, err := handler(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", getErrorMessage(t, result))
+	}
+}
+
+func TestGetAlertsHandler_WithReceiver(t *testing.T) {
+	activeState := "active"
+	now := strfmt.DateTime(time.Now())
+
+	mockClient := &MockedAlertmanagerLoader{
+		GetAlertsFunc: func(ctx context.Context, active, silenced, inhibited, unprocessed *bool, filter []string, receiverParam string) (models.GettableAlerts, error) {
+			if receiverParam != "team-notifications" {
+				t.Errorf("expected receiver 'team-notifications', got %s", receiverParam)
+			}
+
+			return models.GettableAlerts{
+				&models.GettableAlert{
+					Alert: models.Alert{
+						Labels: models.LabelSet{
+							"alertname": "HighCPU",
+						},
+					},
+					Annotations: models.LabelSet{},
+					StartsAt:    &now,
+					EndsAt:      &now,
+					Status: &models.AlertStatus{
+						State:       &activeState,
+						SilencedBy:  []string{},
+						InhibitedBy: []string{},
+					},
+				},
+			}, nil
+		},
+	}
+
+	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
+	handler := GetAlertsHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{
+		"receiver": "team-notifications",
+	})
+
+	result, err := handler(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", getErrorMessage(t, result))
+	}
+}
+
+func TestGetSilencesHandler_AllSilences(t *testing.T) {
+	silenceID := "test-silence-id"
+	silenceState := "active"
+	now := strfmt.DateTime(time.Now())
+
+	mockClient := &MockedAlertmanagerLoader{
+		GetSilencesFunc: func(ctx context.Context, filter []string) (models.GettableSilences, error) {
+			if len(filter) != 0 {
+				t.Errorf("expected no filters, got %v", filter)
+			}
+
+			return models.GettableSilences{
+				&models.GettableSilence{
+					ID: &silenceID,
+					Status: &models.SilenceStatus{
+						State: &silenceState,
+					},
+					Silence: models.Silence{
+						Matchers: models.Matchers{
+							&models.Matcher{
+								Name:    ptrString("alertname"),
+								Value:   ptrString("HighCPU"),
+								IsRegex: ptrBool(false),
+								IsEqual: ptrBool(true),
+							},
+						},
+						StartsAt:  &now,
+						EndsAt:    &now,
+						CreatedBy: ptrString("admin"),
+						Comment:   ptrString("Maintenance window"),
+					},
+				},
+			}, nil
+		},
+	}
+
+	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
+	handler := GetSilencesHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{})
+
+	result, err := handler(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", getErrorMessage(t, result))
+	}
+}
+
+func TestGetSilencesHandler_WithFilter(t *testing.T) {
+	silenceID := "test-silence-id"
+	silenceState := "active"
+	now := strfmt.DateTime(time.Now())
+
+	mockClient := &MockedAlertmanagerLoader{
+		GetSilencesFunc: func(ctx context.Context, filterParam []string) (models.GettableSilences, error) {
+			if len(filterParam) != 1 || filterParam[0] != "alertname=HighCPU" {
+				t.Errorf("expected filter 'alertname=HighCPU', got %v", filterParam)
+			}
+
+			return models.GettableSilences{
+				&models.GettableSilence{
+					ID: &silenceID,
+					Status: &models.SilenceStatus{
+						State: &silenceState,
+					},
+					Silence: models.Silence{
+						Matchers: models.Matchers{
+							&models.Matcher{
+								Name:    ptrString("alertname"),
+								Value:   ptrString("HighCPU"),
+								IsRegex: ptrBool(false),
+								IsEqual: ptrBool(true),
+							},
+						},
+						StartsAt:  &now,
+						EndsAt:    &now,
+						CreatedBy: ptrString("admin"),
+						Comment:   ptrString("Planned maintenance"),
+					},
+				},
+			}, nil
+		},
+	}
+
+	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
+	handler := GetSilencesHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{
+		"filter": "alertname=HighCPU",
+	})
+
+	result, err := handler(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", getErrorMessage(t, result))
+	}
+}
+
+func TestGetSilencesHandler_EmptyResult(t *testing.T) {
+	mockClient := &MockedAlertmanagerLoader{
+		GetSilencesFunc: func(ctx context.Context, filter []string) (models.GettableSilences, error) {
+			return models.GettableSilences{}, nil
+		},
+	}
+
+	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
+	handler := GetSilencesHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{})
+
+	result, err := handler(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", getErrorMessage(t, result))
+	}
+}
+
+// Helper functions to create pointers
+func ptrString(s string) *string {
+	return &s
+}
+
+func ptrBool(b bool) *bool {
+	return &b
 }

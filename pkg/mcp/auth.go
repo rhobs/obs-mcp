@@ -40,6 +40,9 @@ const (
 
 	// TestPromClientKey is the context key for injecting a test Prometheus client
 	TestPromClientKey ContextKey = "test-prometheus-client"
+
+	// TestAlertmanagerClientKey is the context key for injecting a test Alertmanager client
+	TestAlertmanagerClientKey ContextKey = "test-alertmanager-client"
 )
 
 // ParseAuthMode validates and converts a string to AuthMode

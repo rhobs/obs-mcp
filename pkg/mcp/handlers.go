@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
+	"strings"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/prometheus/common/model"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanager"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
@@ -427,4 +430,189 @@ func GetSeriesHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequ
 
 		return mcp.NewToolResultStructured(output, string(jsonResult)), nil
 	}
+}
+
+// GetAlertsHandler handles the retrieval of alerts from Alertmanager.
+func GetAlertsHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.Info("GetAlertsHandler called")
+		slog.Debug("GetAlertsHandler params", "params", req.Params)
+
+		amClient, err := getAlertmanagerClient(ctx, opts)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to create Alertmanager client: %s", err.Error()))
+		}
+
+		var active, silenced, inhibited, unprocessed *bool
+		if req.Params.Arguments != nil {
+			if args, ok := req.Params.Arguments.(map[string]any); ok {
+				if activeVal, ok := args["active"].(bool); ok {
+					active = &activeVal
+				}
+				if silencedVal, ok := args["silenced"].(bool); ok {
+					silenced = &silencedVal
+				}
+				if inhibitedVal, ok := args["inhibited"].(bool); ok {
+					inhibited = &inhibitedVal
+				}
+				if unprocessedVal, ok := args["unprocessed"].(bool); ok {
+					unprocessed = &unprocessedVal
+				}
+			}
+		}
+
+		// Get optional string parameters
+		filterStr := req.GetString("filter", "")
+		receiver := req.GetString("receiver", "")
+		var filter []string
+		if filterStr != "" {
+			filter = []string{filterStr}
+		}
+
+		alerts, err := amClient.GetAlerts(ctx, active, silenced, inhibited, unprocessed, filter, receiver)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to get alerts: %s", err.Error()))
+		}
+
+		// Convert to output format
+		output := AlertsOutput{
+			Alerts: make([]Alert, len(alerts)),
+		}
+
+		for i, alert := range alerts {
+			labels := make(map[string]string)
+			maps.Copy(labels, alert.Labels)
+
+			annotations := make(map[string]string)
+			maps.Copy(annotations, alert.Annotations)
+
+			var silencedBy, inhibitedBy []string
+			if alert.Status.SilencedBy != nil {
+				silencedBy = alert.Status.SilencedBy
+			} else {
+				silencedBy = []string{}
+			}
+			if alert.Status.InhibitedBy != nil {
+				inhibitedBy = alert.Status.InhibitedBy
+			} else {
+				inhibitedBy = []string{}
+			}
+
+			output.Alerts[i] = Alert{
+				Labels:      labels,
+				Annotations: annotations,
+				StartsAt:    alert.StartsAt.String(),
+				EndsAt:      alert.EndsAt.String(),
+				Status: AlertStatus{
+					State:       string(*alert.Status.State),
+					SilencedBy:  silencedBy,
+					InhibitedBy: inhibitedBy,
+				},
+			}
+		}
+
+		slog.Info("GetAlertsHandler executed successfully", "alertCount", len(alerts))
+		slog.Debug("GetAlertsHandler results", "results", output.Alerts)
+
+		jsonResult, err := json.Marshal(output)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to marshal alerts: %s", err.Error()))
+		}
+
+		return mcp.NewToolResultStructured(output, string(jsonResult)), nil
+	}
+}
+
+// GetSilencesHandler handles the retrieval of silences from Alertmanager.
+func GetSilencesHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		slog.Info("GetSilencesHandler called")
+		slog.Debug("GetSilencesHandler params", "params", req.Params)
+
+		amClient, err := getAlertmanagerClient(ctx, opts)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to create Alertmanager client: %s", err.Error()))
+		}
+
+		filterStr := req.GetString("filter", "")
+		var filter []string
+		if filterStr != "" {
+			// Split by comma if multiple filters are provided
+			filter = strings.Split(filterStr, ",")
+			for i := range filter {
+				filter[i] = strings.TrimSpace(filter[i])
+			}
+		}
+
+		silences, err := amClient.GetSilences(ctx, filter)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to get silences: %s", err.Error()))
+		}
+
+		output := SilencesOutput{
+			Silences: make([]Silence, len(silences)),
+		}
+
+		for i, silence := range silences {
+			matchers := make([]Matcher, len(silence.Matchers))
+			for j, m := range silence.Matchers {
+				isEqual := true
+				if m.IsEqual != nil {
+					isEqual = *m.IsEqual
+				}
+				matchers[j] = Matcher{
+					Name:    *m.Name,
+					Value:   *m.Value,
+					IsRegex: *m.IsRegex,
+					IsEqual: isEqual,
+				}
+			}
+
+			output.Silences[i] = Silence{
+				ID: *silence.ID,
+				Status: SilenceStatus{
+					State: string(*silence.Status.State),
+				},
+				Matchers:  matchers,
+				StartsAt:  silence.StartsAt.String(),
+				EndsAt:    silence.EndsAt.String(),
+				CreatedBy: *silence.CreatedBy,
+				Comment:   *silence.Comment,
+			}
+		}
+
+		slog.Info("GetSilencesHandler executed successfully", "silenceCount", len(silences))
+		slog.Debug("GetSilencesHandler results", "results", output.Silences)
+
+		jsonResult, err := json.Marshal(output)
+		if err != nil {
+			return errorResult(fmt.Sprintf("failed to marshal silences: %s", err.Error()))
+		}
+
+		return mcp.NewToolResultStructured(output, string(jsonResult)), nil
+	}
+}
+
+func getAlertmanagerClient(ctx context.Context, opts ObsMCPOptions) (alertmanager.Loader, error) {
+	// Check if a test client was injected via context
+	if testClient := ctx.Value(TestAlertmanagerClientKey); testClient != nil {
+		if client, ok := testClient.(alertmanager.Loader); ok {
+			return client, nil
+		}
+	}
+
+	apiConfig, err := createAPIConfig(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API config: %v", err)
+	}
+
+	// Update the address to use AlertmanagerURL instead of MetricsBackendURL
+	apiConfig.Address = opts.AlertmanagerURL
+
+	amClient, err := alertmanager.NewAlertmanagerClient(apiConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Alertmanager client: %v", err)
+	}
+
+	return amClient, nil
 }
