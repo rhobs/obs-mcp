@@ -151,7 +151,10 @@ func createAPIConfigWithToken(prometheusURL, token string, insecure bool) (proma
 
 	useTLS := strings.HasPrefix(prometheusURL, "https://")
 	if useTLS {
-		defaultRt := promapi.DefaultRoundTripper.(*http.Transport)
+		defaultRt, ok := promapi.DefaultRoundTripper.(*http.Transport)
+		if !ok {
+			return promapi.Config{}, fmt.Errorf("unexpected RoundTripper type: %T, expected *http.Transport", promapi.DefaultRoundTripper)
+		}
 
 		if insecure {
 			defaultRt.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}

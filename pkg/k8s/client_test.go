@@ -47,16 +47,40 @@ func TestGetRouteURLParseHost(t *testing.T) {
 			wantHost: "",
 			wantErr:  true,
 		},
+		{
+			name:     "host in wrong JSON location - should only parse spec.host",
+			body:     `{"status":{"host":"wrong-host.com"},"spec":{"host":"correct.example.com"}}`,
+			wantHost: "https://correct.example.com",
+			wantErr:  false,
+		},
+		{
+			name:     "host pattern in annotation should not be parsed",
+			body:     `{"metadata":{"annotations":{"config":"host\":\"invalid.url.com"}},"spec":{"host":"real.example.com"}}`,
+			wantHost: "https://real.example.com",
+			wantErr:  false,
+		},
+		{
+			name:     "nested host field should not confuse parser",
+			body:     `{"spec":{"tls":{"host":"tls-host.com"},"host":"correct.example.com"}}`,
+			wantHost: "https://correct.example.com",
+			wantErr:  false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			host := parseHostFromRouteBody(tt.body)
-			if tt.wantErr && host != "" {
-				t.Errorf("expected empty host, got %s", host)
-			}
-			if !tt.wantErr && host != tt.wantHost {
-				t.Errorf("expected host %s, got %s", tt.wantHost, host)
+			host, err := parseHostFromRouteBody([]byte(tt.body))
+			if tt.wantErr {
+				if host != "" {
+					t.Errorf("expected empty host, got %s", host)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				if host != tt.wantHost {
+					t.Errorf("expected host %s, got %s", tt.wantHost, host)
+				}
 			}
 		})
 	}
