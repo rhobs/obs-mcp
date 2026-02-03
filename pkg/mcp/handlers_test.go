@@ -977,6 +977,179 @@ func TestGetSilencesHandler_EmptyResult(t *testing.T) {
 	}
 }
 
+func TestGetAlertsHandler_ClientError(t *testing.T) {
+	mockClient := &MockedAlertmanagerLoader{
+		GetAlertsFunc: func(ctx context.Context, active, silenced, inhibited, unprocessed *bool, filter []string, receiver string) (models.GettableAlerts, error) {
+			return nil, fmt.Errorf("connection refused")
+		},
+	}
+
+	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
+	handler := GetAlertsHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{})
+
+	result, err := handler(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error result, got success")
+	}
+	errorMsg := getErrorMessage(t, result)
+	if errorMsg != "failed to get alerts: connection refused" {
+		t.Errorf("expected error message 'failed to get alerts: connection refused', got %q", errorMsg)
+	}
+}
+
+func TestGetAlertsHandler_WithMultipleFilters(t *testing.T) {
+	activeState := "active"
+	now := strfmt.DateTime(time.Now())
+
+	mockClient := &MockedAlertmanagerLoader{
+		GetAlertsFunc: func(ctx context.Context, active, silenced, inhibited, unprocessed *bool, filterParam []string, receiver string) (models.GettableAlerts, error) {
+			// Verify multiple filters are passed correctly
+			expectedFilters := []string{"alertname=HighCPU", "severity=critical"}
+			if len(filterParam) != len(expectedFilters) {
+				t.Errorf("expected %d filters, got %d: %v", len(expectedFilters), len(filterParam), filterParam)
+			}
+			for i, expected := range expectedFilters {
+				if i < len(filterParam) && filterParam[i] != expected {
+					t.Errorf("expected filter[%d] to be %q, got %q", i, expected, filterParam[i])
+				}
+			}
+
+			return models.GettableAlerts{
+				&models.GettableAlert{
+					Alert: models.Alert{
+						Labels: models.LabelSet{
+							"alertname": "HighCPU",
+							"severity":  "critical",
+						},
+					},
+					Annotations: models.LabelSet{},
+					StartsAt:    &now,
+					EndsAt:      &now,
+					Status: &models.AlertStatus{
+						State:       &activeState,
+						SilencedBy:  []string{},
+						InhibitedBy: []string{},
+					},
+				},
+			}, nil
+		},
+	}
+
+	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
+	handler := GetAlertsHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{
+		"filter": "alertname=HighCPU, severity=critical",
+	})
+
+	result, err := handler(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", getErrorMessage(t, result))
+	}
+}
+
+func TestGetAlertsHandler_WithMultipleFiltersNoSpaces(t *testing.T) {
+	activeState := "active"
+	now := strfmt.DateTime(time.Now())
+
+	mockClient := &MockedAlertmanagerLoader{
+		GetAlertsFunc: func(ctx context.Context, active, silenced, inhibited, unprocessed *bool, filterParam []string, receiver string) (models.GettableAlerts, error) {
+			// Verify multiple filters without spaces are parsed and trimmed correctly
+			expectedFilters := []string{"alertname=HighCPU", "severity=warning", "job=api"}
+			if len(filterParam) != len(expectedFilters) {
+				t.Errorf("expected %d filters, got %d: %v", len(expectedFilters), len(filterParam), filterParam)
+			}
+			for i, expected := range expectedFilters {
+				if i < len(filterParam) && filterParam[i] != expected {
+					t.Errorf("expected filter[%d] to be %q, got %q", i, expected, filterParam[i])
+				}
+			}
+
+			return models.GettableAlerts{
+				&models.GettableAlert{
+					Alert: models.Alert{
+						Labels: models.LabelSet{
+							"alertname": "HighCPU",
+						},
+					},
+					Annotations: models.LabelSet{},
+					StartsAt:    &now,
+					EndsAt:      &now,
+					Status: &models.AlertStatus{
+						State:       &activeState,
+						SilencedBy:  []string{},
+						InhibitedBy: []string{},
+					},
+				},
+			}, nil
+		},
+	}
+
+	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
+	handler := GetAlertsHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{
+		"filter": "alertname=HighCPU,severity=warning,job=api",
+	})
+
+	result, err := handler(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", getErrorMessage(t, result))
+	}
+}
+
+func TestGetAlertsHandler_EmptyResult(t *testing.T) {
+	mockClient := &MockedAlertmanagerLoader{
+		GetAlertsFunc: func(ctx context.Context, active, silenced, inhibited, unprocessed *bool, filter []string, receiver string) (models.GettableAlerts, error) {
+			return models.GettableAlerts{}, nil
+		},
+	}
+
+	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
+	handler := GetAlertsHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{})
+
+	result, err := handler(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", getErrorMessage(t, result))
+	}
+}
+
+func TestGetSilencesHandler_ClientError(t *testing.T) {
+	mockClient := &MockedAlertmanagerLoader{
+		GetSilencesFunc: func(ctx context.Context, filter []string) (models.GettableSilences, error) {
+			return nil, fmt.Errorf("connection refused")
+		},
+	}
+
+	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
+	handler := GetSilencesHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{})
+
+	result, err := handler(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error result, got success")
+	}
+	errorMsg := getErrorMessage(t, result)
+	if errorMsg != "failed to get silences: connection refused" {
+		t.Errorf("expected error message 'failed to get silences: connection refused', got %q", errorMsg)
+	}
+}
+
 // Helper functions to create pointers
 func ptrString(s string) *string {
 	return &s

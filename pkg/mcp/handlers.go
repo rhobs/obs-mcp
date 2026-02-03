@@ -466,7 +466,11 @@ func GetAlertsHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequ
 		receiver := req.GetString("receiver", "")
 		var filter []string
 		if filterStr != "" {
-			filter = []string{filterStr}
+			// Split by comma if multiple filters are provided
+			filter = strings.Split(filterStr, ",")
+			for i := range filter {
+				filter[i] = strings.TrimSpace(filter[i])
+			}
 		}
 
 		alerts, err := amClient.GetAlerts(ctx, active, silenced, inhibited, unprocessed, filter, receiver)
@@ -487,24 +491,40 @@ func GetAlertsHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequ
 			maps.Copy(annotations, alert.Annotations)
 
 			var silencedBy, inhibitedBy []string
-			if alert.Status.SilencedBy != nil {
-				silencedBy = alert.Status.SilencedBy
-			} else {
+			var state string
+			if alert.Status != nil {
+				if alert.Status.SilencedBy != nil {
+					silencedBy = alert.Status.SilencedBy
+				}
+				if alert.Status.InhibitedBy != nil {
+					inhibitedBy = alert.Status.InhibitedBy
+				}
+				if alert.Status.State != nil {
+					state = *alert.Status.State
+				}
+			}
+			if silencedBy == nil {
 				silencedBy = []string{}
 			}
-			if alert.Status.InhibitedBy != nil {
-				inhibitedBy = alert.Status.InhibitedBy
-			} else {
+			if inhibitedBy == nil {
 				inhibitedBy = []string{}
+			}
+
+			var startsAt, endsAt string
+			if alert.StartsAt != nil {
+				startsAt = alert.StartsAt.String()
+			}
+			if alert.EndsAt != nil {
+				endsAt = alert.EndsAt.String()
 			}
 
 			output.Alerts[i] = Alert{
 				Labels:      labels,
 				Annotations: annotations,
-				StartsAt:    alert.StartsAt.String(),
-				EndsAt:      alert.EndsAt.String(),
+				StartsAt:    startsAt,
+				EndsAt:      endsAt,
 				Status: AlertStatus{
-					State:       *alert.Status.State,
+					State:       state,
 					SilencedBy:  silencedBy,
 					InhibitedBy: inhibitedBy,
 				},
@@ -560,24 +580,55 @@ func GetSilencesHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRe
 				if m.IsEqual != nil {
 					isEqual = *m.IsEqual
 				}
+				var name, value string
+				var isRegex bool
+				if m.Name != nil {
+					name = *m.Name
+				}
+				if m.Value != nil {
+					value = *m.Value
+				}
+				if m.IsRegex != nil {
+					isRegex = *m.IsRegex
+				}
 				matchers[j] = Matcher{
-					Name:    *m.Name,
-					Value:   *m.Value,
-					IsRegex: *m.IsRegex,
+					Name:    name,
+					Value:   value,
+					IsRegex: isRegex,
 					IsEqual: isEqual,
 				}
 			}
 
+			var id, state, createdBy, comment, startsAt, endsAt string
+			if silence.ID != nil {
+				id = *silence.ID
+			}
+			if silence.Status != nil && silence.Status.State != nil {
+				state = *silence.Status.State
+			}
+			if silence.StartsAt != nil {
+				startsAt = silence.StartsAt.String()
+			}
+			if silence.EndsAt != nil {
+				endsAt = silence.EndsAt.String()
+			}
+			if silence.CreatedBy != nil {
+				createdBy = *silence.CreatedBy
+			}
+			if silence.Comment != nil {
+				comment = *silence.Comment
+			}
+
 			output.Silences[i] = Silence{
-				ID: *silence.ID,
+				ID: id,
 				Status: SilenceStatus{
-					State: *silence.Status.State,
+					State: state,
 				},
 				Matchers:  matchers,
-				StartsAt:  silence.StartsAt.String(),
-				EndsAt:    silence.EndsAt.String(),
-				CreatedBy: *silence.CreatedBy,
-				Comment:   *silence.Comment,
+				StartsAt:  startsAt,
+				EndsAt:    endsAt,
+				CreatedBy: createdBy,
+				Comment:   comment,
 			}
 		}
 
