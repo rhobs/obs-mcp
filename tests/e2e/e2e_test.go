@@ -662,6 +662,11 @@ func TestGetAlerts(t *testing.T) {
 		t.Error("Expected result, got nil")
 	}
 
+	// Verify the result doesn't contain an error
+	if isError, ok := resp.Result["isError"].(bool); ok && isError {
+		t.Error("Result contains an error")
+	}
+
 	t.Logf("get_alerts returned successfully")
 }
 
@@ -690,6 +695,11 @@ func TestGetAlertsWithActiveFilter(t *testing.T) {
 	// Verify we got some result back
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
+	}
+
+	// Verify the result doesn't contain an error
+	if isError, ok := resp.Result["isError"].(bool); ok && isError {
+		t.Error("Result contains an error")
 	}
 
 	t.Logf("get_alerts with active filter returned successfully")
@@ -722,6 +732,19 @@ func TestGetAlertsWithFilter(t *testing.T) {
 		t.Error("Expected result, got nil")
 	}
 
+	// Verify the result doesn't contain an error
+	if isError, ok := resp.Result["isError"].(bool); ok && isError {
+		t.Error("Result contains an error")
+	}
+
+	// Verify the response contains the Watchdog alert
+	resultJSON, _ := json.Marshal(resp.Result)
+	resultStr := string(resultJSON)
+
+	if !strings.Contains(resultStr, "Watchdog") {
+		t.Errorf("Expected 'Watchdog' alert not found in results")
+	}
+
 	t.Logf("get_alerts with filter returned successfully")
 }
 
@@ -748,6 +771,11 @@ func TestGetSilences(t *testing.T) {
 	// Verify we got some result back
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
+	}
+
+	// Verify the result doesn't contain an error
+	if isError, ok := resp.Result["isError"].(bool); ok && isError {
+		t.Error("Result contains an error")
 	}
 
 	t.Logf("get_silences returned successfully")
@@ -778,6 +806,11 @@ func TestGetSilencesWithFilter(t *testing.T) {
 	// Verify we got some result back
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
+	}
+
+	// Verify the result doesn't contain an error
+	if isError, ok := resp.Result["isError"].(bool); ok && isError {
+		t.Error("Result contains an error")
 	}
 
 	t.Logf("get_silences with filter returned successfully")
