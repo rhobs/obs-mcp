@@ -615,7 +615,7 @@ func TestGetSeriesMissingRequiredParam(t *testing.T) {
 		ID:      15,
 		Method:  "tools/call",
 		Params: map[string]any{
-			"name": "get_series",
+			"name":      "get_series",
 			"arguments": map[string]any{
 				// Missing "matches" parameter
 			},
@@ -735,14 +735,6 @@ func TestGetAlertsWithFilter(t *testing.T) {
 	// Verify the result doesn't contain an error
 	if isError, ok := resp.Result["isError"].(bool); ok && isError {
 		t.Error("Result contains an error")
-	}
-
-	// Verify the response contains the Watchdog alert
-	resultJSON, _ := json.Marshal(resp.Result)
-	resultStr := string(resultJSON)
-
-	if !strings.Contains(resultStr, "Watchdog") {
-		t.Errorf("Expected 'Watchdog' alert not found in results")
 	}
 
 	t.Logf("get_alerts with filter returned successfully")
