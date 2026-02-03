@@ -3,153 +3,59 @@
 package e2e
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
-	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 	"testing"
-	"time"
 )
 
-const (
-	obsMCPURL   = "http://localhost:9100"
-	mcpEndpoint = "/mcp"
-	testTimeout = 30 * time.Second
+var (
+	testConfig *TestConfig
+	mcpClient  *MCPClient
 )
-
-var obsMCPPortForwardCmd *exec.Cmd
 
 func TestMain(m *testing.M) {
-	// Setup: start port-forward for obs-mcp
-	var err error
-	obsMCPPortForwardCmd, err = startPortForward("obs-mcp", "svc/obs-mcp", 9100, 9100)
-	if err != nil {
-		fmt.Printf("Failed to start port-forward: %v\n", err)
+	// Set up signal handler for graceful shutdown on Ctrl+C
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-sigCh
+		fmt.Println("\nReceived interrupt signal, cleaning up...")
+		cancel()
+		if testConfig != nil {
+			testConfig.Cleanup()
+		}
+		os.Exit(130) // Standard exit code for SIGINT
+	}()
+
+	testConfig = NewTestConfig()
+	if err := testConfig.Setup(ctx); err != nil {
+		fmt.Printf("Failed to setup test environment: %v\n", err)
 		os.Exit(1)
 	}
 
-	if err := waitForReady(obsMCPURL+"/health", 30*time.Second); err != nil {
-		fmt.Printf("Failed waiting for obs-mcp: %v\n", err)
-		stopPortForward(obsMCPPortForwardCmd)
-		os.Exit(1)
-	}
+	mcpClient = NewMCPClient(testConfig.MCPURL)
 
 	// Run tests
 	code := m.Run()
 
-	// Teardown: stop port-forward
-	stopPortForward(obsMCPPortForwardCmd)
+	// Cleanup
+	testConfig.Cleanup()
 
 	os.Exit(code)
 }
 
-func startPortForward(namespace, resource string, localPort, remotePort int) (*exec.Cmd, error) {
-	cmd := exec.Command("kubectl", "port-forward",
-		"-n", namespace,
-		resource,
-		fmt.Sprintf("%d:%d", localPort, remotePort),
-	)
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start port-forward for %s/%s: %w", namespace, resource, err)
-	}
-	return cmd, nil
-}
-
-func waitForReady(url string, timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("timeout waiting for %s to be ready", url)
-		case <-ticker.C:
-			resp, err := http.Get(url)
-			if err == nil {
-				resp.Body.Close()
-				if resp.StatusCode == http.StatusOK {
-					return nil
-				}
-			}
-		}
-	}
-}
-
-func stopPortForward(cmd *exec.Cmd) {
-	if cmd != nil && cmd.Process != nil {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait() // Reap the process to avoid zombies
-	}
-}
-
-// MCPRequest represents an MCP JSON-RPC request
-type MCPRequest struct {
-	JSONRPC string         `json:"jsonrpc"`
-	ID      int            `json:"id"`
-	Method  string         `json:"method"`
-	Params  map[string]any `json:"params,omitempty"`
-}
-
-// MCPResponse represents an MCP JSON-RPC response
-type MCPResponse struct {
-	JSONRPC string         `json:"jsonrpc"`
-	ID      int            `json:"id"`
-	Result  map[string]any `json:"result,omitempty"`
-	Error   *MCPError      `json:"error,omitempty"`
-}
-
-type MCPError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
-func sendMCPRequest(t *testing.T, req MCPRequest) (*MCPResponse, error) {
-	t.Helper()
-
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
-	defer cancel()
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, obsMCPURL+mcpEndpoint, bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Accept", "text/event-stream")
-
-	resp, err := http.DefaultClient.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	var mcpResp MCPResponse
-	if err := json.Unmarshal(respBody, &mcpResp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w (body: %s)", err, string(respBody))
-	}
-
-	return &mcpResp, nil
-}
-
 func TestHealthEndpoint(t *testing.T) {
-	resp, err := http.Get(obsMCPURL + "/health")
+	resp, err := http.Get(testConfig.MCPURL + "/health")
 	if err != nil {
 		t.Fatalf("Health check failed: %v", err)
 	}
@@ -161,17 +67,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestListMetrics(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      1,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name":      "list_metrics",
-			"arguments": map[string]any{},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 1, "list_metrics", map[string]any{})
 	if err != nil {
 		t.Fatalf("Failed to call list_metrics: %v", err)
 	}
@@ -180,7 +76,6 @@ func TestListMetrics(t *testing.T) {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
 
-	// Verify we got some metrics back
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
 	}
@@ -189,17 +84,7 @@ func TestListMetrics(t *testing.T) {
 }
 
 func TestListMetricsReturnsKnownMetrics(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      2,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name":      "list_metrics",
-			"arguments": map[string]any{},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 2, "list_metrics", map[string]any{})
 	if err != nil {
 		t.Fatalf("Failed to call list_metrics: %v", err)
 	}
@@ -221,22 +106,12 @@ func TestListMetricsReturnsKnownMetrics(t *testing.T) {
 }
 
 func TestExecuteRangeQuery(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      3,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name": "execute_range_query",
-			"arguments": map[string]any{
-				"query":    `up{job="prometheus"}`,
-				"step":     "1m",
-				"duration": "5m",
-				"end":      "NOW",
-			},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 3, "execute_range_query", map[string]any{
+		"query":    `up{job="prometheus"}`,
+		"step":     "1m",
+		"duration": "5m",
+		"end":      "NOW",
+	})
 	if err != nil {
 		t.Fatalf("Failed to call execute_range_query: %v", err)
 	}
@@ -249,22 +124,12 @@ func TestExecuteRangeQuery(t *testing.T) {
 }
 
 func TestRangeQueryWithInvalidPromQL(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      4,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name": "execute_range_query",
-			"arguments": map[string]any{
-				"query":    `up{{{invalid`, // Invalid PromQL syntax
-				"step":     "1m",
-				"duration": "5m",
-				"end":      "NOW",
-			},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 4, "execute_range_query", map[string]any{
+		"query":    `up{{{invalid`, // Invalid PromQL syntax
+		"step":     "1m",
+		"duration": "5m",
+		"end":      "NOW",
+	})
 	if err != nil {
 		t.Fatalf("Failed to call execute_range_query: %v", err)
 	}
@@ -280,22 +145,12 @@ func TestRangeQueryWithInvalidPromQL(t *testing.T) {
 }
 
 func TestRangeQueryMissingRequiredParam(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      5,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name": "execute_range_query",
-			"arguments": map[string]any{
-				// Missing "query" parameter
-				"step":     "1m",
-				"duration": "5m",
-				"end":      "NOW",
-			},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 5, "execute_range_query", map[string]any{
+		// Missing "query" parameter
+		"step":     "1m",
+		"duration": "5m",
+		"end":      "NOW",
+	})
 	if err != nil {
 		t.Fatalf("Failed to call execute_range_query: %v", err)
 	}
@@ -311,22 +166,12 @@ func TestRangeQueryMissingRequiredParam(t *testing.T) {
 }
 
 func TestRangeQueryEmptyResult(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      6,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name": "execute_range_query",
-			"arguments": map[string]any{
-				"query":    `nonexistent_metric_xyz{job="test"}`,
-				"step":     "1m",
-				"duration": "5m",
-				"end":      "NOW",
-			},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 6, "execute_range_query", map[string]any{
+		"query":    `nonexistent_metric_xyz{job="test"}`,
+		"step":     "1m",
+		"duration": "5m",
+		"end":      "NOW",
+	})
 	if err != nil {
 		t.Fatalf("Failed to call execute_range_query: %v", err)
 	}
@@ -341,22 +186,12 @@ func TestRangeQueryEmptyResult(t *testing.T) {
 
 func TestGuardrailsBlockDangerousQuery(t *testing.T) {
 	// This should be blocked by guardrails (blanket regex without label matcher)
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      7,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name": "execute_range_query",
-			"arguments": map[string]any{
-				"query":    `{__name__=~".+"}`, // Dangerous: selects all metrics
-				"step":     "1m",
-				"duration": "5m",
-				"end":      "NOW",
-			},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 7, "execute_range_query", map[string]any{
+		"query":    `{__name__=~".+"}`, // Dangerous: selects all metrics
+		"step":     "1m",
+		"duration": "5m",
+		"end":      "NOW",
+	})
 	if err != nil {
 		t.Fatalf("Failed to call execute_range_query: %v", err)
 	}
@@ -376,20 +211,10 @@ func TestGuardrailsBlockDangerousQuery(t *testing.T) {
 }
 
 func TestExecuteInstantQuery(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      8,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name": "execute_instant_query",
-			"arguments": map[string]any{
-				"query": `up{job="prometheus"}`,
-				"time":  "NOW",
-			},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 8, "execute_instant_query", map[string]any{
+		"query": `up{job="prometheus"}`,
+		"time":  "NOW",
+	})
 	if err != nil {
 		t.Fatalf("Failed to call execute_instant_query: %v", err)
 	}
@@ -398,7 +223,6 @@ func TestExecuteInstantQuery(t *testing.T) {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
 
-	// Verify we got result
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
 	}
@@ -407,19 +231,9 @@ func TestExecuteInstantQuery(t *testing.T) {
 }
 
 func TestInstantQueryWithInvalidPromQL(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      9,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name": "execute_instant_query",
-			"arguments": map[string]any{
-				"query": `up{{{invalid`, // Invalid PromQL syntax
-			},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 9, "execute_instant_query", map[string]any{
+		"query": `up{{{invalid`, // Invalid PromQL syntax
+	})
 	if err != nil {
 		t.Fatalf("Failed to call execute_instant_query: %v", err)
 	}
@@ -435,19 +249,9 @@ func TestInstantQueryWithInvalidPromQL(t *testing.T) {
 }
 
 func TestGetLabelNames(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      10,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name": "get_label_names",
-			"arguments": map[string]any{
-				"metric": "up",
-			},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 10, "get_label_names", map[string]any{
+		"metric": "up",
+	})
 	if err != nil {
 		t.Fatalf("Failed to call get_label_names: %v", err)
 	}
@@ -456,7 +260,6 @@ func TestGetLabelNames(t *testing.T) {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
 
-	// Verify we got some labels back
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
 	}
@@ -476,17 +279,7 @@ func TestGetLabelNames(t *testing.T) {
 }
 
 func TestGetLabelNamesAllMetrics(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      11,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name":      "get_label_names",
-			"arguments": map[string]any{},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 11, "get_label_names", map[string]any{})
 	if err != nil {
 		t.Fatalf("Failed to call get_label_names: %v", err)
 	}
@@ -495,7 +288,6 @@ func TestGetLabelNamesAllMetrics(t *testing.T) {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
 
-	// Verify we got some labels back
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
 	}
@@ -504,20 +296,10 @@ func TestGetLabelNamesAllMetrics(t *testing.T) {
 }
 
 func TestGetLabelValues(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      12,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name": "get_label_values",
-			"arguments": map[string]any{
-				"label":  "job",
-				"metric": "up",
-			},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 12, "get_label_values", map[string]any{
+		"label":  "job",
+		"metric": "up",
+	})
 	if err != nil {
 		t.Fatalf("Failed to call get_label_values: %v", err)
 	}
@@ -526,7 +308,6 @@ func TestGetLabelValues(t *testing.T) {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
 
-	// Verify we got some values back
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
 	}
@@ -543,20 +324,10 @@ func TestGetLabelValues(t *testing.T) {
 }
 
 func TestGetLabelValuesMissingRequiredParam(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      13,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name": "get_label_values",
-			"arguments": map[string]any{
-				// Missing "label" parameter
-				"metric": "up",
-			},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 13, "get_label_values", map[string]any{
+		// Missing "label" parameter
+		"metric": "up",
+	})
 	if err != nil {
 		t.Fatalf("Failed to call get_label_values: %v", err)
 	}
@@ -572,19 +343,9 @@ func TestGetLabelValuesMissingRequiredParam(t *testing.T) {
 }
 
 func TestGetSeries(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      14,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name": "get_series",
-			"arguments": map[string]any{
-				"matches": `up{job="prometheus"}`,
-			},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 14, "get_series", map[string]any{
+		"matches": `up{job="prometheus"}`,
+	})
 	if err != nil {
 		t.Fatalf("Failed to call get_series: %v", err)
 	}
@@ -593,7 +354,6 @@ func TestGetSeries(t *testing.T) {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
 
-	// Verify we got some series back
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
 	}
@@ -610,19 +370,9 @@ func TestGetSeries(t *testing.T) {
 }
 
 func TestGetSeriesMissingRequiredParam(t *testing.T) {
-	req := MCPRequest{
-		JSONRPC: "2.0",
-		ID:      15,
-		Method:  "tools/call",
-		Params: map[string]any{
-			"name":      "get_series",
-			"arguments": map[string]any{
-				// Missing "matches" parameter
-			},
-		},
-	}
-
-	resp, err := sendMCPRequest(t, req)
+	resp, err := mcpClient.CallTool(t, 15, "get_series", map[string]any{
+		// Missing "matches" parameter
+	})
 	if err != nil {
 		t.Fatalf("Failed to call get_series: %v", err)
 	}
