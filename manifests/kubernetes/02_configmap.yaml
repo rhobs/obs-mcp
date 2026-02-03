@@ -6,3 +6,5 @@ metadata:
 data:
   # this is the default prometheus url for kube-prometheus stack
   prometheus-url: "http://prometheus-k8s.monitoring.svc.cluster.local:9090"
+  # this is the default alertmanager url for kube-prometheus stack
+  alertmanager-url: "http://alertmanager-main.monitoring.svc.cluster.local:9093"

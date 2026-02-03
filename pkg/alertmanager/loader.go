@@ -3,6 +3,8 @@ package alertmanager
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 
 	"github.com/prometheus/alertmanager/api/v2/client"
 	"github.com/prometheus/alertmanager/api/v2/client/alert"
@@ -26,7 +28,26 @@ type RealLoader struct {
 var _ Loader = (*RealLoader)(nil)
 
 func NewAlertmanagerClient(apiConfig api.Config) (*RealLoader, error) {
-	cfg := client.DefaultTransportConfig().WithHost(apiConfig.Address)
+	// Parse the URL to extract scheme and host
+	parsedURL, err := url.Parse(apiConfig.Address)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Alertmanager URL: %w", err)
+	}
+
+	host := parsedURL.Host
+	if host == "" {
+		host = strings.TrimPrefix(apiConfig.Address, "//")
+	}
+
+	scheme := parsedURL.Scheme
+	if scheme == "" {
+		scheme = "http"
+	}
+
+	cfg := client.DefaultTransportConfig().
+		WithHost(host).
+		WithSchemes([]string{scheme})
+
 	c := client.NewHTTPClientWithConfig(nil, cfg)
 
 	return &RealLoader{

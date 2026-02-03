@@ -35,6 +35,11 @@ spec:
                 configMapKeyRef:
                   name: obs-mcp-config
                   key: prometheus-url
+            - name: ALERTMANAGER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: obs-mcp-config
+                  key: alertmanager-url
           ports:
             - containerPort: 9100
               name: mcp
