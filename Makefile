@@ -21,8 +21,12 @@ check-tools: ## Check if required tools are installed
 	@echo "✓ All required tools are installed"
 
 .PHONY: build
-build: ## Build obs-mcp binary
+build: ## Build obs-mcp binary for local development
 	go build -mod=mod -tags strictfipsruntime -o obs-mcp ./cmd/obs-mcp
+
+.PHONY: build-linux
+build-linux: ## Build obs-mcp binary for linux/amd64
+	GOOS=linux GOARCH=amd64 go build -mod=mod -tags strictfipsruntime -o obs-mcp ./cmd/obs-mcp
 
 .PHONY: test-unit
 test-unit: ## Run obs-mcp unit tests
@@ -33,7 +37,7 @@ clean: ## Clean obs-mcp build artifacts
 	go clean && rm -f obs-mcp
 
 .PHONY: container
-container: build ## Build obs-mcp container image
+container: build-linux ## Build obs-mcp container image
 	$(CONTAINER_CLI) build --load -f Containerfile -t $(IMAGE):$(TAG) .
 
 .PHONY: format
@@ -112,3 +116,10 @@ test-e2e-teardown: ## Teardown E2E test cluster
 
 .PHONY: test-e2e-full
 test-e2e-full: test-e2e-setup test-e2e-deploy test-e2e test-e2e-teardown ## Run full E2E test cycle (setup, test, teardown)
+
+# OpenShift E2E Testing (for OpenShift CI - image is built by CI)
+.PHONY: test-e2e-openshift-deploy
+test-e2e-openshift-deploy: ## Deploy obs-mcp to OpenShift (uses IMAGE env var from CI)
+	oc apply -f manifests/openshift_e2e/
+	oc set image deployment/obs-mcp -n obs-mcp obs-mcp=$(IMAGE)
+	oc -n obs-mcp rollout status deployment/obs-mcp --timeout=3m

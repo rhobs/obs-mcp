@@ -1,0 +1,31 @@
+# Git
+.git/
+.github/
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Tests and evals
+tests/
+evals/
+
+# Development/tooling
+.golangci.yml
+.vscode/
+tmp/
+hack/
+
+# Manifests (not needed for build)
+manifests/
+
+# Pre-built binary (we build inside container)
+obs-mcp
+
+# OS files
+.DS_Store
+
+# Coverage
+coverage.out
+coverage.html

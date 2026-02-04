@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: obs-mcp
+  namespace: obs-mcp
+  labels:
+    app.kubernetes.io/name: obs-mcp
+spec:
+  ports:
+    - name: mcp
+      port: 9100
+      targetPort: mcp
+  selector:
+    app.kubernetes.io/name: obs-mcp
