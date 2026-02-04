@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
+	"strings"
 	"time"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
@@ -59,6 +61,56 @@ type LabelValuesOutput struct {
 type SeriesOutput struct {
 	Series      []map[string]string `json:"series"`
 	Cardinality int                 `json:"cardinality"`
+}
+
+// AlertsOutput defines the output schema for the get_alerts tool.
+type AlertsOutput struct {
+	Alerts []Alert `json:"alerts"`
+}
+
+// Alert represents a single alert from Alertmanager.
+type Alert struct {
+	Labels      map[string]string `json:"labels"`
+	Annotations map[string]string `json:"annotations"`
+	StartsAt    string            `json:"startsAt"`
+	EndsAt      string            `json:"endsAt,omitempty"`
+	Status      AlertStatus       `json:"status"`
+}
+
+// AlertStatus represents the status of an alert.
+type AlertStatus struct {
+	State       string   `json:"state"`
+	SilencedBy  []string `json:"silencedBy,omitempty"`
+	InhibitedBy []string `json:"inhibitedBy,omitempty"`
+}
+
+// SilencesOutput defines the output schema for the get_silences tool.
+type SilencesOutput struct {
+	Silences []Silence `json:"silences"`
+}
+
+// Silence represents a single silence from Alertmanager.
+type Silence struct {
+	ID        string        `json:"id"`
+	Status    SilenceStatus `json:"status"`
+	Matchers  []Matcher     `json:"matchers"`
+	StartsAt  string        `json:"startsAt"`
+	EndsAt    string        `json:"endsAt"`
+	CreatedBy string        `json:"createdBy"`
+	Comment   string        `json:"comment"`
+}
+
+// SilenceStatus represents the status of a silence.
+type SilenceStatus struct {
+	State string `json:"state"`
+}
+
+// Matcher represents a label matcher for a silence.
+type Matcher struct {
+	Name    string `json:"name"`
+	Value   string `json:"value"`
+	IsRegex bool   `json:"isRegex"`
+	IsEqual bool   `json:"isEqual"`
 }
 
 // Helper function to create error results
@@ -460,6 +512,209 @@ func GetSeriesHandler(params api.ToolHandlerParams) (*api.ToolCallResult, error)
 	jsonResult, err := json.Marshal(output)
 	if err != nil {
 		return errorResult(fmt.Sprintf("failed to marshal series: %s", err.Error()))
+	}
+
+	return api.NewToolCallResult(string(jsonResult), nil), nil
+}
+
+// GetAlertsHandler handles the retrieval of alerts from Alertmanager.
+func GetAlertsHandler(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	slog.Info("GetAlertsHandler called")
+
+	amClient, err := getAlertmanagerClient(params)
+	if err != nil {
+		return errorResult(fmt.Sprintf("failed to create Alertmanager client: %s", err.Error()))
+	}
+
+	// Get optional boolean parameters
+	var active, silenced, inhibited, unprocessed *bool
+	if activeVal, ok := params.GetArguments()["active"].(bool); ok {
+		active = &activeVal
+	}
+	if silencedVal, ok := params.GetArguments()["silenced"].(bool); ok {
+		silenced = &silencedVal
+	}
+	if inhibitedVal, ok := params.GetArguments()["inhibited"].(bool); ok {
+		inhibited = &inhibitedVal
+	}
+	if unprocessedVal, ok := params.GetArguments()["unprocessed"].(bool); ok {
+		unprocessed = &unprocessedVal
+	}
+
+	// Get optional string parameters
+	filterStr := getStringArg(params, "filter", "")
+	receiver := getStringArg(params, "receiver", "")
+	var filter []string
+	if filterStr != "" {
+		// Split by comma if multiple filters are provided
+		filter = strings.Split(filterStr, ",")
+		for i := range filter {
+			filter[i] = strings.TrimSpace(filter[i])
+		}
+	}
+
+	alerts, err := amClient.GetAlerts(params.Context, active, silenced, inhibited, unprocessed, filter, receiver)
+	if err != nil {
+		return errorResult(fmt.Sprintf("failed to get alerts: %s", err.Error()))
+	}
+
+	// Convert to output format
+	output := AlertsOutput{
+		Alerts: make([]Alert, len(alerts)),
+	}
+
+	for i, alert := range alerts {
+		labels := make(map[string]string)
+		maps.Copy(labels, alert.Labels)
+
+		annotations := make(map[string]string)
+		maps.Copy(annotations, alert.Annotations)
+
+		var silencedBy, inhibitedBy []string
+		var state string
+		if alert.Status != nil {
+			if alert.Status.SilencedBy != nil {
+				silencedBy = alert.Status.SilencedBy
+			}
+			if alert.Status.InhibitedBy != nil {
+				inhibitedBy = alert.Status.InhibitedBy
+			}
+			if alert.Status.State != nil {
+				state = *alert.Status.State
+			}
+		}
+		if silencedBy == nil {
+			silencedBy = []string{}
+		}
+		if inhibitedBy == nil {
+			inhibitedBy = []string{}
+		}
+
+		var startsAt, endsAt string
+		if alert.StartsAt != nil {
+			startsAt = alert.StartsAt.String()
+		}
+		if alert.EndsAt != nil {
+			endsAt = alert.EndsAt.String()
+		}
+
+		output.Alerts[i] = Alert{
+			Labels:      labels,
+			Annotations: annotations,
+			StartsAt:    startsAt,
+			EndsAt:      endsAt,
+			Status: AlertStatus{
+				State:       state,
+				SilencedBy:  silencedBy,
+				InhibitedBy: inhibitedBy,
+			},
+		}
+	}
+
+	slog.Info("GetAlertsHandler executed successfully", "alertCount", len(alerts))
+	slog.Debug("GetAlertsHandler results", "results", output.Alerts)
+
+	jsonResult, err := json.Marshal(output)
+	if err != nil {
+		return errorResult(fmt.Sprintf("failed to marshal alerts: %s", err.Error()))
+	}
+
+	return api.NewToolCallResult(string(jsonResult), nil), nil
+}
+
+// GetSilencesHandler handles the retrieval of silences from Alertmanager.
+func GetSilencesHandler(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	slog.Info("GetSilencesHandler called")
+
+	amClient, err := getAlertmanagerClient(params)
+	if err != nil {
+		return errorResult(fmt.Sprintf("failed to create Alertmanager client: %s", err.Error()))
+	}
+
+	filterStr := getStringArg(params, "filter", "")
+	var filter []string
+	if filterStr != "" {
+		// Split by comma if multiple filters are provided
+		filter = strings.Split(filterStr, ",")
+		for i := range filter {
+			filter[i] = strings.TrimSpace(filter[i])
+		}
+	}
+
+	silences, err := amClient.GetSilences(params.Context, filter)
+	if err != nil {
+		return errorResult(fmt.Sprintf("failed to get silences: %s", err.Error()))
+	}
+
+	output := SilencesOutput{
+		Silences: make([]Silence, len(silences)),
+	}
+
+	for i, silence := range silences {
+		matchers := make([]Matcher, len(silence.Matchers))
+		for j, m := range silence.Matchers {
+			isEqual := true
+			if m.IsEqual != nil {
+				isEqual = *m.IsEqual
+			}
+			var name, value string
+			var isRegex bool
+			if m.Name != nil {
+				name = *m.Name
+			}
+			if m.Value != nil {
+				value = *m.Value
+			}
+			if m.IsRegex != nil {
+				isRegex = *m.IsRegex
+			}
+			matchers[j] = Matcher{
+				Name:    name,
+				Value:   value,
+				IsRegex: isRegex,
+				IsEqual: isEqual,
+			}
+		}
+
+		var id, state, createdBy, comment, startsAt, endsAt string
+		if silence.ID != nil {
+			id = *silence.ID
+		}
+		if silence.Status != nil && silence.Status.State != nil {
+			state = *silence.Status.State
+		}
+		if silence.StartsAt != nil {
+			startsAt = silence.StartsAt.String()
+		}
+		if silence.EndsAt != nil {
+			endsAt = silence.EndsAt.String()
+		}
+		if silence.CreatedBy != nil {
+			createdBy = *silence.CreatedBy
+		}
+		if silence.Comment != nil {
+			comment = *silence.Comment
+		}
+
+		output.Silences[i] = Silence{
+			ID: id,
+			Status: SilenceStatus{
+				State: state,
+			},
+			Matchers:  matchers,
+			StartsAt:  startsAt,
+			EndsAt:    endsAt,
+			CreatedBy: createdBy,
+			Comment:   comment,
+		}
+	}
+
+	slog.Info("GetSilencesHandler executed successfully", "silenceCount", len(silences))
+	slog.Debug("GetSilencesHandler results", "results", output.Silences)
+
+	jsonResult, err := json.Marshal(output)
+	if err != nil {
+		return errorResult(fmt.Sprintf("failed to marshal silences: %s", err.Error()))
 	}
 
 	return api.NewToolCallResult(string(jsonResult), nil), nil

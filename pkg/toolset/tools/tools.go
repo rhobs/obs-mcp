@@ -288,3 +288,109 @@ The selector should use metric names from list_metrics output.`,
 		},
 	}
 }
+
+// InitGetAlerts creates the get_alerts tool.
+func InitGetAlerts() []api.ServerTool {
+	return []api.ServerTool{
+		{
+			Tool: api.Tool{
+				Name: "get_alerts",
+				Description: `Get alerts from Alertmanager.
+
+WHEN TO USE:
+- START HERE when investigating issues: if the user asks about things breaking, errors, failures, outages, services being down, or anything going wrong in the cluster
+- When the user mentions a specific alert name - use this tool to get the alert's full labels (namespace, pod, service, etc.) which are essential for further investigation with other tools
+- To see currently firing alerts in the cluster
+- To check which alerts are active, silenced, or inhibited
+- To understand what's happening before diving into metrics or logs
+
+INVESTIGATION TIP: Alert labels often contain the exact identifiers (pod names, namespaces, job names) needed for targeted queries with prometheus tools.
+
+FILTERING:
+- Use 'active' to filter for only active alerts (not resolved)
+- Use 'silenced' to filter for silenced alerts
+- Use 'inhibited' to filter for inhibited alerts
+- Use 'filter' to apply label matchers (e.g., "alertname=HighCPU")
+- Use 'receiver' to filter alerts by receiver name
+
+All filter parameters are optional. Without filters, all alerts are returned.`,
+				InputSchema: &jsonschema.Schema{
+					Type: "object",
+					Properties: map[string]*jsonschema.Schema{
+						"active": {
+							Type:        "boolean",
+							Description: "Filter for active alerts only (true/false, optional)",
+						},
+						"silenced": {
+							Type:        "boolean",
+							Description: "Filter for silenced alerts only (true/false, optional)",
+						},
+						"inhibited": {
+							Type:        "boolean",
+							Description: "Filter for inhibited alerts only (true/false, optional)",
+						},
+						"unprocessed": {
+							Type:        "boolean",
+							Description: "Filter for unprocessed alerts only (true/false, optional)",
+						},
+						"filter": {
+							Type:        "string",
+							Description: "Label matchers to filter alerts (e.g., 'alertname=HighCPU', optional)",
+						},
+						"receiver": {
+							Type:        "string",
+							Description: "Receiver name to filter alerts (optional)",
+						},
+					},
+				},
+				Annotations: api.ToolAnnotations{
+					Title:           "Get Alerts",
+					ReadOnlyHint:    ptr.To(true),
+					DestructiveHint: ptr.To(false),
+					IdempotentHint:  ptr.To(true),
+					OpenWorldHint:   ptr.To(true),
+				},
+			},
+			Handler: GetAlertsHandler,
+		},
+	}
+}
+
+// InitGetSilences creates the get_silences tool.
+func InitGetSilences() []api.ServerTool {
+	return []api.ServerTool{
+		{
+			Tool: api.Tool{
+				Name: "get_silences",
+				Description: `Get silences from Alertmanager.
+
+WHEN TO USE:
+- To see which alerts are currently silenced
+- To check active, pending, or expired silences
+- To investigate why certain alerts are not firing notifications
+
+FILTERING:
+- Use 'filter' to apply label matchers to find specific silences
+
+Silences are used to temporarily mute alerts based on label matchers. This tool helps you understand what is currently silenced in your environment.`,
+				InputSchema: &jsonschema.Schema{
+					Type: "object",
+					Properties: map[string]*jsonschema.Schema{
+						"filter": {
+							Type:        "string",
+							Description: "Label matchers to filter silences (e.g., 'alertname=HighCPU', optional)",
+						},
+					},
+				},
+				Annotations: api.ToolAnnotations{
+					Title:           "Get Silences",
+					ReadOnlyHint:    ptr.To(true),
+					DestructiveHint: ptr.To(false),
+					IdempotentHint:  ptr.To(true),
+					OpenWorldHint:   ptr.To(true),
+				},
+			},
+			Handler: GetSilencesHandler,
+		},
+	}
+}

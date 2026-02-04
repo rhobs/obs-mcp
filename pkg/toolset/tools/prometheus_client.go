@@ -14,6 +14,7 @@ import (
 	promcfg "github.com/prometheus/common/config"
 	"k8s.io/client-go/rest"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanager"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	toolsetconfig "github.com/rhobs/obs-mcp/pkg/toolset/config"
 )
@@ -135,4 +136,40 @@ func createCertPool() (*x509.CertPool, error) {
 	}
 	certs.AppendCertsFromPEM(pemData)
 	return certs, nil
+}
+
+// getAlertmanagerClient creates an Alertmanager client using the toolset configuration.
+func getAlertmanagerClient(params api.ToolHandlerParams) (alertmanager.Loader, error) {
+	cfg := getConfig(params)
+
+	alertmanagerURL := cfg.AlertmanagerURL
+	if alertmanagerURL == "" {
+		return nil, fmt.Errorf("alertmanager_url not configured")
+	}
+
+	restConfig := params.RESTConfig()
+	if restConfig == nil {
+		return nil, fmt.Errorf("no REST config available")
+	}
+
+	tlsConfig := rest.TLSClientConfig{Insecure: cfg.Insecure}
+	restConfig.TLSClientConfig = tlsConfig
+
+	rt, err := rest.TransportFor(restConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transport from REST config: %w", err)
+	}
+
+	apiConfig := promapi.Config{
+		Address:      alertmanagerURL,
+		RoundTripper: rt,
+	}
+
+	// Create Alertmanager client
+	amClient, err := alertmanager.NewAlertmanagerClient(apiConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Alertmanager client: %w", err)
+	}
+
+	return amClient, nil
 }

@@ -17,6 +17,10 @@ type Config struct {
 	// This field is required. Example: "https://thanos-querier-openshift-monitoring.apps.example.com"
 	PrometheusURL string `toml:"prometheus_url,omitempty"`
 
+	// AlertmanagerURL is the URL of the Alertmanager endpoint.
+	// This field is optional. Example: "https://alertmanager-main-openshift-monitoring.apps.example.com"
+	AlertmanagerURL string `toml:"alertmanager_url,omitempty"`
+
 	// Insecure controls whether to skip TLS certificate verification.
 	// Default: false (verify certificates)
 	Insecure bool `toml:"insecure,omitempty"`

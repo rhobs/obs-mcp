@@ -63,6 +63,8 @@ func (t *Toolset) GetTools(_ api.Openshift) []api.ServerTool {
 		tools.InitGetLabelNames(),
 		tools.InitGetLabelValues(),
 		tools.InitGetSeries(),
+		tools.InitGetAlerts(),
+		tools.InitGetSilences(),
 	)
 }
 
