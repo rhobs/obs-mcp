@@ -111,18 +111,8 @@ func (c *TestConfig) getMCPURL() (string, bool) {
 		return envURL, false // No port-forward needed
 	}
 
-	// 2. Detect in-cluster environment (e.g., OpenShift Prow)
-	k8sHost := os.Getenv("KUBERNETES_SERVICE_HOST")
-	fmt.Printf("KUBERNETES_SERVICE_HOST=%q\n", k8sHost)
-	if k8sHost != "" {
-		// Use FQDN to ensure cross-namespace DNS resolution works
-		inClusterURL := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", c.ServiceName, c.Namespace, c.ServicePort)
-		fmt.Printf("Detected in-cluster environment, using service DNS: %s\n", inClusterURL)
-		return inClusterURL, false // No port-forward needed
-	}
-
-	// 3. External access - need port-forward
-	fmt.Println("External environment detected, will use port-forward")
+	// 2. Default: use port-forward (works for both local dev and CI)
+	fmt.Println("Using port-forward to access obs-mcp")
 	return fmt.Sprintf("http://localhost:%d", c.LocalPort), true
 }
 
