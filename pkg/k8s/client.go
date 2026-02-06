@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -65,6 +66,15 @@ func GetKubeClient() (*kubernetes.Clientset, error) {
 	}
 
 	return clientset, nil
+}
+
+func GetDynamicClient() (*dynamic.DynamicClient, error) {
+	config, err := GetClientConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	return dynamic.NewForConfig(config)
 }
 
 // GetMetricsBackendURL discovers the metrics backend endpoint in OpenShift.

@@ -219,3 +219,99 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 | :--------- | :--------- | :--------------------------------- |
 | `silences` | `object[]` | List of silences from Alertmanager |
 
+---
+
+## `get_current_time`
+
+> Get the current date and time in RFC3339 format
+
+|                |      |
+| :------------- | :--- |
+| **Parameters** | None |
+
+---
+
+## `tempo_list_instances`
+
+> List all Tempo instances. The assistant should display the instances in a table.
+
+|                |      |
+| :------------- | :--- |
+| **Parameters** | None |
+
+---
+
+## `tempo_get_trace_by_id`
+
+> Get a trace by trace ID
+
+**Parameters:**
+
+| Parameter        | Type     | Required | Description                                  |
+| :--------------- | :------- | :------: | :------------------------------------------- |
+| `tempoName`      | `string` | ✅        | The name of the Tempo instance to query      |
+| `tempoNamespace` | `string` | ✅        | The namespace of the Tempo instance to query |
+| `tenant`         | `string` | ✅        | The tenant to query                          |
+| `traceid`        | `string` | ✅        | TraceID of the trace                         |
+| `end`            | `string` |          | End time in RFC 3339 format                  |
+| `start`          | `string` |          | Start time in RFC 3339 format                |
+
+---
+
+## `tempo_search_traces`
+
+> Search for traces in Tempo
+
+**Parameters:**
+
+| Parameter        | Type     | Required | Description                                  |
+| :--------------- | :------- | :------: | :------------------------------------------- |
+| `query`          | `string` | ✅        | Search query in the TraceQL query language   |
+| `tempoName`      | `string` | ✅        | The name of the Tempo instance to query      |
+| `tempoNamespace` | `string` | ✅        | The namespace of the Tempo instance to query |
+| `tenant`         | `string` | ✅        | The tenant to query                          |
+| `end`            | `string` |          | End time in RFC 3339 format                  |
+| `limit`          | `number` |          | Maximum search results                       |
+| `spss`           | `number` |          | Spans per span-set limit                     |
+| `start`          | `string` |          | Start time in RFC 3339 format                |
+
+---
+
+## `tempo_search_tags`
+
+> Search for tag names in Tempo
+
+**Parameters:**
+
+| Parameter        | Type     | Required | Description                                                                      |
+| :--------------- | :------- | :------: | :------------------------------------------------------------------------------- |
+| `tempoName`      | `string` | ✅        | The name of the Tempo instance to query                                          |
+| `tempoNamespace` | `string` | ✅        | The namespace of the Tempo instance to query                                     |
+| `tenant`         | `string` | ✅        | The tenant to query                                                              |
+| `end`            | `string` |          | End time in RFC 3339 format                                                      |
+| `limit`          | `number` |          | Maximum number of tag names per scope                                            |
+| `maxStaleValues` | `number` |          | Search termination threshold for stale values                                    |
+| `query`          | `string` |          | TraceQL query for filtering tag names                                            |
+| `scope`          | `string` |          | Scope to filter tags: resource, span, intrinsic, event, link, or instrumentation |
+| `start`          | `string` |          | Start time in RFC 3339 format                                                    |
+
+---
+
+## `tempo_search_tag_values`
+
+> Search for tag values in Tempo
+
+**Parameters:**
+
+| Parameter        | Type     | Required | Description                                   |
+| :--------------- | :------- | :------: | :-------------------------------------------- |
+| `tag`            | `string` | ✅        | The tag name to get values for                |
+| `tempoName`      | `string` | ✅        | The name of the Tempo instance to query       |
+| `tempoNamespace` | `string` | ✅        | The namespace of the Tempo instance to query  |
+| `tenant`         | `string` | ✅        | The tenant to query                           |
+| `end`            | `string` |          | End time in RFC 3339 format                   |
+| `limit`          | `number` |          | Maximum number of tag values to return        |
+| `maxStaleValues` | `number` |          | Search termination threshold for stale values |
+| `query`          | `string` |          | TraceQL query for filtering tag values        |
+| `start`          | `string` |          | Start time in RFC 3339 format                 |
+

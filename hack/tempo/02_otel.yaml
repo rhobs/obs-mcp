@@ -1,0 +1,93 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel
+  namespace: obs-mcp-tracing
+spec:
+  config:
+    extensions:
+      bearertokenauth:
+        filename: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      jaeger:
+        protocols:
+          thrift_compact:
+            endpoint: 0.0.0.0:6831
+
+    processors:
+      k8sattributes: {}
+
+    exporters:
+      otlp:
+        endpoint: tempo-tempo1-gateway.obs-mcp-tracing.svc.cluster.local:8090
+        tls:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
+        auth:
+          authenticator: bearertokenauth
+        headers:
+          X-Scope-OrgID: project1
+
+    service:
+      extensions: [bearertokenauth]
+      pipelines:
+        traces:
+          receivers: [otlp, jaeger]
+          processors: [k8sattributes]
+          exporters: [otlp]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: obs-mcp-tracing-otel-collector
+rules:
+- apiGroups: [""]
+  resources: ["namespaces", "pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["replicasets"]
+  verbs: ["get", "list", "watch"]
+---
+# allow otel-collector to read namespaces, pods and replicasets (required for k8sattributes processor)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: obs-mcp-tracing-otel-collector
+roleRef:
+  kind: ClusterRole
+  name: obs-mcp-tracing-otel-collector
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: otel-collector
+  namespace: obs-mcp-tracing
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: obs-mcp-tracing-traces-writer-project1
+rules:
+- apiGroups: [tempo.grafana.com]
+  resources: [project1]
+  resourceNames: [traces]
+  verbs: [create]
+---
+# allow otel-collector to write traces to the 'project1' tenant in Tempo
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: obs-mcp-tracing-traces-writer-project1
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: obs-mcp-tracing-traces-writer-project1
+subjects:
+- kind: ServiceAccount
+  name: otel-collector
+  namespace: obs-mcp-tracing

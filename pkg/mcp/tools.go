@@ -2,6 +2,8 @@ package mcp
 
 import (
 	"github.com/mark3labs/mcp-go/mcp"
+
+	"github.com/rhobs/obs-mcp/pkg/tempo"
 )
 
 // ListMetricsOutput defines the output schema for the list_metrics tool.
@@ -113,6 +115,12 @@ func AllTools() []mcp.Tool {
 		CreateGetSeriesTool(),
 		CreateGetAlertsTool(),
 		CreateGetSilencesTool(),
+		CreateGetCurrentTimeTool(),
+		tempo.ListInstancesTool(),
+		tempo.GetTraceByIdTool(),
+		tempo.SearchTracesTool(),
+		tempo.SearchTagsTool(),
+		tempo.SearchTagValuesTool(),
 	}
 }
 
