@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
 	"github.com/rhobs/obs-mcp/pkg/handlers"
 )
 

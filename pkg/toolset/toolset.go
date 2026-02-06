@@ -5,6 +5,7 @@ import (
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets"
+
 	"github.com/rhobs/obs-mcp/pkg/prompts"
 	"github.com/rhobs/obs-mcp/pkg/toolset/tools"
 )

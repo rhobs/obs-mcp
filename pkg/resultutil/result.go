@@ -48,6 +48,7 @@ func NewErrorResult(err error) *Result {
 // are encoded in the result, not the error return value.
 func (r *Result) ToMCPResult() (*mcp.CallToolResult, error) {
 	if r.Error != nil {
+		//nolint:nilerr // MCP pattern encodes errors in result, not error return
 		return mcp.NewToolResultError(r.Error.Error()), nil
 	}
 	return mcp.NewToolResultStructured(r.Data, r.JSONText), nil
@@ -58,6 +59,7 @@ func (r *Result) ToMCPResult() (*mcp.CallToolResult, error) {
 // in the ToolCallResult, not the error return value.
 func (r *Result) ToToolsetResult() (*api.ToolCallResult, error) {
 	if r.Error != nil {
+		//nolint:nilerr // Toolset pattern encodes errors in result, not error return
 		return api.NewToolCallResult("", r.Error), nil
 	}
 	return api.NewToolCallResult(r.JSONText, nil), nil

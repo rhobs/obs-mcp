@@ -1,10 +1,10 @@
 package tools
 
 import (
+	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/google/jsonschema-go/jsonschema"
 	"k8s.io/utils/ptr"
 
-	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/rhobs/obs-mcp/pkg/prompts"
 )
 

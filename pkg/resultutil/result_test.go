@@ -78,7 +78,7 @@ func TestToMCPResult_Success(t *testing.T) {
 	}
 
 	if mcpResult == nil {
-		t.Error("expected non-nil MCP result")
+		t.Fatal("expected non-nil MCP result")
 	}
 
 	// The MCP result should contain the structured data
@@ -96,7 +96,7 @@ func TestToMCPResult_Error(t *testing.T) {
 	}
 
 	if mcpResult == nil {
-		t.Error("expected non-nil MCP result")
+		t.Fatal("expected non-nil MCP result")
 	}
 
 	// MCP error results should have isError set to true
@@ -119,7 +119,7 @@ func TestToToolsetResult_Success(t *testing.T) {
 	}
 
 	if toolsetResult == nil {
-		t.Error("expected non-nil Toolset result")
+		t.Fatal("expected non-nil Toolset result")
 	}
 
 	// The Toolset result should contain the JSON text
@@ -148,12 +148,12 @@ func TestToToolsetResult_Error(t *testing.T) {
 	}
 
 	if toolsetResult == nil {
-		t.Error("expected non-nil Toolset result")
+		t.Fatal("expected non-nil Toolset result")
 	}
 
 	// The Toolset result should contain the error
 	if toolsetResult.Error == nil {
-		t.Error("expected error in result")
+		t.Fatal("expected error in result")
 	}
 
 	if toolsetResult.Error.Error() != errorMsg {

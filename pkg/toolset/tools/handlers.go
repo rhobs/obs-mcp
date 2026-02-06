@@ -9,7 +9,7 @@ import (
 )
 
 // Helper function to get string argument with default
-func getStringArg(params api.ToolHandlerParams, key string, defaultValue string) string {
+func getStringArg(params api.ToolHandlerParams, key, defaultValue string) string {
 	if val, ok := params.GetArguments()[key].(string); ok && val != "" {
 		return val
 	}
