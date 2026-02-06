@@ -47,7 +47,7 @@ func (t *TempoToolset) SearchTagValuesHandler(ctx context.Context, request mcp.C
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 	if tag == "" {
-		return nil, errors.New("tag parameter must not be empty")
+		return mcp.NewToolResultError("tag parameter must not be empty"), nil
 	}
 
 	start, err := parseDate(request.GetString("start", ""))

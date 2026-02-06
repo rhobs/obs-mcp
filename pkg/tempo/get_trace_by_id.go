@@ -38,7 +38,7 @@ func (t *TempoToolset) GetTraceByIdHandler(ctx context.Context, request mcp.Call
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 	if traceid == "" {
-		return nil, errors.New("traceid parameter must not be empty")
+		return mcp.NewToolResultError("traceid parameter must not be empty"), nil
 	}
 
 	start, err := parseDate(request.GetString("start", ""))

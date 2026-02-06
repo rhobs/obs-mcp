@@ -95,7 +95,7 @@ func (t *TempoToolset) getTempoClient(ctx context.Context, request mcp.CallToolR
 	}
 
 	if !slices.Contains(instance.Tenants, tenant) {
-		return nil, fmt.Errorf("tenant '%s' does not exist for instance '%s' in namespace '%s' has no ", tenant, name, namespace)
+		return nil, fmt.Errorf("tenant '%s' does not exist for instance '%s' in namespace '%s'", tenant, name, namespace)
 	}
 
 	url := instance.GetURL(tenant)
