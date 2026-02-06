@@ -5,6 +5,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
+	"github.com/rhobs/obs-mcp/pkg/prompts"
 )
 
 // InitListMetrics creates the list_metrics tool.
@@ -12,22 +13,8 @@ func InitListMetrics() []api.ServerTool {
 	return []api.ServerTool{
 		{
 			Tool: api.Tool{
-				Name: "list_metrics",
-				Description: `MANDATORY FIRST STEP: List all available metric names in Prometheus.
-
-YOU MUST CALL THIS TOOL BEFORE ANY OTHER QUERY TOOL
-
-This tool MUST be called first for EVERY observability question to:
-1. Discover what metrics actually exist in this environment
-2. Find the EXACT metric name to use in queries
-3. Avoid querying non-existent metrics
-
-NEVER skip this step. NEVER guess metric names. Metric names vary between environments.
-
-After calling this tool:
-1. Search the returned list for relevant metrics
-2. Use the EXACT metric name found in subsequent queries
-3. If no relevant metric exists, inform the user`,
+				Name:        "list_metrics",
+				Description: prompts.ListMetricsPrompt,
 				InputSchema: &jsonschema.Schema{
 					Type:       "object",
 					Properties: map[string]*jsonschema.Schema{},
@@ -50,17 +37,8 @@ func InitExecuteInstantQuery() []api.ServerTool {
 	return []api.ServerTool{
 		{
 			Tool: api.Tool{
-				Name: "execute_instant_query",
-				Description: `Execute a PromQL instant query to get current/point-in-time values.
-
-PREREQUISITE: You MUST call list_metrics first to verify the metric exists
-
-WHEN TO USE:
-- Current state questions: "What is the current error rate?"
-- Point-in-time snapshots: "How many pods are running?"
-- Latest values: "Which pods are in Pending state?"
-
-The 'query' parameter MUST use metric names that were returned by list_metrics.`,
+				Name:        "execute_instant_query",
+				Description: prompts.ExecuteInstantQueryPrompt,
 				InputSchema: &jsonschema.Schema{
 					Type: "object",
 					Properties: map[string]*jsonschema.Schema{
@@ -93,21 +71,8 @@ func InitExecuteRangeQuery() []api.ServerTool {
 	return []api.ServerTool{
 		{
 			Tool: api.Tool{
-				Name: "execute_range_query",
-				Description: `Execute a PromQL range query to get time-series data over a period.
-
-PREREQUISITE: You MUST call list_metrics first to verify the metric exists
-
-WHEN TO USE:
-- Trends over time: "What was CPU usage over the last hour?"
-- Rate calculations: "How many requests per second?"
-- Historical analysis: "Were there any restarts in the last 5 minutes?"
-
-TIME PARAMETERS:
-- 'duration': Look back from now (e.g., "5m", "1h", "24h")
-- 'step': Data point resolution (e.g., "1m" for 1-hour duration, "5m" for 24-hour duration)
-
-The 'query' parameter MUST use metric names that were returned by list_metrics.`,
+				Name:        "execute_range_query",
+				Description: prompts.ExecuteRangeQueryPrompt,
 				InputSchema: &jsonschema.Schema{
 					Type: "object",
 					Properties: map[string]*jsonschema.Schema{
@@ -154,14 +119,8 @@ func InitGetLabelNames() []api.ServerTool {
 	return []api.ServerTool{
 		{
 			Tool: api.Tool{
-				Name: "get_label_names",
-				Description: `Get all label names (dimensions) available for filtering a metric.
-
-WHEN TO USE (after calling list_metrics):
-- To discover how to filter metrics (by namespace, pod, service, etc.)
-- Before constructing label matchers in PromQL queries
-
-The 'metric' parameter should use a metric name from list_metrics output.`,
+				Name:        "get_label_names",
+				Description: prompts.GetLabelNamesPrompt,
 				InputSchema: &jsonschema.Schema{
 					Type: "object",
 					Properties: map[string]*jsonschema.Schema{
@@ -197,14 +156,8 @@ func InitGetLabelValues() []api.ServerTool {
 	return []api.ServerTool{
 		{
 			Tool: api.Tool{
-				Name: "get_label_values",
-				Description: `Get all unique values for a specific label.
-
-WHEN TO USE (after calling list_metrics and get_label_names):
-- To find exact label values for filtering (namespace names, pod names, etc.)
-- To see what values exist before constructing queries
-
-The 'metric' parameter should use a metric name from list_metrics output.`,
+				Name:        "get_label_values",
+				Description: prompts.GetLabelValuesPrompt,
 				InputSchema: &jsonschema.Schema{
 					Type: "object",
 					Properties: map[string]*jsonschema.Schema{
@@ -245,19 +198,8 @@ func InitGetSeries() []api.ServerTool {
 	return []api.ServerTool{
 		{
 			Tool: api.Tool{
-				Name: "get_series",
-				Description: `Get time series matching selectors and preview cardinality.
-
-WHEN TO USE (optional, after calling list_metrics):
-- To verify label filters match expected series before querying
-- To check cardinality and avoid slow queries
-
-CARDINALITY GUIDANCE:
-- <100 series: Safe
-- 100-1000: Usually fine
-- >1000: Add more label filters
-
-The selector should use metric names from list_metrics output.`,
+				Name:        "get_series",
+				Description: prompts.GetSeriesPrompt,
 				InputSchema: &jsonschema.Schema{
 					Type: "object",
 					Properties: map[string]*jsonschema.Schema{
@@ -294,26 +236,8 @@ func InitGetAlerts() []api.ServerTool {
 	return []api.ServerTool{
 		{
 			Tool: api.Tool{
-				Name: "get_alerts",
-				Description: `Get alerts from Alertmanager.
-
-WHEN TO USE:
-- START HERE when investigating issues: if the user asks about things breaking, errors, failures, outages, services being down, or anything going wrong in the cluster
-- When the user mentions a specific alert name - use this tool to get the alert's full labels (namespace, pod, service, etc.) which are essential for further investigation with other tools
-- To see currently firing alerts in the cluster
-- To check which alerts are active, silenced, or inhibited
-- To understand what's happening before diving into metrics or logs
-
-INVESTIGATION TIP: Alert labels often contain the exact identifiers (pod names, namespaces, job names) needed for targeted queries with prometheus tools.
-
-FILTERING:
-- Use 'active' to filter for only active alerts (not resolved)
-- Use 'silenced' to filter for silenced alerts
-- Use 'inhibited' to filter for inhibited alerts
-- Use 'filter' to apply label matchers (e.g., "alertname=HighCPU")
-- Use 'receiver' to filter alerts by receiver name
-
-All filter parameters are optional. Without filters, all alerts are returned.`,
+				Name:        "get_alerts",
+				Description: prompts.GetAlertsPrompt,
 				InputSchema: &jsonschema.Schema{
 					Type: "object",
 					Properties: map[string]*jsonschema.Schema{
@@ -361,18 +285,8 @@ func InitGetSilences() []api.ServerTool {
 	return []api.ServerTool{
 		{
 			Tool: api.Tool{
-				Name: "get_silences",
-				Description: `Get silences from Alertmanager.
-
-WHEN TO USE:
-- To see which alerts are currently silenced
-- To check active, pending, or expired silences
-- To investigate why certain alerts are not firing notifications
-
-FILTERING:
-- Use 'filter' to apply label matchers to find specific silences
-
-Silences are used to temporarily mute alerts based on label matchers. This tool helps you understand what is currently silenced in your environment.`,
+				Name:        "get_silences",
+				Description: prompts.GetSilencesPrompt,
 				InputSchema: &jsonschema.Schema{
 					Type: "object",
 					Properties: map[string]*jsonschema.Schema{
