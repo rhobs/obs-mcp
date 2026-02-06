@@ -1,4 +1,7 @@
-// source: https://github.com/grafana/tempo-operator/blob/4ec7e8b4cb102f52de1e101174f4490b1505eaa1/internal/manifests/naming/sanitize.go
+// Source: https://github.com/jaegertracing/jaeger-operator/blob/88fd9c6ef1d254dbf7946d2cfaf9d42acecdea4c/pkg/util/dns_name.go (ASL 2.0 license)
+// Must follow same algorithm as service name generation in tempo operator:
+// https://github.com/grafana/tempo-operator/blob/9c3430969265e23b2e9fc3103ab608624195e15e/internal/manifests/naming/naming.go#L13
+// https://github.com/grafana/tempo-operator/blob/9c3430969265e23b2e9fc3103ab608624195e15e/internal/manifests/naming/sanitize.go
 package discovery
 
 import (
@@ -8,7 +11,7 @@ import (
 )
 
 var (
-	dnsRegexp = regexp.MustCompile(`[a-z0-9]`)
+	regex = regexp.MustCompile(`[a-z0-9]`)
 )
 
 // DNSName returns a dns-safe string for the given name.
@@ -19,7 +22,7 @@ func DNSName(name string) string {
 	var d []rune
 
 	for i, x := range strings.ToLower(name) {
-		if dnsRegexp.MatchString(string(x)) {
+		if regex.MatchString(string(x)) {
 			d = append(d, x)
 		} else {
 			if i == 0 || i == utf8.RuneCountInString(name)-1 {
