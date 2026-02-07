@@ -168,7 +168,7 @@ The 'query' parameter MUST use metric names that were returned by list_metrics.
 }
 
 func CreateExecuteRangeQueryTool() mcp.Tool {
-	return mcp.NewTool("execute_range_query",
+	tool := mcp.NewTool("execute_range_query",
 		mcp.WithDescription(`Execute a PromQL range query to get time-series data over a period.
 
 PREREQUISITE: You MUST call list_metrics first to verify the metric exists
@@ -204,6 +204,14 @@ The 'query' parameter MUST use metric names that were returned by list_metrics.`
 		),
 		mcp.WithOutputSchema[RangeQueryOutput](),
 	)
+	tool.Meta = &mcp.Meta{
+		AdditionalFields: map[string]any{
+			"ui": map[string]any{
+				"resourceUri": "ui://timeseries-chart",
+			},
+		},
+	}
+	return tool
 }
 
 func CreateGetLabelNamesTool() mcp.Tool {
