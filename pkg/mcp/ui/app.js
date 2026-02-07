@@ -11,14 +11,14 @@
   var currentUnit = null;
   var requestId = 1;
 
-  // ===== Color Palettes =====
+  // ===== Color Palettes (PatternFly v6 multi-color ordered chart colors) =====
   var LIGHT_COLORS = [
-    "#2563eb", "#dc2626", "#16a34a", "#ca8a04", "#9333ea",
-    "#0891b2", "#e11d48", "#4f46e5", "#059669", "#d97706"
+    "#0066cc", "#63993d", "#37a3a3", "#ca6c0f", "#9e4a06",
+    "#004d99", "#3d7317", "#147878", "#b98412", "#96640f"
   ];
   var DARK_COLORS = [
-    "#60a5fa", "#f87171", "#4ade80", "#facc15", "#c084fc",
-    "#22d3ee", "#fb7185", "#818cf8", "#34d399", "#fbbf24"
+    "#4394e5", "#87bb62", "#63bdbd", "#ffcc17", "#f5921b",
+    "#92c5f9", "#afdc8f", "#9ad8d8", "#ffe072", "#f8ae54"
   ];
 
   // ===== Theme Utilities =====
