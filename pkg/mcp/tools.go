@@ -203,6 +203,9 @@ The 'query' parameter MUST use metric names that were returned by list_metrics.`
 			mcp.Description("Duration to look back from now (e.g., '1h', '30m', '1d', '2w') (optional)"),
 			mcp.Pattern(`^\d+[smhdwy]$`),
 		),
+		mcp.WithString("title",
+			mcp.Description("Human-readable chart title describing what the query shows (e.g., 'API Error Rate Over Last Hour'). Displayed above the chart when provided."),
+		),
 		mcp.WithOutputSchema[RangeQueryOutput](),
 	)
 	tool.Meta = &mcp.Meta{

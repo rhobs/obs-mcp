@@ -187,6 +187,13 @@ const harness = `<!DOCTYPE html>
     <option value="percent">percent</option>
   </select>
 
+  <label>Title</label>
+  <select id="title-select">
+    <option value="">none</option>
+    <option value="CPU Usage by Pod (Last 2 Hours)" selected>CPU Usage</option>
+    <option value="Memory Working Set Over Time">Memory</option>
+  </select>
+
   <button class="action" onclick="sendData()">Send Data</button>
   <button class="action" onclick="sendData()" style="background:#059669">Resend</button>
 </div>
@@ -280,12 +287,15 @@ function sendData() {
 
   var queryName = selected[0] ? selected[0].name : "up";
   var query = "topk(" + count + ", sum(rate(" + queryName + "[5m])) by (pod, namespace))";
+  var title = document.getElementById("title-select").value;
 
-  // Send tool-input (query)
+  // Send tool-input (query + optional title)
+  var toolArgs = { query: query };
+  if (title) toolArgs.title = title;
   f.contentWindow.postMessage({
     jsonrpc: "2.0",
     method: "ui/notifications/tool-input",
-    params: { arguments: { query: query } }
+    params: { arguments: toolArgs }
   }, "*");
 
   // Send tool-result (data)

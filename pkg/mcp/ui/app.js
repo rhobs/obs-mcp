@@ -8,6 +8,7 @@
   var chartInstance = null;
   var lastResult = null;
   var queryString = null;
+  var titleString = null;
   var currentUnit = null;
   var requestId = 1;
 
@@ -285,10 +286,20 @@
       return;
     }
 
-    // Tool input: capture query string
+    // Tool input: capture query string and title
     if (msg.method === "ui/notifications/tool-input") {
       var input = msg.params || {};
       var args = input.arguments || input.input || input;
+      var titleEl = document.getElementById("chart-title");
+      if (args.title) {
+        titleString = args.title;
+        titleEl.textContent = titleString;
+        titleEl.classList.add("visible");
+      } else {
+        titleString = null;
+        titleEl.textContent = "";
+        titleEl.classList.remove("visible");
+      }
       if (args.query) {
         queryString = args.query;
         document.getElementById("query-value").textContent = queryString;
@@ -329,6 +340,7 @@
       }
       lastResult = null;
       queryString = null;
+      titleString = null;
       currentUnit = null;
       return;
     }

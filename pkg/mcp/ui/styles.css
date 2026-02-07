@@ -52,6 +52,20 @@ body {
   transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
 
+/* ===== Chart Title ===== */
+.chart-title {
+  padding: 12px 16px 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: none;
+  transition: color 0.2s;
+}
+
+.chart-title.visible {
+  display: block;
+}
+
 /* ===== Unit Label ===== */
 .unit-label {
   padding: 10px 16px 0;
@@ -60,6 +74,10 @@ body {
   color: var(--text-primary);
   display: none;
   transition: color 0.2s;
+}
+
+.chart-title.visible + .unit-label {
+  padding-top: 16px;
 }
 
 .unit-label.visible {
@@ -74,7 +92,8 @@ body {
   position: relative;
 }
 
-.unit-label.visible + #chart-wrapper {
+.unit-label.visible + #chart-wrapper,
+.chart-title.visible ~ #chart-wrapper {
   padding-top: 4px;
 }
 
