@@ -1,0 +1,108 @@
+/* ===== Theme Variables ===== */
+:root {
+  --bg-primary: #ffffff;
+  --bg-card: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #6b7280;
+  --text-subtle: #9ca3af;
+  --border-color: #e5e7eb;
+  --grid-color: rgba(0, 0, 0, 0.06);
+  --axis-color: #9ca3af;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] {
+  --bg-primary: #1a1a1a;
+  --bg-card: #242424;
+  --text-primary: #e5e5e5;
+  --text-secondary: #9ca3af;
+  --text-subtle: #6b7280;
+  --border-color: #374151;
+  --grid-color: rgba(255, 255, 255, 0.06);
+  --axis-color: #6b7280;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== Reset & Base ===== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  background: transparent;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--text-primary);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== Card Container ===== */
+.chart-card {
+  margin: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 24px);
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+/* ===== Chart Area ===== */
+#chart-wrapper {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 16px 8px 4px;
+  position: relative;
+}
+
+#chart-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ===== Query Display ===== */
+.query-text {
+  padding: 10px 16px 12px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-subtle);
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-top: 1px solid var(--border-color);
+  display: none;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.query-text::-webkit-scrollbar {
+  display: none;
+}
+
+.query-label {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 500;
+}
+
+#query-value {
+  font-family: "SF Mono", "Cascadia Code", "Fira Code", "JetBrains Mono", "Consolas", monospace;
+}
+
+.query-text.visible {
+  display: block;
+}
+
+/* ===== No Data State ===== */
+.no-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  letter-spacing: 0.01em;
+}

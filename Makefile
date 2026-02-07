@@ -79,6 +79,10 @@ check-tools-doc: generate-tools-doc ## Check if TOOLS.md is up to date
 		exit 1; \
 	}
 
+.PHONY: test-chart
+test-chart: ## Run chart UI test harness (open http://localhost:9199)
+	go run ./cmd/test-chart
+
 # E2E Testing
 KIND_CLUSTER_NAME ?= obs-mcp-e2e
 
