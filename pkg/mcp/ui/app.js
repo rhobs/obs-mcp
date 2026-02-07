@@ -146,7 +146,6 @@
     var dark = isDark();
     var gridColor = dark ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.06)";
     var tickColor = dark ? "#9ca3af" : "#6b7280";
-    var legendColor = dark ? "#d1d5db" : "#374151";
 
     var isPercent = currentUnit === "percent";
 
@@ -178,14 +177,13 @@
       }
     };
 
+    // Show unit label above the chart
+    var unitLabel = document.getElementById("unit-label");
     if (isPercent) {
-      yScale.title = {
-        display: true,
-        text: "Percent (%)",
-        color: legendColor,
-        font: { size: 13, weight: "bold", family: "system-ui, sans-serif" },
-        padding: { bottom: 4 }
-      };
+      unitLabel.textContent = "Percent (%)";
+      unitLabel.classList.add("visible");
+    } else {
+      unitLabel.classList.remove("visible");
     }
 
     chartInstance = new Chart(canvas, {

@@ -52,12 +52,30 @@ body {
   transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
 
+/* ===== Unit Label ===== */
+.unit-label {
+  padding: 10px 16px 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: none;
+  transition: color 0.2s;
+}
+
+.unit-label.visible {
+  display: block;
+}
+
 /* ===== Chart Area ===== */
 #chart-wrapper {
   flex: 1;
   min-height: 0;
-  padding: 16px 16px 8px 4px;
+  padding: 16px 16px 8px 12px;
   position: relative;
+}
+
+.unit-label.visible + #chart-wrapper {
+  padding-top: 4px;
 }
 
 #chart-canvas {
@@ -81,11 +99,6 @@ body {
 
 .query-text::-webkit-scrollbar {
   display: none;
-}
-
-.query-label {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-weight: 500;
 }
 
 #query-value {
