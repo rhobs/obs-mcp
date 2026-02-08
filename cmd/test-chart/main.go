@@ -182,12 +182,6 @@ const harness = `<!DOCTYPE html>
     <option value="86400">24 hours</option>
   </select>
 
-  <label>Unit</label>
-  <select id="unit-select">
-    <option value="">none</option>
-    <option value="percent">percent</option>
-  </select>
-
   <label>Title</label>
   <select id="title-select">
     <option value="">none</option>
@@ -240,6 +234,9 @@ window.addEventListener("message", function(e) {
       result: { hostContext: { theme: dark ? "dark" : "light" } }
     }, "*");
   }
+  if (m.method === "ui/notifications/initialized") {
+    sendData();
+  }
   if (m.method === "ui/notifications/size-changed") {
     var h = (m.params && m.params.height) || 0;
     f.style.height = h > 0 ? "calc(100vh - 120px)" : "0";
@@ -263,7 +260,6 @@ var METRICS = [
 function sendData() {
   var count = parseInt(document.getElementById("series-count").value);
   var range = parseInt(document.getElementById("time-range").value);
-  var unit = document.getElementById("unit-select").value;
   var now = Math.floor(Date.now() / 1000);
   var start = now - range;
   var step = Math.max(15, Math.floor(range / 120)); // ~120 data points
@@ -273,18 +269,12 @@ function sendData() {
     var metric = Object.assign({ __name__: s.name }, s.labels);
     var base = s.base;
     var amp = s.amp;
-    // Scale to 0-100 range for percent unit
-    if (unit === "percent") {
-      base = 20 + Math.random() * 50; // 20-70 base
-      amp = 10 + Math.random() * 15;  // 10-25 amplitude
-    }
     var values = [];
     for (var t = start; t <= now; t += step) {
       var progress = (t - start) / range;
       var trend = Math.sin(progress * Math.PI * 2) * amp;
       var noise = (Math.random() - 0.5) * amp * 0.3;
       var v = base + trend + noise;
-      if (unit === "percent") v = Math.max(0, Math.min(100, v));
       values.push([t, String(Math.max(0, v))]);
     }
     return { metric: metric, values: values };
@@ -305,7 +295,6 @@ function sendData() {
 
   // Send tool-result (data)
   var sc = { resultType: "matrix", result: result };
-  if (unit) sc.unit = unit;
   f.contentWindow.postMessage({
     jsonrpc: "2.0",
     method: "ui/notifications/tool-result",

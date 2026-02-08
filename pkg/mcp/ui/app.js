@@ -9,7 +9,6 @@
   var lastResult = null;
   var queryString = null;
   var titleString = null;
-  var currentUnit = null;
   var requestId = 1;
 
   // ===== Color Palettes (PatternFly v6 multi-color ordered chart colors) =====
@@ -187,18 +186,14 @@
     var gridColor = dark ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.06)";
     var tickColor = dark ? "#9ca3af" : "#6b7280";
 
-    var isPercent = currentUnit === "percent";
-
     var yScale = {
       min: dataMin >= 0 ? 0 : undefined,
-      max: isPercent ? 100 : undefined,
       ticks: {
         color: tickColor,
         font: { size: 12, weight: "500", family: "system-ui, sans-serif" },
         padding: 8,
         maxTicksLimit: 8,
         callback: function(value) {
-          if (isPercent) return Math.round(value);
           if (Math.abs(value) >= 1e9) return (value / 1e9).toFixed(1) + "G";
           if (Math.abs(value) >= 1e6) return (value / 1e6).toFixed(1) + "M";
           if (Math.abs(value) >= 1e3) return (value / 1e3).toFixed(1) + "k";
@@ -216,15 +211,6 @@
         display: false
       }
     };
-
-    // Show unit label above the chart
-    var unitLabel = document.getElementById("unit-label");
-    if (isPercent) {
-      unitLabel.textContent = "Percent (%)";
-      unitLabel.classList.add("visible");
-    } else {
-      unitLabel.classList.remove("visible");
-    }
 
     chartInstance = new Chart(canvas, {
       type: "line",
@@ -359,7 +345,6 @@
           document.getElementById("query-value").textContent = queryString;
           document.getElementById("query-display").classList.add("visible");
         }
-        currentUnit = sc.unit || null;
         document.getElementById("card").classList.add("active");
         renderChart(sc.result);
       }
@@ -385,7 +370,6 @@
       lastResult = null;
       queryString = null;
       titleString = null;
-      currentUnit = null;
       return;
     }
   });

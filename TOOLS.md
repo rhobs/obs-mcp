@@ -82,12 +82,11 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Output Schema:**
 
-| Field        | Type       | Description                                                                                |
-| :----------- | :--------- | :----------------------------------------------------------------------------------------- |
-| `result`     | `object[]` | The query results as an array of time series                                               |
-| `resultType` | `string`   | The type of result returned: matrix or vector or scalar                                    |
-| `unit`       | `string`   | The unit of the result values (e.g. percent or bytes) used for Y-axis formatting in charts |
-| `warnings`   | `string[]` | Any warnings generated during query execution                                              |
+| Field        | Type       | Description                                             |
+| :----------- | :--------- | :------------------------------------------------------ |
+| `result`     | `object[]` | The query results as an array of time series            |
+| `resultType` | `string`   | The type of result returned: matrix or vector or scalar |
+| `warnings`   | `string[]` | Any warnings generated during query execution           |
 
 ---
 

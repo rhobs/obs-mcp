@@ -43,7 +43,6 @@ type RangeQueryOutput struct {
 	ResultType string         `json:"resultType" jsonschema:"description=The type of result returned: matrix or vector or scalar"`
 	Result     []SeriesResult `json:"result" jsonschema:"description=The query results as an array of time series"`
 	Warnings   []string       `json:"warnings,omitempty" jsonschema:"description=Any warnings generated during query execution"`
-	Unit       string         `json:"unit,omitempty" jsonschema:"description=The unit of the result values (e.g. percent or bytes) used for Y-axis formatting in charts"`
 }
 
 // SeriesResult represents a single time series result from a range query.
