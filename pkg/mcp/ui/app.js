@@ -348,13 +348,14 @@
 
   // ===== Resize Observer =====
   var resizeObserver = new ResizeObserver(function(entries) {
-    for (var i = 0; i < entries.length; i++) {
-      var rect = entries[i].contentRect;
-      sendNotification("ui/notifications/size-changed", {
-        width: Math.round(rect.width),
-        height: Math.round(rect.height)
-      });
-    }
+    var card = entries[0].target;
+    var style = getComputedStyle(card);
+    var marginW = parseFloat(style.marginLeft) + parseFloat(style.marginRight);
+    var marginH = parseFloat(style.marginTop) + parseFloat(style.marginBottom);
+    sendNotification("ui/notifications/size-changed", {
+      width: Math.round(card.offsetWidth + marginW),
+      height: Math.round(card.offsetHeight + marginH)
+    });
   });
   resizeObserver.observe(document.getElementById("card"));
 
