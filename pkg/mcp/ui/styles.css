@@ -93,10 +93,16 @@ body {
   display: none;
   flex-wrap: wrap;
   gap: 4px 12px;
-  padding: 6px 16px;
+  padding: 6px 20px;
   max-height: 72px;
   overflow-y: auto;
   scrollbar-width: none;
+  cursor: grab;
+}
+
+.chart-legend.dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .chart-legend::-webkit-scrollbar {
@@ -142,26 +148,59 @@ body {
   font-size: 0.75rem;
   line-height: 1.4;
   color: var(--text-subtle);
-  white-space: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
   border-top: 1px solid var(--border-color);
   display: none;
   flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
   transition: color 0.2s, border-color 0.2s;
 }
 
-.query-text::-webkit-scrollbar {
-  display: none;
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-subtle);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.copy-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.copy-btn:hover {
+  color: var(--text-primary);
+  background: var(--border-color);
 }
 
 #query-value {
   font-family: "SF Mono", "Cascadia Code", "Fira Code", "JetBrains Mono", "Consolas", monospace;
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  cursor: grab;
+  user-select: none;
+}
+
+#query-value.dragging {
+  cursor: grabbing;
+}
+
+#query-value::-webkit-scrollbar {
+  display: none;
 }
 
 .query-text.visible {
-  display: block;
+  display: flex;
 }
 
 /* ===== No Data State ===== */

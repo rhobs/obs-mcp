@@ -127,7 +127,7 @@ const harness = `<!DOCTYPE html>
     transition: background 0.15s;
   }
   button.action:hover { background: #1d4ed8; }
-  select {
+  select, input[type="text"] {
     padding: 6px 10px;
     font-size: 13px;
     font-family: inherit;
@@ -135,8 +135,9 @@ const harness = `<!DOCTYPE html>
     border-radius: 8px;
     background: var(--surface);
     color: var(--text);
-    cursor: pointer;
   }
+  select { cursor: pointer; }
+  input[type="text"] { width: 220px; }
   label {
     font-size: 13px;
     color: var(--subtle);
@@ -176,18 +177,14 @@ const harness = `<!DOCTYPE html>
   <label>Range</label>
   <select id="time-range">
     <option value="1800">30 min</option>
-    <option value="3600">1 hour</option>
     <option value="7200" selected>2 hours</option>
-    <option value="21600">6 hours</option>
+    <option value="43200">12 hours</option>
     <option value="86400">24 hours</option>
+    <option value="259200">3 days</option>
   </select>
 
   <label>Title</label>
-  <select id="title-select">
-    <option value="">none</option>
-    <option value="CPU Usage by Pod (Last 2 Hours)" selected>CPU Usage</option>
-    <option value="Memory Working Set Over Time">Memory</option>
-  </select>
+  <input type="text" id="title-input" value="CPU Usage by Pod (Last 2 Hours)" placeholder="Chart title (optional)">
 
   <button class="action" onclick="sendData()">Send Data</button>
   <button class="action" onclick="clearData()" style="background:#dc2626">Clear</button>
@@ -282,7 +279,7 @@ function sendData() {
 
   var queryName = selected[0] ? selected[0].name : "up";
   var query = "topk(" + count + ", sum(rate(" + queryName + "[5m])) by (pod, namespace))";
-  var title = document.getElementById("title-select").value;
+  var title = document.getElementById("title-input").value.trim();
 
   // Send tool-input (query + optional title)
   var toolArgs = { query: query };

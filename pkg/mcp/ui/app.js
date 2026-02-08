@@ -387,6 +387,43 @@
   });
   resizeObserver.observe(document.getElementById("card"));
 
+  // ===== Copy Query Button =====
+  document.getElementById("copy-query").addEventListener("click", function() {
+    if (!queryString) return;
+    var btn = this;
+    navigator.clipboard.writeText(queryString).then(function() {
+      btn.title = "Copied!";
+      setTimeout(function() { btn.title = "Copy PromQL query"; }, 1500);
+    });
+  });
+
+  // ===== Drag-to-Scroll =====
+  function makeDraggable(el, axis) {
+    var startPos, startScroll, dragged;
+    el.addEventListener("mousedown", function(e) {
+      startPos = axis === "y" ? e.pageY : e.pageX;
+      startScroll = axis === "y" ? el.scrollTop : el.scrollLeft;
+      dragged = false;
+      el.classList.add("dragging");
+    });
+    window.addEventListener("mousemove", function(e) {
+      if (!el.classList.contains("dragging")) return;
+      var delta = (axis === "y" ? e.pageY : e.pageX) - startPos;
+      if (Math.abs(delta) > 3) dragged = true;
+      if (axis === "y") { el.scrollTop = startScroll - delta; }
+      else { el.scrollLeft = startScroll - delta; }
+    });
+    window.addEventListener("mouseup", function() {
+      el.classList.remove("dragging");
+    });
+    // Suppress click on legend items when dragging
+    el.addEventListener("click", function(e) {
+      if (dragged) { e.stopPropagation(); dragged = false; }
+    }, true);
+  }
+  makeDraggable(document.getElementById("query-value"), "x");
+  makeDraggable(document.getElementById("chart-legend"), "y");
+
   // ===== Start MCP Apps Lifecycle =====
   sendNotification("ui/notifications/size-changed", { width: 0, height: 0 });
   sendRequest("ui/initialize", {
