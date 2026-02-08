@@ -107,6 +107,54 @@ body {
   height: 100% !important;
 }
 
+/* ===== Legend ===== */
+.chart-legend {
+  display: none;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 6px 16px;
+  max-height: 72px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.chart-legend::-webkit-scrollbar {
+  display: none;
+}
+
+.chart-legend.visible {
+  display: flex;
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.15s;
+}
+
+.chart-legend-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chart-legend-item.hidden {
+  opacity: 0.35;
+}
+
+.chart-legend-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 /* ===== Query Display ===== */
 .query-text {
   padding: 10px 16px 12px;

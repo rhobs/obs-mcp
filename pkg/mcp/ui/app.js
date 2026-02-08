@@ -112,6 +112,44 @@
     return str.length > max ? str.substring(0, max - 1) + "\u2026" : str;
   }
 
+  // ===== Legend =====
+  function buildLegend() {
+    var container = document.getElementById("chart-legend");
+    container.innerHTML = "";
+    if (!chartInstance) {
+      container.classList.remove("visible");
+      return;
+    }
+    var datasets = chartInstance.data.datasets;
+    for (var i = 0; i < datasets.length; i++) {
+      (function(idx) {
+        var ds = datasets[idx];
+        var item = document.createElement("span");
+        item.className = "chart-legend-item";
+        if (ds.hidden) item.classList.add("hidden");
+
+        var swatch = document.createElement("span");
+        swatch.className = "chart-legend-swatch";
+        swatch.style.backgroundColor = ds.borderColor;
+
+        var label = document.createElement("span");
+        label.className = "chart-legend-label";
+        label.textContent = ds.label;
+
+        item.appendChild(swatch);
+        item.appendChild(label);
+        item.addEventListener("click", function() {
+          var meta = chartInstance.getDatasetMeta(idx);
+          meta.hidden = !meta.hidden;
+          item.classList.toggle("hidden");
+          chartInstance.update();
+        });
+        container.appendChild(item);
+      })(i);
+    }
+    container.classList.add("visible");
+  }
+
   // ===== Chart Rendering =====
   function renderChart(result) {
     lastResult = result;
@@ -127,6 +165,7 @@
     var datasets = buildDatasets(result);
     if (!datasets) {
       wrapper.innerHTML = '<div class="no-data">No data to display</div>';
+      buildLegend();
       return;
     }
 
@@ -271,6 +310,7 @@
         }
       }
     });
+    buildLegend();
   }
 
   // ===== Message Handler =====
@@ -339,6 +379,7 @@
         chartInstance.destroy();
         chartInstance = null;
       }
+      buildLegend();
       document.getElementById("card").classList.remove("active");
       sendNotification("ui/notifications/size-changed", { width: 0, height: 0 });
       lastResult = null;
