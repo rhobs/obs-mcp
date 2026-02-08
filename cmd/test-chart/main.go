@@ -17,15 +17,13 @@ import (
 )
 
 func main() {
-	composed := buildChartHTML()
-
 	http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprint(w, harness)
 	})
 	http.HandleFunc("/chart", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprint(w, composed)
+		fmt.Fprint(w, buildChartHTML())
 	})
 
 	addr := "127.0.0.1:9199"
@@ -198,6 +196,42 @@ const harness = `<!DOCTYPE html>
 var dark = false;
 var f = document.getElementById("f");
 
+// Restore selections from URL params
+(function() {
+  var p = new URLSearchParams(window.location.search);
+  if (p.has("theme")) {
+    var t = p.get("theme");
+    if (t === "dark" || t === "light") {
+      dark = t === "dark";
+      document.documentElement.setAttribute("data-theme", t);
+      document.querySelectorAll("#theme-btns button").forEach(function(b) {
+        b.classList.toggle("active", b.dataset.theme === t);
+      });
+    }
+  }
+  if (p.has("series")) {
+    var s = document.getElementById("series-count");
+    if (s.querySelector('option[value="' + p.get("series") + '"]')) s.value = p.get("series");
+  }
+  if (p.has("range")) {
+    var r = document.getElementById("time-range");
+    if (r.querySelector('option[value="' + p.get("range") + '"]')) r.value = p.get("range");
+  }
+  if (p.has("title")) {
+    document.getElementById("title-input").value = p.get("title");
+  }
+})();
+
+function updateURL() {
+  var p = new URLSearchParams();
+  p.set("theme", dark ? "dark" : "light");
+  p.set("series", document.getElementById("series-count").value);
+  p.set("range", document.getElementById("time-range").value);
+  var title = document.getElementById("title-input").value.trim();
+  if (title) p.set("title", title);
+  history.replaceState(null, "", "?" + p.toString());
+}
+
 // Theme switching
 document.getElementById("theme-btns").addEventListener("click", function(e) {
   var btn = e.target.closest("button");
@@ -218,6 +252,8 @@ document.getElementById("theme-btns").addEventListener("click", function(e) {
     method: "ui/notifications/host-context-changed",
     params: { theme: theme }
   }, "*");
+
+  updateURL();
 });
 
 // Handle MCP Apps lifecycle messages from iframe
@@ -280,6 +316,8 @@ function sendData() {
   var queryName = selected[0] ? selected[0].name : "up";
   var query = "topk(" + count + ", sum(rate(" + queryName + "[5m])) by (pod, namespace))";
   var title = document.getElementById("title-input").value.trim();
+
+  updateURL();
 
   // Send tool-input (query + optional title)
   var toolArgs = { query: query };

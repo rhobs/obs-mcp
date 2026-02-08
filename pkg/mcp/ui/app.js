@@ -182,6 +182,18 @@
       }
     }
 
+    // Compute time range to decide X-axis format
+    var tMin = Infinity, tMax = -Infinity;
+    for (var ti = 0; ti < datasets.length; ti++) {
+      var pts = datasets[ti].data;
+      if (pts.length > 0) {
+        if (pts[0].x < tMin) tMin = pts[0].x;
+        if (pts[pts.length - 1].x > tMax) tMax = pts[pts.length - 1].x;
+      }
+    }
+    var rangeMs = tMax - tMin;
+    var multiDay = rangeMs > 86400000;
+
     var dark = isDark();
     var gridColor = dark ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.06)";
     var tickColor = dark ? "#9ca3af" : "#6b7280";
@@ -241,13 +253,29 @@
                 month: "month"
               }
             },
-            ticks: {
-              color: tickColor,
-              font: { size: 12, family: "system-ui, sans-serif" },
-              maxRotation: 0,
-              autoSkip: true,
-              maxTicksLimit: Math.max(3, Math.floor(wrapper.clientWidth / 120))
-            },
+            ticks: (function() {
+              var t = {
+                color: tickColor,
+                font: { size: 12, family: "system-ui, sans-serif" },
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: Math.max(3, Math.floor(wrapper.clientWidth / 120))
+              };
+              if (multiDay) {
+                var lastDay = null;
+                var dayFmt = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+                t.callback = function(value) {
+                  var d = new Date(value);
+                  var day = d.toDateString();
+                  if (day !== lastDay) {
+                    lastDay = day;
+                    return dayFmt.format(d);
+                  }
+                  return null;
+                };
+              }
+              return t;
+            })(),
             grid: {
               display: false
             },
