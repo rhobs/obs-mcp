@@ -146,10 +146,11 @@ const harness = `<!DOCTYPE html>
   }
   iframe {
     width: 100%;
-    height: calc(100vh - 120px);
+    height: 0;
     border: none;
     display: block;
     border-radius: 4px;
+    transition: height 0.2s;
   }
 </style>
 </head>
@@ -195,7 +196,7 @@ const harness = `<!DOCTYPE html>
   </select>
 
   <button class="action" onclick="sendData()">Send Data</button>
-  <button class="action" onclick="sendData()" style="background:#059669">Resend</button>
+  <button class="action" onclick="clearData()" style="background:#dc2626">Clear</button>
 </div>
 
 <div class="frame-area">
@@ -238,6 +239,10 @@ window.addEventListener("message", function(e) {
       id: m.id,
       result: { hostContext: { theme: dark ? "dark" : "light" } }
     }, "*");
+  }
+  if (m.method === "ui/notifications/size-changed") {
+    var h = (m.params && m.params.height) || 0;
+    f.style.height = h > 0 ? "calc(100vh - 120px)" : "0";
   }
 });
 
@@ -308,10 +313,13 @@ function sendData() {
   }, "*");
 }
 
-// Auto-send data once the iframe is loaded
-f.addEventListener("load", function() {
-  setTimeout(sendData, 300);
-});
+function clearData() {
+  f.contentWindow.postMessage({
+    jsonrpc: "2.0",
+    method: "ui/resource-teardown",
+    params: {}
+  }, "*");
+}
 </script>
 </body>
 </html>

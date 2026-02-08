@@ -320,6 +320,7 @@
           document.getElementById("query-display").classList.add("visible");
         }
         currentUnit = sc.unit || null;
+        document.getElementById("card").classList.add("active");
         renderChart(sc.result);
       }
       return;
@@ -338,6 +339,8 @@
         chartInstance.destroy();
         chartInstance = null;
       }
+      document.getElementById("card").classList.remove("active");
+      sendNotification("ui/notifications/size-changed", { width: 0, height: 0 });
       lastResult = null;
       queryString = null;
       titleString = null;
@@ -360,6 +363,7 @@
   resizeObserver.observe(document.getElementById("card"));
 
   // ===== Start MCP Apps Lifecycle =====
+  sendNotification("ui/notifications/size-changed", { width: 0, height: 0 });
   sendRequest("ui/initialize", {
     appCapabilities: {
       availableDisplayModes: ["inline"]

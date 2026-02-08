@@ -46,11 +46,15 @@ body {
   background: var(--bg-card);
   box-shadow: var(--shadow);
   overflow: hidden;
-  display: flex;
+  display: none;
   flex-direction: column;
   height: calc(100vh - 24px);
   min-height: 300px;
   transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.chart-card.active {
+  display: flex;
 }
 
 /* ===== Chart Title ===== */
