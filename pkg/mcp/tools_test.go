@@ -313,16 +313,16 @@ func TestToolPatternValidation(t *testing.T) {
 }
 
 func TestToolsHaveOutputSchema(t *testing.T) {
-	tools := []mcp.Tool{
+	toolsToTest := []mcp.Tool{
 		CreateListMetricsTool(),
 		CreateExecuteRangeQueryTool(),
 	}
 
-	if len(tools) == 0 {
+	if len(toolsToTest) == 0 {
 		t.Fatal("expected at least one tool")
 	}
 
-	for _, tool := range tools {
+	for _, tool := range toolsToTest {
 		t.Run(tool.Name, func(t *testing.T) {
 			if tool.OutputSchema.Type == "" && len(tool.RawOutputSchema) == 0 {
 				t.Errorf("tool %q missing output schema", tool.Name)
