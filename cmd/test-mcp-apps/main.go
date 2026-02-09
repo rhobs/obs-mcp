@@ -1,10 +1,10 @@
-// test-chart serves the timeseries chart UI in a test harness for local development.
+// test-mcp-apps serves the timeseries chart UI in a test harness for local development.
 // It simulates the MCP Apps protocol, letting you preview and tune the chart
 // without connecting to a real MCP client or Prometheus instance.
 //
 // Usage:
 //
-//	go run ./cmd/test-chart
+//	go run ./cmd/test-mcp-apps
 //
 // Then open http://localhost:9199 in your browser.
 package main
@@ -37,7 +37,7 @@ func main() {
 func buildChartHTML() string {
 	tmpl, err := os.ReadFile("pkg/mcp/ui/chart.html")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Run this command from the repo root:\n  go run ./cmd/test-chart\n\nerror: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Run this command from the repo root:\n  go run ./cmd/test-mcp-apps\n\nerror: %v\n", err)
 		os.Exit(1)
 	}
 	styles, _ := os.ReadFile("pkg/mcp/ui/styles.css")
@@ -283,11 +283,11 @@ var METRICS = [
   { name: "container_cpu_usage_seconds_total", labels: { namespace: "openshift-monitoring", pod: "node-exporter-k62n8" }, base: 0.5, amp: 0.4 },
   { name: "container_cpu_usage_seconds_total", labels: { namespace: "openshift-monitoring", pod: "node-exporter-cxgcx" }, base: 0.4, amp: 0.3 },
   { name: "container_cpu_usage_seconds_total", labels: { namespace: "openshift-monitoring", pod: "kube-apiserver-ip-10-0-7-32" }, base: 0.6, amp: 0.5 },
-  { name: "container_memory_working_set_bytes", labels: { namespace: "openshift-monitoring", pod: "prometheus-k8s-0" }, base: 2.1e9, amp: 3e8 },
-  { name: "container_memory_working_set_bytes", labels: { namespace: "openshift-monitoring", pod: "alertmanager-main-0" }, base: 1.5e9, amp: 2e8 },
-  { name: "container_memory_working_set_bytes", labels: { namespace: "openshift-monitoring", pod: "thanos-querier-0" }, base: 8e8, amp: 1.5e8 },
-  { name: "node_cpu_seconds_total", labels: { instance: "ip-10-0-7-32:9100", mode: "idle" }, base: 95, amp: 3 },
-  { name: "node_cpu_seconds_total", labels: { instance: "ip-10-0-8-15:9100", mode: "idle" }, base: 92, amp: 5 },
+  { name: "container_cpu_usage_seconds_total", labels: { namespace: "openshift-monitoring", pod: "alertmanager-main-0" }, base: 1.2, amp: 0.4 },
+  { name: "container_cpu_usage_seconds_total", labels: { namespace: "openshift-monitoring", pod: "thanos-querier-0" }, base: 0.8, amp: 0.3 },
+  { name: "container_cpu_usage_seconds_total", labels: { namespace: "openshift-monitoring", pod: "grafana-7b9bc44b8f-x2k9m" }, base: 0.3, amp: 0.2 },
+  { name: "container_cpu_usage_seconds_total", labels: { namespace: "openshift-monitoring", pod: "kube-state-metrics-5c9b7c4f6d-t8r2l" }, base: 0.9, amp: 0.35 },
+  { name: "container_cpu_usage_seconds_total", labels: { namespace: "openshift-monitoring", pod: "telemeter-client-8d4f7b6c9-q3w5r" }, base: 0.2, amp: 0.15 },
 ];
 
 function sendData() {
