@@ -6,24 +6,26 @@ import (
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
+	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
 func TestListMetricsOutputSerialization(t *testing.T) {
 	tests := []struct {
 		name  string
-		input ListMetricsOutput
+		input tools.ListMetricsOutput
 	}{
 		{
 			name:  "empty",
-			input: ListMetricsOutput{Metrics: []string{}},
+			input: tools.ListMetricsOutput{Metrics: []string{}},
 		},
 		{
 			name:  "single metric",
-			input: ListMetricsOutput{Metrics: []string{"up"}},
+			input: tools.ListMetricsOutput{Metrics: []string{"up"}},
 		},
 		{
 			name:  "multiple metrics",
-			input: ListMetricsOutput{Metrics: []string{"up", "node_cpu_seconds_total", "go_goroutines"}},
+			input: tools.ListMetricsOutput{Metrics: []string{"up", "node_cpu_seconds_total", "go_goroutines"}},
 		},
 	}
 
@@ -34,7 +36,7 @@ func TestListMetricsOutputSerialization(t *testing.T) {
 				t.Fatalf("marshal failed: %v", err)
 			}
 
-			var result ListMetricsOutput
+			var result tools.ListMetricsOutput
 			if err := json.Unmarshal(data, &result); err != nil {
 				t.Fatalf("unmarshal failed: %v", err)
 			}
@@ -45,13 +47,13 @@ func TestListMetricsOutputSerialization(t *testing.T) {
 func TestRangeQueryOutputSerialization(t *testing.T) {
 	tests := []struct {
 		name  string
-		input RangeQueryOutput
+		input tools.RangeQueryOutput
 	}{
 		{
 			name: "matrix single series",
-			input: RangeQueryOutput{
+			input: tools.RangeQueryOutput{
 				ResultType: "matrix",
-				Result: []SeriesResult{{
+				Result: []tools.SeriesResult{{
 					Metric: map[string]string{"__name__": "up"},
 					Values: [][]any{{1700000000.0, "1"}},
 				}},
@@ -59,9 +61,9 @@ func TestRangeQueryOutputSerialization(t *testing.T) {
 		},
 		{
 			name: "matrix multiple series",
-			input: RangeQueryOutput{
+			input: tools.RangeQueryOutput{
 				ResultType: "matrix",
-				Result: []SeriesResult{
+				Result: []tools.SeriesResult{
 					{Metric: map[string]string{"job": "a"}, Values: [][]any{}},
 					{Metric: map[string]string{"job": "b"}, Values: [][]any{}},
 					{Metric: map[string]string{"job": "c"}, Values: [][]any{}},
@@ -70,16 +72,16 @@ func TestRangeQueryOutputSerialization(t *testing.T) {
 		},
 		{
 			name: "empty result",
-			input: RangeQueryOutput{
+			input: tools.RangeQueryOutput{
 				ResultType: "matrix",
-				Result:     []SeriesResult{},
+				Result:     []tools.SeriesResult{},
 			},
 		},
 		{
 			name: "vector result",
-			input: RangeQueryOutput{
+			input: tools.RangeQueryOutput{
 				ResultType: "vector",
-				Result: []SeriesResult{{
+				Result: []tools.SeriesResult{{
 					Metric: map[string]string{"__name__": "up"},
 					Values: [][]any{{1700000000.0, "1"}},
 				}},
@@ -87,9 +89,9 @@ func TestRangeQueryOutputSerialization(t *testing.T) {
 		},
 		{
 			name: "scalar result",
-			input: RangeQueryOutput{
+			input: tools.RangeQueryOutput{
 				ResultType: "scalar",
-				Result: []SeriesResult{{
+				Result: []tools.SeriesResult{{
 					Metric: map[string]string{},
 					Values: [][]any{{1700000000.0, "42"}},
 				}},
@@ -97,9 +99,9 @@ func TestRangeQueryOutputSerialization(t *testing.T) {
 		},
 		{
 			name: "with warnings",
-			input: RangeQueryOutput{
+			input: tools.RangeQueryOutput{
 				ResultType: "matrix",
-				Result:     []SeriesResult{},
+				Result:     []tools.SeriesResult{},
 				Warnings:   []string{"warning1", "warning2"},
 			},
 		},
@@ -112,7 +114,7 @@ func TestRangeQueryOutputSerialization(t *testing.T) {
 				t.Fatalf("marshal failed: %v", err)
 			}
 
-			var result RangeQueryOutput
+			var result tools.RangeQueryOutput
 			if err := json.Unmarshal(data, &result); err != nil {
 				t.Fatalf("unmarshal failed: %v", err)
 			}
@@ -123,25 +125,25 @@ func TestRangeQueryOutputSerialization(t *testing.T) {
 func TestSeriesResultSerialization(t *testing.T) {
 	tests := []struct {
 		name  string
-		input SeriesResult
+		input tools.SeriesResult
 	}{
 		{
 			name: "with labels and values",
-			input: SeriesResult{
+			input: tools.SeriesResult{
 				Metric: map[string]string{"__name__": "up", "job": "prometheus"},
 				Values: [][]any{{1700000000.0, "1"}, {1700000060.0, "1"}},
 			},
 		},
 		{
 			name: "empty",
-			input: SeriesResult{
+			input: tools.SeriesResult{
 				Metric: map[string]string{},
 				Values: [][]any{},
 			},
 		},
 		{
 			name: "many labels",
-			input: SeriesResult{
+			input: tools.SeriesResult{
 				Metric: map[string]string{
 					"__name__": "http_requests", "method": "GET", "status": "200",
 					"handler": "/api", "instance": "localhost:9090",
@@ -158,7 +160,7 @@ func TestSeriesResultSerialization(t *testing.T) {
 				t.Fatalf("marshal failed: %v", err)
 			}
 
-			var result SeriesResult
+			var result tools.SeriesResult
 			if err := json.Unmarshal(data, &result); err != nil {
 				t.Fatalf("unmarshal failed: %v", err)
 			}
@@ -311,16 +313,16 @@ func TestToolPatternValidation(t *testing.T) {
 }
 
 func TestToolsHaveOutputSchema(t *testing.T) {
-	tools := []mcp.Tool{
+	toolsToTest := []mcp.Tool{
 		CreateListMetricsTool(),
 		CreateExecuteRangeQueryTool(),
 	}
 
-	if len(tools) == 0 {
+	if len(toolsToTest) == 0 {
 		t.Fatal("expected at least one tool")
 	}
 
-	for _, tool := range tools {
+	for _, tool := range toolsToTest {
 		t.Run(tool.Name, func(t *testing.T) {
 			if tool.OutputSchema.Type == "" && len(tool.RawOutputSchema) == 0 {
 				t.Errorf("tool %q missing output schema", tool.Name)
