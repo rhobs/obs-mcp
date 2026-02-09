@@ -319,10 +319,14 @@ func TestGuardrails_MaxLabelCardinality(t *testing.T) {
 // mockPrometheusAPI is a mock implementation of v1.API for testing
 type mockPrometheusAPI struct {
 	tsdbResult       v1.TSDBResult
+	tsdbErr          error
 	availableMetrics []string
 }
 
 func (m *mockPrometheusAPI) TSDB(ctx context.Context, opts ...v1.Option) (v1.TSDBResult, error) {
+	if m.tsdbErr != nil {
+		return v1.TSDBResult{}, m.tsdbErr
+	}
 	return m.tsdbResult, nil
 }
 
@@ -623,6 +627,70 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 		}
 		if err == nil {
 			t.Error("expected error explaining why query is unsafe")
+		}
+	})
+}
+
+func TestGuardrails_TSDBUnsupported(t *testing.T) {
+	tsdb404Err := &v1.Error{
+		Type: v1.ErrClient,
+		Msg:  "client error: 404",
+	}
+
+	t.Run("MaxMetricCardinality skips check when TSDB returns 404", func(t *testing.T) {
+		mock := &mockPrometheusAPI{
+			tsdbErr: tsdb404Err,
+		}
+
+		g := &Guardrails{
+			RequireLabelMatcher:  false,
+			DisallowBlanketRegex: false,
+			MaxMetricCardinality: 20000,
+		}
+
+		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{job="api"}`, mock)
+		if !safe {
+			t.Errorf("expected query to be safe when TSDB endpoint is unavailable, got error: %v", err)
+		}
+	})
+
+	t.Run("MaxLabelCardinality skips check when TSDB returns 404", func(t *testing.T) {
+		mock := &mockPrometheusAPI{
+			tsdbErr: tsdb404Err,
+		}
+
+		g := &Guardrails{
+			RequireLabelMatcher:  false,
+			DisallowBlanketRegex: true,
+			MaxLabelCardinality:  500,
+		}
+
+		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{pod=~".*"}`, mock)
+		if !safe {
+			t.Errorf("expected query to be safe when TSDB endpoint is unavailable, got error: %v", err)
+		}
+	})
+
+	t.Run("Non-client TSDB error still fails", func(t *testing.T) {
+		mock := &mockPrometheusAPI{
+			tsdbErr: &v1.Error{
+				Type: v1.ErrServer,
+				Msg:  "server error: 500",
+			},
+		}
+
+		g := &Guardrails{
+			RequireLabelMatcher:  false,
+			DisallowBlanketRegex: false,
+			MaxMetricCardinality: 20000,
+		}
+
+		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{job="api"}`, mock)
+		if safe {
+			t.Error("expected query to be unsafe when TSDB returns a server error")
+		}
+		if err == nil {
+			t.Error("expected error explaining TSDB failure")
 		}
 	})
 }

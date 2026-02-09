@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
@@ -84,6 +85,25 @@ func NewMCPServer(opts ObsMCPOptions) (*server.MCPServer, error) {
 	if err := SetupTools(mcpServer, opts); err != nil {
 		return nil, err
 	}
+
+	// Register UI resources for MCP Apps
+	mcpServer.AddResource(
+		mcp.Resource{
+			URI:         "ui://timeseries-chart",
+			Name:        "Timeseries Chart",
+			Description: "Interactive timeseries line chart for range query results",
+			MIMEType:    "text/html;profile=mcp-app",
+		},
+		func(ctx context.Context, req mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+			return []mcp.ResourceContents{
+				mcp.TextResourceContents{
+					URI:      "ui://timeseries-chart",
+					MIMEType: "text/html;profile=mcp-app",
+					Text:     chartHTML,
+				},
+			}, nil
+		},
+	)
 
 	return mcpServer, nil
 }

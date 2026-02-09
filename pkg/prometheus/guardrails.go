@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -9,6 +10,13 @@ import (
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
 )
+
+// isTSDBUnsupported checks if the error indicates the TSDB endpoint is not available
+// (e.g., when querying Thanos instead of Prometheus).
+func isTSDBUnsupported(err error) bool {
+	var apiErr *v1.Error
+	return errors.As(err, &apiErr) && apiErr.Type == v1.ErrClient
+}
 
 // Guardrail name constants for use with ParseGuardrails
 const (
@@ -150,18 +158,22 @@ func (g *Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.AP
 		if len(metricNames) > 0 {
 			tsdbResult, err := client.TSDB(ctx)
 			if err != nil {
-				return false, fmt.Errorf("failed to get TSDB stats: %w", err)
-			}
+				if isTSDBUnsupported(err) {
+					// TSDB endpoint not available (e.g., Thanos), skip cardinality check
+				} else {
+					return false, fmt.Errorf("failed to get TSDB stats: %w", err)
+				}
+			} else {
+				seriesCountByMetric := make(map[string]uint64)
+				for _, stat := range tsdbResult.SeriesCountByMetricName {
+					seriesCountByMetric[stat.Name] = stat.Value
+				}
 
-			seriesCountByMetric := make(map[string]uint64)
-			for _, stat := range tsdbResult.SeriesCountByMetricName {
-				seriesCountByMetric[stat.Name] = stat.Value
-			}
-
-			for _, metricName := range metricNames {
-				if count, exists := seriesCountByMetric[metricName]; exists {
-					if count > g.MaxMetricCardinality {
-						return false, fmt.Errorf("metric %q has cardinality %d, which exceeds maximum allowed %d", metricName, count, g.MaxMetricCardinality)
+				for _, metricName := range metricNames {
+					if count, exists := seriesCountByMetric[metricName]; exists {
+						if count > g.MaxMetricCardinality {
+							return false, fmt.Errorf("metric %q has cardinality %d, which exceeds maximum allowed %d", metricName, count, g.MaxMetricCardinality)
+						}
 					}
 				}
 			}
@@ -184,18 +196,22 @@ func (g *Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.AP
 			// Check TSDB label cardinality for blanket regex
 			tsdbResult, err := client.TSDB(ctx)
 			if err != nil {
-				return false, fmt.Errorf("failed to get TSDB stats: %w", err)
-			}
+				if isTSDBUnsupported(err) {
+					// TSDB endpoint not available (e.g., Thanos), skip cardinality check
+				} else {
+					return false, fmt.Errorf("failed to get TSDB stats: %w", err)
+				}
+			} else {
+				labelValueCountByLabel := make(map[string]uint64)
+				for _, stat := range tsdbResult.LabelValueCountByLabelName {
+					labelValueCountByLabel[stat.Name] = stat.Value
+				}
 
-			labelValueCountByLabel := make(map[string]uint64)
-			for _, stat := range tsdbResult.LabelValueCountByLabelName {
-				labelValueCountByLabel[stat.Name] = stat.Value
-			}
-
-			for _, labelName := range blanketRegexLabels {
-				if count, exists := labelValueCountByLabel[labelName]; exists {
-					if count > g.MaxLabelCardinality {
-						return false, fmt.Errorf("label %q has cardinality %d, which exceeds maximum allowed %d for blanket regex", labelName, count, g.MaxLabelCardinality)
+				for _, labelName := range blanketRegexLabels {
+					if count, exists := labelValueCountByLabel[labelName]; exists {
+						if count > g.MaxLabelCardinality {
+							return false, fmt.Errorf("label %q has cardinality %d, which exceeds maximum allowed %d for blanket regex", labelName, count, g.MaxLabelCardinality)
+						}
 					}
 				}
 			}

@@ -68,13 +68,14 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Parameters:**
 
-| Parameter  | Type     | Required | Description                                                                                                          |
-| :--------- | :------- | :------: | :------------------------------------------------------------------------------------------------------------------- |
-| `query`    | `string` | ✅        | PromQL query string using metric names verified via list_metrics                                                     |
-| `step`     | `string` | ✅        | Query resolution step width (e.g., '15s', '1m', '1h'). Choose based on time range: shorter ranges use smaller steps. |
-| `duration` | `string` |          | Duration to look back from now (e.g., '1h', '30m', '1d', '2w') (optional)                                            |
-| `end`      | `string` |          | End time as RFC3339 or Unix timestamp (optional). Use `NOW` for current time.                                        |
-| `start`    | `string` |          | Start time as RFC3339 or Unix timestamp (optional)                                                                   |
+| Parameter  | Type     | Required | Description                                                                                                                                  |
+| :--------- | :------- | :------: | :------------------------------------------------------------------------------------------------------------------------------------------- |
+| `query`    | `string` | ✅        | PromQL query string using metric names verified via list_metrics                                                                             |
+| `step`     | `string` | ✅        | Query resolution step width (e.g., '15s', '1m', '1h'). Choose based on time range: shorter ranges use smaller steps.                         |
+| `duration` | `string` |          | Duration to look back from now (e.g., '1h', '30m', '1d', '2w') (optional)                                                                    |
+| `end`      | `string` |          | End time as RFC3339 or Unix timestamp (optional). Use `NOW` for current time.                                                                |
+| `start`    | `string` |          | Start time as RFC3339 or Unix timestamp (optional)                                                                                           |
+| `title`    | `string` |          | Human-readable chart title describing what the query shows (e.g., 'API Error Rate Over Last Hour'). Displayed above the chart when provided. |
 
 > [!NOTE]
 > Parameters with patterns must match: `^\d+[smhdwy]$`
