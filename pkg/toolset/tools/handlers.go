@@ -6,15 +6,8 @@ import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 
 	"github.com/rhobs/obs-mcp/pkg/handlers"
+	"github.com/rhobs/obs-mcp/pkg/tooldef"
 )
-
-// Helper function to get string argument with default
-func getStringArg(params api.ToolHandlerParams, key, defaultValue string) string {
-	if val, ok := params.GetArguments()[key].(string); ok && val != "" {
-		return val
-	}
-	return defaultValue
-}
 
 // ListMetricsHandler handles the listing of available Prometheus metrics.
 func ListMetricsHandler(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
@@ -33,12 +26,7 @@ func ExecuteInstantQueryHandler(params api.ToolHandlerParams) (*api.ToolCallResu
 		return api.NewToolCallResult("", fmt.Errorf("failed to create Prometheus client: %w", err)), nil
 	}
 
-	input := handlers.InstantQueryInput{
-		Query: getStringArg(params, "query", ""),
-		Time:  getStringArg(params, "time", ""),
-	}
-
-	return handlers.ExecuteInstantQueryHandler(params.Context, promClient, input).ToToolsetResult()
+	return handlers.ExecuteInstantQueryHandler(params.Context, promClient, tooldef.BuildInstantQueryInput(params.GetArguments())).ToToolsetResult()
 }
 
 // ExecuteRangeQueryHandler handles the execution of Prometheus range queries.
@@ -48,15 +36,7 @@ func ExecuteRangeQueryHandler(params api.ToolHandlerParams) (*api.ToolCallResult
 		return api.NewToolCallResult("", fmt.Errorf("failed to create Prometheus client: %w", err)), nil
 	}
 
-	input := handlers.RangeQueryInput{
-		Query:    getStringArg(params, "query", ""),
-		Step:     getStringArg(params, "step", ""),
-		Start:    getStringArg(params, "start", ""),
-		End:      getStringArg(params, "end", ""),
-		Duration: getStringArg(params, "duration", ""),
-	}
-
-	return handlers.ExecuteRangeQueryHandler(params.Context, promClient, input).ToToolsetResult()
+	return handlers.ExecuteRangeQueryHandler(params.Context, promClient, tooldef.BuildRangeQueryInput(params.GetArguments())).ToToolsetResult()
 }
 
 // GetLabelNamesHandler handles the retrieval of label names.
@@ -66,13 +46,7 @@ func GetLabelNamesHandler(params api.ToolHandlerParams) (*api.ToolCallResult, er
 		return api.NewToolCallResult("", fmt.Errorf("failed to create Prometheus client: %w", err)), nil
 	}
 
-	input := handlers.LabelNamesInput{
-		Metric: getStringArg(params, "metric", ""),
-		Start:  getStringArg(params, "start", ""),
-		End:    getStringArg(params, "end", ""),
-	}
-
-	return handlers.GetLabelNamesHandler(params.Context, promClient, input).ToToolsetResult()
+	return handlers.GetLabelNamesHandler(params.Context, promClient, tooldef.BuildLabelNamesInput(params.GetArguments())).ToToolsetResult()
 }
 
 // GetLabelValuesHandler handles the retrieval of label values.
@@ -82,14 +56,7 @@ func GetLabelValuesHandler(params api.ToolHandlerParams) (*api.ToolCallResult, e
 		return api.NewToolCallResult("", fmt.Errorf("failed to create Prometheus client: %w", err)), nil
 	}
 
-	input := handlers.LabelValuesInput{
-		Label:  getStringArg(params, "label", ""),
-		Metric: getStringArg(params, "metric", ""),
-		Start:  getStringArg(params, "start", ""),
-		End:    getStringArg(params, "end", ""),
-	}
-
-	return handlers.GetLabelValuesHandler(params.Context, promClient, input).ToToolsetResult()
+	return handlers.GetLabelValuesHandler(params.Context, promClient, tooldef.BuildLabelValuesInput(params.GetArguments())).ToToolsetResult()
 }
 
 // GetSeriesHandler handles the retrieval of time series.
@@ -99,13 +66,7 @@ func GetSeriesHandler(params api.ToolHandlerParams) (*api.ToolCallResult, error)
 		return api.NewToolCallResult("", fmt.Errorf("failed to create Prometheus client: %w", err)), nil
 	}
 
-	input := handlers.SeriesInput{
-		Matches: getStringArg(params, "matches", ""),
-		Start:   getStringArg(params, "start", ""),
-		End:     getStringArg(params, "end", ""),
-	}
-
-	return handlers.GetSeriesHandler(params.Context, promClient, input).ToToolsetResult()
+	return handlers.GetSeriesHandler(params.Context, promClient, tooldef.BuildSeriesInput(params.GetArguments())).ToToolsetResult()
 }
 
 // GetAlertsHandler handles the retrieval of alerts from Alertmanager.
@@ -115,24 +76,7 @@ func GetAlertsHandler(params api.ToolHandlerParams) (*api.ToolCallResult, error)
 		return api.NewToolCallResult("", fmt.Errorf("failed to create Alertmanager client: %w", err)), nil
 	}
 
-	// Parse boolean parameters
-	var input handlers.AlertsInput
-	if activeVal, ok := params.GetArguments()["active"].(bool); ok {
-		input.Active = &activeVal
-	}
-	if silencedVal, ok := params.GetArguments()["silenced"].(bool); ok {
-		input.Silenced = &silencedVal
-	}
-	if inhibitedVal, ok := params.GetArguments()["inhibited"].(bool); ok {
-		input.Inhibited = &inhibitedVal
-	}
-	if unprocessedVal, ok := params.GetArguments()["unprocessed"].(bool); ok {
-		input.Unprocessed = &unprocessedVal
-	}
-	input.Filter = getStringArg(params, "filter", "")
-	input.Receiver = getStringArg(params, "receiver", "")
-
-	return handlers.GetAlertsHandler(params.Context, amClient, input).ToToolsetResult()
+	return handlers.GetAlertsHandler(params.Context, amClient, tooldef.BuildAlertsInput(params.GetArguments())).ToToolsetResult()
 }
 
 // GetSilencesHandler handles the retrieval of silences from Alertmanager.
@@ -142,9 +86,5 @@ func GetSilencesHandler(params api.ToolHandlerParams) (*api.ToolCallResult, erro
 		return api.NewToolCallResult("", fmt.Errorf("failed to create Alertmanager client: %w", err)), nil
 	}
 
-	input := handlers.SilencesInput{
-		Filter: getStringArg(params, "filter", ""),
-	}
-
-	return handlers.GetSilencesHandler(params.Context, amClient, input).ToToolsetResult()
+	return handlers.GetSilencesHandler(params.Context, amClient, tooldef.BuildSilencesInput(params.GetArguments())).ToToolsetResult()
 }

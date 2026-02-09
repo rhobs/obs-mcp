@@ -7,6 +7,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 
 	"github.com/rhobs/obs-mcp/pkg/handlers"
+	"github.com/rhobs/obs-mcp/pkg/tooldef"
 )
 
 // ListMetricsHandler handles the listing of available Prometheus metrics.
@@ -29,13 +30,7 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 			return mcp.NewToolResultError(fmt.Sprintf("failed to create Prometheus client: %s", err.Error())), nil
 		}
 
-		return handlers.ExecuteRangeQueryHandler(ctx, promClient, handlers.RangeQueryInput{
-			Query:    req.GetString("query", ""),
-			Step:     req.GetString("step", ""),
-			Start:    req.GetString("start", ""),
-			End:      req.GetString("end", ""),
-			Duration: req.GetString("duration", ""),
-		}).ToMCPResult()
+		return handlers.ExecuteRangeQueryHandler(ctx, promClient, tooldef.BuildRangeQueryInput(req.GetArguments())).ToMCPResult()
 	}
 }
 
@@ -47,10 +42,7 @@ func ExecuteInstantQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Ca
 			return mcp.NewToolResultError(fmt.Sprintf("failed to create Prometheus client: %s", err.Error())), nil
 		}
 
-		return handlers.ExecuteInstantQueryHandler(ctx, promClient, handlers.InstantQueryInput{
-			Query: req.GetString("query", ""),
-			Time:  req.GetString("time", ""),
-		}).ToMCPResult()
+		return handlers.ExecuteInstantQueryHandler(ctx, promClient, tooldef.BuildInstantQueryInput(req.GetArguments())).ToMCPResult()
 	}
 }
 
@@ -62,11 +54,7 @@ func GetLabelNamesHandler(opts ObsMCPOptions) func(context.Context, mcp.CallTool
 			return mcp.NewToolResultError(fmt.Sprintf("failed to create Prometheus client: %s", err.Error())), nil
 		}
 
-		return handlers.GetLabelNamesHandler(ctx, promClient, handlers.LabelNamesInput{
-			Metric: req.GetString("metric", ""),
-			Start:  req.GetString("start", ""),
-			End:    req.GetString("end", ""),
-		}).ToMCPResult()
+		return handlers.GetLabelNamesHandler(ctx, promClient, tooldef.BuildLabelNamesInput(req.GetArguments())).ToMCPResult()
 	}
 }
 
@@ -78,12 +66,7 @@ func GetLabelValuesHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToo
 			return mcp.NewToolResultError(fmt.Sprintf("failed to create Prometheus client: %s", err.Error())), nil
 		}
 
-		return handlers.GetLabelValuesHandler(ctx, promClient, handlers.LabelValuesInput{
-			Label:  req.GetString("label", ""),
-			Metric: req.GetString("metric", ""),
-			Start:  req.GetString("start", ""),
-			End:    req.GetString("end", ""),
-		}).ToMCPResult()
+		return handlers.GetLabelValuesHandler(ctx, promClient, tooldef.BuildLabelValuesInput(req.GetArguments())).ToMCPResult()
 	}
 }
 
@@ -95,11 +78,7 @@ func GetSeriesHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequ
 			return mcp.NewToolResultError(fmt.Sprintf("failed to create Prometheus client: %s", err.Error())), nil
 		}
 
-		return handlers.GetSeriesHandler(ctx, promClient, handlers.SeriesInput{
-			Matches: req.GetString("matches", ""),
-			Start:   req.GetString("start", ""),
-			End:     req.GetString("end", ""),
-		}).ToMCPResult()
+		return handlers.GetSeriesHandler(ctx, promClient, tooldef.BuildSeriesInput(req.GetArguments())).ToMCPResult()
 	}
 }
 
@@ -111,28 +90,7 @@ func GetAlertsHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequ
 			return mcp.NewToolResultError(fmt.Sprintf("failed to create Alertmanager client: %s", err.Error())), nil
 		}
 
-		// Parse MCP parameters into input struct
-		var input handlers.AlertsInput
-		if req.Params.Arguments != nil {
-			if args, ok := req.Params.Arguments.(map[string]any); ok {
-				if activeVal, ok := args["active"].(bool); ok {
-					input.Active = &activeVal
-				}
-				if silencedVal, ok := args["silenced"].(bool); ok {
-					input.Silenced = &silencedVal
-				}
-				if inhibitedVal, ok := args["inhibited"].(bool); ok {
-					input.Inhibited = &inhibitedVal
-				}
-				if unprocessedVal, ok := args["unprocessed"].(bool); ok {
-					input.Unprocessed = &unprocessedVal
-				}
-			}
-		}
-		input.Filter = req.GetString("filter", "")
-		input.Receiver = req.GetString("receiver", "")
-
-		return handlers.GetAlertsHandler(ctx, amClient, input).ToMCPResult()
+		return handlers.GetAlertsHandler(ctx, amClient, tooldef.BuildAlertsInput(req.GetArguments())).ToMCPResult()
 	}
 }
 
@@ -144,8 +102,6 @@ func GetSilencesHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRe
 			return mcp.NewToolResultError(fmt.Sprintf("failed to create Alertmanager client: %s", err.Error())), nil
 		}
 
-		return handlers.GetSilencesHandler(ctx, amClient, handlers.SilencesInput{
-			Filter: req.GetString("filter", ""),
-		}).ToMCPResult()
+		return handlers.GetSilencesHandler(ctx, amClient, tooldef.BuildSilencesInput(req.GetArguments())).ToMCPResult()
 	}
 }

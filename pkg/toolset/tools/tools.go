@@ -2,309 +2,62 @@ package tools
 
 import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
-	"github.com/google/jsonschema-go/jsonschema"
-	"k8s.io/utils/ptr"
 
-	"github.com/rhobs/obs-mcp/pkg/prompts"
+	"github.com/rhobs/obs-mcp/pkg/tooldef"
 )
 
 // InitListMetrics creates the list_metrics tool.
 func InitListMetrics() []api.ServerTool {
 	return []api.ServerTool{
-		{
-			Tool: api.Tool{
-				Name:        "list_metrics",
-				Description: prompts.ListMetricsPrompt,
-				InputSchema: &jsonschema.Schema{
-					Type:       "object",
-					Properties: map[string]*jsonschema.Schema{},
-				},
-				Annotations: api.ToolAnnotations{
-					Title:           "List Available Metrics",
-					ReadOnlyHint:    ptr.To(true),
-					DestructiveHint: ptr.To(false),
-					IdempotentHint:  ptr.To(true),
-					OpenWorldHint:   ptr.To(true),
-				},
-			},
-			Handler: ListMetricsHandler,
-		},
+		tooldef.ListMetrics.ToServerTool(ListMetricsHandler),
 	}
 }
 
 // InitExecuteInstantQuery creates the execute_instant_query tool.
 func InitExecuteInstantQuery() []api.ServerTool {
 	return []api.ServerTool{
-		{
-			Tool: api.Tool{
-				Name:        "execute_instant_query",
-				Description: prompts.ExecuteInstantQueryPrompt,
-				InputSchema: &jsonschema.Schema{
-					Type: "object",
-					Properties: map[string]*jsonschema.Schema{
-						"query": {
-							Type:        "string",
-							Description: "PromQL query string using metric names verified via list_metrics",
-						},
-						"time": {
-							Type:        "string",
-							Description: "Evaluation time as RFC3339 or Unix timestamp. Omit or use 'NOW' for current time.",
-						},
-					},
-					Required: []string{"query"},
-				},
-				Annotations: api.ToolAnnotations{
-					Title:           "Execute Instant Query",
-					ReadOnlyHint:    ptr.To(true),
-					DestructiveHint: ptr.To(false),
-					IdempotentHint:  ptr.To(true),
-					OpenWorldHint:   ptr.To(true),
-				},
-			},
-			Handler: ExecuteInstantQueryHandler,
-		},
+		tooldef.ExecuteInstantQuery.ToServerTool(ExecuteInstantQueryHandler),
 	}
 }
 
 // InitExecuteRangeQuery creates the execute_range_query tool.
 func InitExecuteRangeQuery() []api.ServerTool {
 	return []api.ServerTool{
-		{
-			Tool: api.Tool{
-				Name:        "execute_range_query",
-				Description: prompts.ExecuteRangeQueryPrompt,
-				InputSchema: &jsonschema.Schema{
-					Type: "object",
-					Properties: map[string]*jsonschema.Schema{
-						"query": {
-							Type:        "string",
-							Description: "PromQL query string using metric names verified via list_metrics",
-						},
-						"step": {
-							Type:        "string",
-							Description: "Query resolution step width (e.g., '15s', '1m', '1h'). Choose based on time range: shorter ranges use smaller steps.",
-							Pattern:     `^\d+[smhdwy]$`,
-						},
-						"start": {
-							Type:        "string",
-							Description: "Start time as RFC3339 or Unix timestamp (optional)",
-						},
-						"end": {
-							Type:        "string",
-							Description: "End time as RFC3339 or Unix timestamp (optional). Use `NOW` for current time.",
-						},
-						"duration": {
-							Type:        "string",
-							Description: "Duration to look back from now (e.g., '1h', '30m', '1d', '2w') (optional)",
-							Pattern:     `^\d+[smhdwy]$`,
-						},
-					},
-					Required: []string{"query", "step"},
-				},
-				Annotations: api.ToolAnnotations{
-					Title:           "Execute Range Query",
-					ReadOnlyHint:    ptr.To(true),
-					DestructiveHint: ptr.To(false),
-					IdempotentHint:  ptr.To(true),
-					OpenWorldHint:   ptr.To(true),
-				},
-			},
-			Handler: ExecuteRangeQueryHandler,
-		},
+		tooldef.ExecuteRangeQuery.ToServerTool(ExecuteRangeQueryHandler),
 	}
 }
 
 // InitGetLabelNames creates the get_label_names tool.
 func InitGetLabelNames() []api.ServerTool {
 	return []api.ServerTool{
-		{
-			Tool: api.Tool{
-				Name:        "get_label_names",
-				Description: prompts.GetLabelNamesPrompt,
-				InputSchema: &jsonschema.Schema{
-					Type: "object",
-					Properties: map[string]*jsonschema.Schema{
-						"metric": {
-							Type:        "string",
-							Description: "Metric name (from list_metrics) to get label names for. Leave empty for all metrics.",
-						},
-						"start": {
-							Type:        "string",
-							Description: "Start time for label discovery as RFC3339 or Unix timestamp (optional, defaults to 1 hour ago)",
-						},
-						"end": {
-							Type:        "string",
-							Description: "End time for label discovery as RFC3339 or Unix timestamp (optional, defaults to now)",
-						},
-					},
-				},
-				Annotations: api.ToolAnnotations{
-					Title:           "Get Label Names",
-					ReadOnlyHint:    ptr.To(true),
-					DestructiveHint: ptr.To(false),
-					IdempotentHint:  ptr.To(true),
-					OpenWorldHint:   ptr.To(true),
-				},
-			},
-			Handler: GetLabelNamesHandler,
-		},
+		tooldef.GetLabelNames.ToServerTool(GetLabelNamesHandler),
 	}
 }
 
 // InitGetLabelValues creates the get_label_values tool.
 func InitGetLabelValues() []api.ServerTool {
 	return []api.ServerTool{
-		{
-			Tool: api.Tool{
-				Name:        "get_label_values",
-				Description: prompts.GetLabelValuesPrompt,
-				InputSchema: &jsonschema.Schema{
-					Type: "object",
-					Properties: map[string]*jsonschema.Schema{
-						"label": {
-							Type:        "string",
-							Description: "Label name (from get_label_names) to get values for",
-						},
-						"metric": {
-							Type:        "string",
-							Description: "Metric name (from list_metrics) to scope the label values to. Leave empty for all metrics.",
-						},
-						"start": {
-							Type:        "string",
-							Description: "Start time for label value discovery as RFC3339 or Unix timestamp (optional, defaults to 1 hour ago)",
-						},
-						"end": {
-							Type:        "string",
-							Description: "End time for label value discovery as RFC3339 or Unix timestamp (optional, defaults to now)",
-						},
-					},
-					Required: []string{"label"},
-				},
-				Annotations: api.ToolAnnotations{
-					Title:           "Get Label Values",
-					ReadOnlyHint:    ptr.To(true),
-					DestructiveHint: ptr.To(false),
-					IdempotentHint:  ptr.To(true),
-					OpenWorldHint:   ptr.To(true),
-				},
-			},
-			Handler: GetLabelValuesHandler,
-		},
+		tooldef.GetLabelValues.ToServerTool(GetLabelValuesHandler),
 	}
 }
 
 // InitGetSeries creates the get_series tool.
 func InitGetSeries() []api.ServerTool {
 	return []api.ServerTool{
-		{
-			Tool: api.Tool{
-				Name:        "get_series",
-				Description: prompts.GetSeriesPrompt,
-				InputSchema: &jsonschema.Schema{
-					Type: "object",
-					Properties: map[string]*jsonschema.Schema{
-						"matches": {
-							Type:        "string",
-							Description: "PromQL series selector using metric names from list_metrics",
-						},
-						"start": {
-							Type:        "string",
-							Description: "Start time for series discovery as RFC3339 or Unix timestamp (optional, defaults to 1 hour ago)",
-						},
-						"end": {
-							Type:        "string",
-							Description: "End time for series discovery as RFC3339 or Unix timestamp (optional, defaults to now)",
-						},
-					},
-					Required: []string{"matches"},
-				},
-				Annotations: api.ToolAnnotations{
-					Title:           "Get Series",
-					ReadOnlyHint:    ptr.To(true),
-					DestructiveHint: ptr.To(false),
-					IdempotentHint:  ptr.To(true),
-					OpenWorldHint:   ptr.To(true),
-				},
-			},
-			Handler: GetSeriesHandler,
-		},
+		tooldef.GetSeries.ToServerTool(GetSeriesHandler),
 	}
 }
 
 // InitGetAlerts creates the get_alerts tool.
 func InitGetAlerts() []api.ServerTool {
 	return []api.ServerTool{
-		{
-			Tool: api.Tool{
-				Name:        "get_alerts",
-				Description: prompts.GetAlertsPrompt,
-				InputSchema: &jsonschema.Schema{
-					Type: "object",
-					Properties: map[string]*jsonschema.Schema{
-						"active": {
-							Type:        "boolean",
-							Description: "Filter for active alerts only (true/false, optional)",
-						},
-						"silenced": {
-							Type:        "boolean",
-							Description: "Filter for silenced alerts only (true/false, optional)",
-						},
-						"inhibited": {
-							Type:        "boolean",
-							Description: "Filter for inhibited alerts only (true/false, optional)",
-						},
-						"unprocessed": {
-							Type:        "boolean",
-							Description: "Filter for unprocessed alerts only (true/false, optional)",
-						},
-						"filter": {
-							Type:        "string",
-							Description: "Label matchers to filter alerts (e.g., 'alertname=HighCPU', optional)",
-						},
-						"receiver": {
-							Type:        "string",
-							Description: "Receiver name to filter alerts (optional)",
-						},
-					},
-				},
-				Annotations: api.ToolAnnotations{
-					Title:           "Get Alerts",
-					ReadOnlyHint:    ptr.To(true),
-					DestructiveHint: ptr.To(false),
-					IdempotentHint:  ptr.To(true),
-					OpenWorldHint:   ptr.To(true),
-				},
-			},
-			Handler: GetAlertsHandler,
-		},
+		tooldef.GetAlerts.ToServerTool(GetAlertsHandler),
 	}
 }
 
 // InitGetSilences creates the get_silences tool.
 func InitGetSilences() []api.ServerTool {
 	return []api.ServerTool{
-		{
-			Tool: api.Tool{
-				Name:        "get_silences",
-				Description: prompts.GetSilencesPrompt,
-				InputSchema: &jsonschema.Schema{
-					Type: "object",
-					Properties: map[string]*jsonschema.Schema{
-						"filter": {
-							Type:        "string",
-							Description: "Label matchers to filter silences (e.g., 'alertname=HighCPU', optional)",
-						},
-					},
-				},
-				Annotations: api.ToolAnnotations{
-					Title:           "Get Silences",
-					ReadOnlyHint:    ptr.To(true),
-					DestructiveHint: ptr.To(false),
-					IdempotentHint:  ptr.To(true),
-					OpenWorldHint:   ptr.To(true),
-				},
-			},
-			Handler: GetSilencesHandler,
-		},
+		tooldef.GetSilences.ToServerTool(GetSilencesHandler),
 	}
 }
