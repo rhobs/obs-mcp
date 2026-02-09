@@ -3,61 +3,61 @@ package tools
 import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 
-	"github.com/rhobs/obs-mcp/pkg/tooldef"
+	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
 // InitListMetrics creates the list_metrics tool.
 func InitListMetrics() []api.ServerTool {
 	return []api.ServerTool{
-		tooldef.ListMetrics.ToServerTool(ListMetricsHandler),
+		tools.ListMetrics.ToServerTool(ListMetricsHandler),
 	}
 }
 
 // InitExecuteInstantQuery creates the execute_instant_query tool.
 func InitExecuteInstantQuery() []api.ServerTool {
 	return []api.ServerTool{
-		tooldef.ExecuteInstantQuery.ToServerTool(ExecuteInstantQueryHandler),
+		tools.ExecuteInstantQuery.ToServerTool(ExecuteInstantQueryHandler),
 	}
 }
 
 // InitExecuteRangeQuery creates the execute_range_query tool.
 func InitExecuteRangeQuery() []api.ServerTool {
 	return []api.ServerTool{
-		tooldef.ExecuteRangeQuery.ToServerTool(ExecuteRangeQueryHandler),
+		tools.ExecuteRangeQuery.ToServerTool(ExecuteRangeQueryHandler),
 	}
 }
 
 // InitGetLabelNames creates the get_label_names tool.
 func InitGetLabelNames() []api.ServerTool {
 	return []api.ServerTool{
-		tooldef.GetLabelNames.ToServerTool(GetLabelNamesHandler),
+		tools.GetLabelNames.ToServerTool(GetLabelNamesHandler),
 	}
 }
 
 // InitGetLabelValues creates the get_label_values tool.
 func InitGetLabelValues() []api.ServerTool {
 	return []api.ServerTool{
-		tooldef.GetLabelValues.ToServerTool(GetLabelValuesHandler),
+		tools.GetLabelValues.ToServerTool(GetLabelValuesHandler),
 	}
 }
 
 // InitGetSeries creates the get_series tool.
 func InitGetSeries() []api.ServerTool {
 	return []api.ServerTool{
-		tooldef.GetSeries.ToServerTool(GetSeriesHandler),
+		tools.GetSeries.ToServerTool(GetSeriesHandler),
 	}
 }
 
 // InitGetAlerts creates the get_alerts tool.
 func InitGetAlerts() []api.ServerTool {
 	return []api.ServerTool{
-		tooldef.GetAlerts.ToServerTool(GetAlertsHandler),
+		tools.GetAlerts.ToServerTool(GetAlertsHandler),
 	}
 }
 
 // InitGetSilences creates the get_silences tool.
 func InitGetSilences() []api.ServerTool {
 	return []api.ServerTool{
-		tooldef.GetSilences.ToServerTool(GetSilencesHandler),
+		tools.GetSilences.ToServerTool(GetSilencesHandler),
 	}
 }

@@ -1,4 +1,4 @@
-package prompts
+package tools
 
 const (
 	ServerPrompt = `You are an expert Kubernetes and OpenShift observability assistant with direct access to Prometheus metrics and Alertmanager alerts through this MCP server.

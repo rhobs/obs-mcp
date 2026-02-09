@@ -14,7 +14,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
-	"github.com/rhobs/obs-mcp/pkg/prompts"
+	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
 // ObsMCPOptions contains configuration options for the MCP server
@@ -40,7 +40,7 @@ func NewMCPServer(opts ObsMCPOptions) (*server.MCPServer, error) {
 		serverVersion,
 		server.WithLogging(),
 		server.WithToolCapabilities(true),
-		server.WithInstructions(prompts.ServerPrompt),
+		server.WithInstructions(tools.ServerPrompt),
 	)
 
 	if err := SetupTools(mcpServer, opts); err != nil {

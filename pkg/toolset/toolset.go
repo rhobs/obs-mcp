@@ -6,8 +6,8 @@ import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets"
 
-	"github.com/rhobs/obs-mcp/pkg/prompts"
-	"github.com/rhobs/obs-mcp/pkg/toolset/tools"
+	"github.com/rhobs/obs-mcp/pkg/tools"
+	toolset_tools "github.com/rhobs/obs-mcp/pkg/toolset/tools"
 )
 
 // Toolset implements the observability toolset for advanced Prometheus monitoring.
@@ -22,20 +22,20 @@ func (t *Toolset) GetName() string {
 
 // GetDescription returns a human-readable description of the toolset.
 func (t *Toolset) GetDescription() string {
-	return prompts.ServerPrompt
+	return tools.ServerPrompt
 }
 
 // GetTools returns all tools provided by this toolset.
 func (t *Toolset) GetTools(_ api.Openshift) []api.ServerTool {
 	return slices.Concat(
-		tools.InitListMetrics(),
-		tools.InitExecuteInstantQuery(),
-		tools.InitExecuteRangeQuery(),
-		tools.InitGetLabelNames(),
-		tools.InitGetLabelValues(),
-		tools.InitGetSeries(),
-		tools.InitGetAlerts(),
-		tools.InitGetSilences(),
+		toolset_tools.InitListMetrics(),
+		toolset_tools.InitExecuteInstantQuery(),
+		toolset_tools.InitExecuteRangeQuery(),
+		toolset_tools.InitGetLabelNames(),
+		toolset_tools.InitGetLabelValues(),
+		toolset_tools.InitGetSeries(),
+		toolset_tools.InitGetAlerts(),
+		toolset_tools.InitGetSilences(),
 	)
 }
 

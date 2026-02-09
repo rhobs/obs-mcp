@@ -3,8 +3,7 @@ package mcp
 import (
 	"github.com/mark3labs/mcp-go/mcp"
 
-	"github.com/rhobs/obs-mcp/pkg/handlers"
-	"github.com/rhobs/obs-mcp/pkg/tooldef"
+	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
 // AllTools returns all available MCP tools.
@@ -23,52 +22,52 @@ func AllTools() []mcp.Tool {
 }
 
 func CreateListMetricsTool() mcp.Tool {
-	tool := tooldef.ListMetrics.ToMCPTool()
+	tool := tools.ListMetrics.ToMCPTool()
 	// The syntax looks a bit odd, but essentially, WithOutputSchema is a generic function,
 	// which returns a ToolOption with signature func (*Tool). We are essentially calling the returned
 	// ToolOption on this tool.
-	mcp.WithOutputSchema[handlers.ListMetricsOutput]()(&tool)
+	mcp.WithOutputSchema[tools.ListMetricsOutput]()(&tool)
 	return tool
 }
 
 func CreateExecuteInstantQueryTool() mcp.Tool {
-	tool := tooldef.ExecuteInstantQuery.ToMCPTool()
-	mcp.WithOutputSchema[handlers.InstantQueryOutput]()(&tool)
+	tool := tools.ExecuteInstantQuery.ToMCPTool()
+	mcp.WithOutputSchema[tools.InstantQueryOutput]()(&tool)
 	return tool
 }
 
 func CreateExecuteRangeQueryTool() mcp.Tool {
-	tool := tooldef.ExecuteRangeQuery.ToMCPTool()
-	mcp.WithOutputSchema[handlers.RangeQueryOutput]()(&tool)
+	tool := tools.ExecuteRangeQuery.ToMCPTool()
+	mcp.WithOutputSchema[tools.RangeQueryOutput]()(&tool)
 	return tool
 }
 
 func CreateGetLabelNamesTool() mcp.Tool {
-	tool := tooldef.GetLabelNames.ToMCPTool()
-	mcp.WithOutputSchema[handlers.LabelNamesOutput]()(&tool)
+	tool := tools.GetLabelNames.ToMCPTool()
+	mcp.WithOutputSchema[tools.LabelNamesOutput]()(&tool)
 	return tool
 }
 
 func CreateGetLabelValuesTool() mcp.Tool {
-	tool := tooldef.GetLabelValues.ToMCPTool()
-	mcp.WithOutputSchema[handlers.LabelValuesOutput]()(&tool)
+	tool := tools.GetLabelValues.ToMCPTool()
+	mcp.WithOutputSchema[tools.LabelValuesOutput]()(&tool)
 	return tool
 }
 
 func CreateGetSeriesTool() mcp.Tool {
-	tool := tooldef.GetSeries.ToMCPTool()
-	mcp.WithOutputSchema[handlers.SeriesOutput]()(&tool)
+	tool := tools.GetSeries.ToMCPTool()
+	mcp.WithOutputSchema[tools.SeriesOutput]()(&tool)
 	return tool
 }
 
 func CreateGetAlertsTool() mcp.Tool {
-	tool := tooldef.GetAlerts.ToMCPTool()
-	mcp.WithOutputSchema[handlers.AlertsOutput]()(&tool)
+	tool := tools.GetAlerts.ToMCPTool()
+	mcp.WithOutputSchema[tools.AlertsOutput]()(&tool)
 	return tool
 }
 
 func CreateGetSilencesTool() mcp.Tool {
-	tool := tooldef.GetSilences.ToMCPTool()
-	mcp.WithOutputSchema[handlers.SilencesOutput]()(&tool)
+	tool := tools.GetSilences.ToMCPTool()
+	mcp.WithOutputSchema[tools.SilencesOutput]()(&tool)
 	return tool
 }

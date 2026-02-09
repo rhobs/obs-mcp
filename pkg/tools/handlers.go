@@ -1,4 +1,4 @@
-package handlers
+package tools
 
 import (
 	"context"
@@ -14,6 +14,85 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/resultutil"
 )
+
+// GetString is a helper to extract a string parameter with a default value
+func GetString(params map[string]any, key, defaultValue string) string {
+	if val, ok := params[key]; ok {
+		if str, ok := val.(string); ok && str != "" {
+			return str
+		}
+	}
+	return defaultValue
+}
+
+// GetBoolPtr is a helper to extract an optional boolean parameter as a pointer
+func GetBoolPtr(params map[string]any, key string) *bool {
+	if val, ok := params[key]; ok {
+		if b, ok := val.(bool); ok {
+			return &b
+		}
+	}
+	return nil
+}
+
+func BuildInstantQueryInput(args map[string]any) InstantQueryInput {
+	return InstantQueryInput{
+		Query: GetString(args, "query", ""),
+		Time:  GetString(args, "time", ""),
+	}
+}
+
+func BuildRangeQueryInput(args map[string]any) RangeQueryInput {
+	return RangeQueryInput{
+		Query:    GetString(args, "query", ""),
+		Step:     GetString(args, "step", ""),
+		Start:    GetString(args, "start", ""),
+		End:      GetString(args, "end", ""),
+		Duration: GetString(args, "duration", ""),
+	}
+}
+
+func BuildLabelNamesInput(args map[string]any) LabelNamesInput {
+	return LabelNamesInput{
+		Metric: GetString(args, "metric", ""),
+		Start:  GetString(args, "start", ""),
+		End:    GetString(args, "end", ""),
+	}
+}
+
+func BuildLabelValuesInput(args map[string]any) LabelValuesInput {
+	return LabelValuesInput{
+		Label:  GetString(args, "label", ""),
+		Metric: GetString(args, "metric", ""),
+		Start:  GetString(args, "start", ""),
+		End:    GetString(args, "end", ""),
+	}
+}
+
+func BuildSeriesInput(args map[string]any) SeriesInput {
+	return SeriesInput{
+		Matches: GetString(args, "matches", ""),
+		Start:   GetString(args, "start", ""),
+		End:     GetString(args, "end", ""),
+	}
+}
+
+func BuildAlertsInput(args map[string]any) AlertsInput {
+	return AlertsInput{
+		Active:      GetBoolPtr(args, "active"),
+		Silenced:    GetBoolPtr(args, "silenced"),
+		Inhibited:   GetBoolPtr(args, "inhibited"),
+		Unprocessed: GetBoolPtr(args, "unprocessed"),
+		Filter:      GetString(args, "filter", ""),
+		Receiver:    GetString(args, "receiver", ""),
+	}
+}
+
+func BuildSilencesInput(args map[string]any) SilencesInput {
+	return SilencesInput{
+		Filter: GetString(args, "filter", ""),
+	}
+}
 
 // ListMetricsHandler handles the listing of available Prometheus metrics.
 func ListMetricsHandler(ctx context.Context, promClient prometheus.Loader) *resultutil.Result {
