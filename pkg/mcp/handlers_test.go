@@ -16,7 +16,7 @@ import (
 
 // MockedLoader is a mock implementation of prometheus.PromClient for testing
 type MockedLoader struct {
-	ListMetricsFunc         func(ctx context.Context) ([]string, error)
+	ListMetricsFunc         func(ctx context.Context, nameRegex string) ([]string, error)
 	ExecuteRangeQueryFunc   func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error)
 	ExecuteInstantQueryFunc func(ctx context.Context, query string, time time.Time) (map[string]any, error)
 	GetLabelNamesFunc       func(ctx context.Context, metricName string, start, end time.Time) ([]string, error)
@@ -24,9 +24,9 @@ type MockedLoader struct {
 	GetSeriesFunc           func(ctx context.Context, matches []string, start, end time.Time) ([]map[string]string, error)
 }
 
-func (m *MockedLoader) ListMetrics(ctx context.Context) ([]string, error) {
+func (m *MockedLoader) ListMetrics(ctx context.Context, nameRegex string) ([]string, error) {
 	if m.ListMetricsFunc != nil {
-		return m.ListMetricsFunc(ctx)
+		return m.ListMetricsFunc(ctx, nameRegex)
 	}
 	return []string{}, nil
 }

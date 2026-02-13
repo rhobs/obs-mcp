@@ -17,7 +17,7 @@ func ListMetricsHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRe
 			return mcp.NewToolResultError(fmt.Sprintf("failed to create Prometheus client: %s", err.Error())), nil
 		}
 
-		return tools.ListMetricsHandler(ctx, promClient).ToMCPResult()
+		return tools.ListMetricsHandler(ctx, promClient, tools.BuildListMetricsInput(req.GetArguments())).ToMCPResult()
 	}
 }
 

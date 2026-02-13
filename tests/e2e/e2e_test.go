@@ -66,25 +66,10 @@ func TestHealthEndpoint(t *testing.T) {
 	}
 }
 
-func TestListMetrics(t *testing.T) {
-	resp, err := mcpClient.CallTool(t, 1, "list_metrics", map[string]any{})
-	if err != nil {
-		t.Fatalf("Failed to call list_metrics: %v", err)
-	}
-
-	if resp.Error != nil {
-		t.Errorf("MCP error: %s", resp.Error.Message)
-	}
-
-	if resp.Result == nil {
-		t.Error("Expected result, got nil")
-	}
-
-	t.Logf("list_metrics returned successfully")
-}
-
 func TestListMetricsReturnsKnownMetrics(t *testing.T) {
-	resp, err := mcpClient.CallTool(t, 2, "list_metrics", map[string]any{})
+	resp, err := mcpClient.CallTool(t, 2, "list_metrics", map[string]any{
+		"name_regex": ".*",
+	})
 	if err != nil {
 		t.Fatalf("Failed to call list_metrics: %v", err)
 	}
@@ -98,6 +83,30 @@ func TestListMetricsReturnsKnownMetrics(t *testing.T) {
 	resultStr := string(resultJSON)
 
 	expectedMetrics := []string{"up", "prometheus_build_info"}
+	for _, metric := range expectedMetrics {
+		if !strings.Contains(resultStr, metric) {
+			t.Errorf("Expected metric %q not found in results", metric)
+		}
+	}
+}
+
+func TestListMetricsReturnsKnownMetricsWithMatcher(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 2, "list_metrics", map[string]any{
+		"name_regex": "prometheus.*",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call list_metrics: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+
+	// Verify known metrics from kube-prometheus are present
+	resultJSON, _ := json.Marshal(resp.Result)
+	resultStr := string(resultJSON)
+
+	expectedMetrics := []string{"prometheus_build_info"}
 	for _, metric := range expectedMetrics {
 		if !strings.Contains(resultStr, metric) {
 			t.Errorf("Expected metric %q not found in results", metric)
