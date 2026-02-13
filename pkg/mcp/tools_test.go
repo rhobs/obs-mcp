@@ -176,7 +176,7 @@ func TestToolParameters(t *testing.T) {
 	}{
 		{
 			tool:             CreateListMetricsTool(),
-			expectedRequired: []string{},
+			expectedRequired: []string{"name_regex"},
 			expectedOptional: []string{},
 		},
 		{

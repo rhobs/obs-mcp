@@ -67,7 +67,9 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestListMetrics(t *testing.T) {
-	resp, err := mcpClient.CallTool(t, 1, "list_metrics", map[string]any{})
+	resp, err := mcpClient.CallTool(t, 1, "list_metrics", map[string]any{
+		"name_regex": ".*",
+	})
 	if err != nil {
 		t.Fatalf("Failed to call list_metrics: %v", err)
 	}
@@ -84,7 +86,9 @@ func TestListMetrics(t *testing.T) {
 }
 
 func TestListMetricsReturnsKnownMetrics(t *testing.T) {
-	resp, err := mcpClient.CallTool(t, 2, "list_metrics", map[string]any{})
+	resp, err := mcpClient.CallTool(t, 2, "list_metrics", map[string]any{
+		"name_regex": ".*",
+	})
 	if err != nil {
 		t.Fatalf("Failed to call list_metrics: %v", err)
 	}

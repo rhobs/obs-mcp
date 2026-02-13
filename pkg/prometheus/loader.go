@@ -18,7 +18,7 @@ const (
 
 // Loader defines the interface for querying Prometheus
 type Loader interface {
-	ListMetrics(ctx context.Context) ([]string, error)
+	ListMetrics(ctx context.Context, nameRegex string) ([]string, error)
 	ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error)
 	ExecuteInstantQuery(ctx context.Context, query string, time time.Time) (map[string]any, error)
 	GetLabelNames(ctx context.Context, metricName string, start, end time.Time) ([]string, error)
@@ -54,8 +54,10 @@ func (p *RealLoader) WithGuardrails(g *Guardrails) *RealLoader {
 	return p
 }
 
-func (p *RealLoader) ListMetrics(ctx context.Context) ([]string, error) {
-	labelValues, _, err := p.client.LabelValues(ctx, "__name__", []string{}, time.Now().Add(-ListMetricsTimeRange), time.Now())
+func (p *RealLoader) ListMetrics(ctx context.Context, nameRegex string) ([]string, error) {
+	// Create a matcher for the __name__ label with the provided regex
+	matcher := fmt.Sprintf("{__name__=~\"%s\"}", nameRegex)
+	labelValues, _, err := p.client.LabelValues(ctx, "__name__", []string{matcher}, time.Now().Add(-ListMetricsTimeRange), time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("error fetching metric names: %w", err)
 	}
@@ -81,7 +83,8 @@ func (p *RealLoader) ValidateMetricsExist(ctx context.Context, query string) err
 		return nil
 	}
 
-	availableMetricsList, err := p.ListMetrics(ctx)
+	// Use ".*" to match all metrics for validation
+	availableMetricsList, err := p.ListMetrics(ctx, ".*")
 	if err != nil {
 		return fmt.Errorf("failed to fetch available metrics: %w", err)
 	}
