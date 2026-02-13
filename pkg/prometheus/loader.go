@@ -55,9 +55,15 @@ func (p *RealLoader) WithGuardrails(g *Guardrails) *RealLoader {
 }
 
 func (p *RealLoader) ListMetrics(ctx context.Context, nameRegex string) ([]string, error) {
-	// Create a matcher for the __name__ label with the provided regex
-	matcher := fmt.Sprintf("{__name__=~\"%q\"}", nameRegex)
-	labelValues, _, err := p.client.LabelValues(ctx, "__name__", []string{matcher}, time.Now().Add(-ListMetricsTimeRange), time.Now())
+	var matches []string
+
+	// For blanket regex patterns like ".*", use empty matcher to get all metrics to not get 4xx.
+	if nameRegex != ".*" && nameRegex != ".+" && nameRegex != "" {
+		matcher := fmt.Sprintf("{__name__=~\"%q\"}", nameRegex)
+		matches = []string{matcher}
+	}
+
+	labelValues, _, err := p.client.LabelValues(ctx, "__name__", matches, time.Now().Add(-ListMetricsTimeRange), time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("error fetching metric names: %w", err)
 	}
