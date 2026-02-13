@@ -59,7 +59,7 @@ func (p *RealLoader) ListMetrics(ctx context.Context, nameRegex string) ([]strin
 
 	// For blanket regex patterns like ".*", use empty matcher to get all metrics to not get 4xx.
 	if nameRegex != ".*" && nameRegex != ".+" && nameRegex != "" {
-		matcher := fmt.Sprintf("{__name__=~\"%q\"}", nameRegex)
+		matcher := fmt.Sprintf("{__name__=~\"%s\"}", nameRegex) //nolint:gocritic
 		matches = []string{matcher}
 	}
 
