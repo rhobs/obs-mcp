@@ -72,12 +72,12 @@ func getPromClient(ctx context.Context, opts ObsMCPOptions) (prometheus.Loader, 
 
 	apiConfig, err := createAPIConfig(ctx, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create API config: %v", err)
+		return nil, fmt.Errorf("failed to create API config: %w", err)
 	}
 
 	promClient, err := prometheus.NewPrometheusClient(apiConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Prometheus client: %v", err)
+		return nil, fmt.Errorf("failed to create Prometheus client: %w", err)
 	}
 
 	promClient.WithGuardrails(opts.Guardrails)
@@ -95,7 +95,7 @@ func getAlertmanagerClient(ctx context.Context, opts ObsMCPOptions) (alertmanage
 
 	apiConfig, err := createAPIConfig(ctx, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create API config: %v", err)
+		return nil, fmt.Errorf("failed to create API config: %w", err)
 	}
 
 	// Update the address to use AlertmanagerURL instead of MetricsBackendURL
@@ -103,7 +103,7 @@ func getAlertmanagerClient(ctx context.Context, opts ObsMCPOptions) (alertmanage
 
 	amClient, err := alertmanager.NewAlertmanagerClient(apiConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Alertmanager client: %v", err)
+		return nil, fmt.Errorf("failed to create Alertmanager client: %w", err)
 	}
 
 	return amClient, nil
