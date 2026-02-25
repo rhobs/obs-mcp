@@ -1,0 +1,16 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "get-alerts"
+  difficulty: easy
+  description: |
+    Tests if the agent can discover and use the get_alerts tool to retrieve
+    currently firing alerts from Alertmanager.
+spec:
+  verify:
+    - llmJudge:
+        contains: "alert"
+        reason: "Verify the output discusses alerts from the cluster"
+  prompt:
+    inline: |
+      Are there any currently firing alerts in the cluster?

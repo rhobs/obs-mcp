@@ -1,0 +1,16 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "get-silences"
+  difficulty: easy
+  description: |
+    Tests if the agent can discover and use the get_silences tool to retrieve
+    active silences from Alertmanager.
+spec:
+  verify:
+    - llmJudge:
+        contains: "silence"
+        reason: "Verify the output discusses silences from Alertmanager"
+  prompt:
+    inline: |
+      Are there any active silences in Alertmanager?
