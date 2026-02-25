@@ -1,0 +1,16 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "list-node-metrics"
+  difficulty: easy
+  description: |
+    Tests if the agent can discover node-related metrics using the list_metrics tool
+    with a regex filter for node metrics.
+spec:
+  verify:
+    - llmJudge:
+        contains: "node"
+        reason: "Verify the output lists node-related metrics"
+  prompt:
+    inline: |
+      What node-related metrics are available in Prometheus?

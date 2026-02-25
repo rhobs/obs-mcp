@@ -1,0 +1,16 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "cpu-usage"
+  difficulty: medium
+  description: |
+    Tests if the agent can find the appropriate CPU usage metric and query it to
+    determine which pods are consuming the most CPU resources.
+spec:
+  verify:
+    - llmJudge:
+        contains: "cpu"
+        reason: "Verify the output discusses CPU usage data"
+  prompt:
+    inline: |
+      Which pods are using the most CPU?

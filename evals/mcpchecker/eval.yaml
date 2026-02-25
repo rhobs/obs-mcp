@@ -1,0 +1,171 @@
+kind: Eval
+metadata:
+  name: "obs-mcp-tools"
+
+config:
+  agent:
+    type: "builtin.claude-code"
+
+  mcpConfigFile: mcp-config.yaml
+
+  llmJudge:
+    env:
+      baseUrlKey: JUDGE_BASE_URL
+      apiKeyKey: JUDGE_API_KEY
+      modelNameKey: JUDGE_MODEL_NAME
+
+  taskSets:
+    # Metric discovery
+    - path: tasks/metrics/list-metrics.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    - path: tasks/metrics/list-node-metrics.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    # Label discovery
+    - path: tasks/labels/label-names.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: get_label_names
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    - path: tasks/labels/label-values.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: get_label_values
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    - path: tasks/labels/get-series.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: get_series
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    # Instant queries
+    - path: tasks/queries/pending-pods.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: execute_instant_query
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    - path: tasks/queries/cpu-usage.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: execute_instant_query
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    - path: tasks/queries/network-traffic.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: execute_instant_query
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    - path: tasks/queries/prometheus-head-series.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: execute_instant_query
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    - path: tasks/queries/prometheus-requests.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: execute_instant_query
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    - path: tasks/queries/prometheus-wal-size.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: execute_instant_query
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    # Range queries
+    - path: tasks/queries/pods-created.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: execute_range_query
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    - path: tasks/queries/crashlooping-pods.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: execute_range_query
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    # Alertmanager
+    - path: tasks/alerts/get-alerts.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: get_alerts
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    - path: tasks/alerts/get-active-alerts.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: get_alerts
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    - path: tasks/alerts/get-silences.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: get_silences
+        minToolCalls: 1
+        maxToolCalls: 5
