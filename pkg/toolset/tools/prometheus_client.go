@@ -157,7 +157,6 @@ func createCertPoolFromRESTConfig(restConfig *rest.Config) (*x509.CertPool, erro
 			slog.Warn("Failed to read CA file", "file", restConfig.CAFile, "error", err)
 		} else {
 			if ok := certPool.AppendCertsFromPEM(caPEM); ok {
-				caLoaded = true
 				slog.Debug("Loaded cluster CA from file", "file", restConfig.CAFile)
 			} else {
 				slog.Warn("Failed to parse CA certificates from file", "file", restConfig.CAFile)
