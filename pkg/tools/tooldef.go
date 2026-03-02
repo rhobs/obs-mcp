@@ -27,14 +27,15 @@ const (
 
 // ToolDef defines a tool that can be converted to different formats (MCP, Toolset, etc.)
 type ToolDef struct {
-	Name        string
-	Description string
-	Title       string
-	Params      []ParamDef
-	ReadOnly    bool
-	Destructive bool
-	Idempotent  bool
-	OpenWorld   bool
+	Name             string
+	Description      string
+	Title            string
+	Params           []ParamDef
+	ReadOnly         bool
+	Destructive      bool
+	Idempotent       bool
+	OpenWorld        bool
+	AdditionalFields map[string]any
 }
 
 // ToMCPTool converts a ToolDef to an mcp.Tool
@@ -63,6 +64,12 @@ func (d ToolDef) ToMCPTool() mcp.Tool {
 	}
 
 	tool := mcp.NewTool(d.Name, opts...)
+
+	if d.AdditionalFields != nil {
+		tool.Meta = &mcp.Meta{
+			AdditionalFields: d.AdditionalFields,
+		}
+	}
 
 	// Workaround for tools with no parameters
 	// See https://github.com/containers/kubernetes-mcp-server/pull/341/files
