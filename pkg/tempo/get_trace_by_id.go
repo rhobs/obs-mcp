@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
+	tempoclient "github.com/rhobs/obs-mcp/pkg/tempo/client"
 )
 
 func GetTraceByIdTool() mcp.Tool {
@@ -50,7 +52,7 @@ func (t *TempoToolset) GetTraceByIdHandler(ctx context.Context, request mcp.Call
 		return mcp.NewToolResultError(fmt.Sprintf("invalid end time: %v", err)), nil
 	}
 
-	opts := QueryV2Options{
+	opts := tempoclient.QueryV2Options{
 		Start: start,
 		End:   end,
 	}

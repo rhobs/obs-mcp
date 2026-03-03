@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
+	tempoclient "github.com/rhobs/obs-mcp/pkg/tempo/client"
 )
 
 func SearchTagsTool() mcp.Tool {
@@ -50,7 +52,7 @@ func (t *TempoToolset) SearchTagsHandler(ctx context.Context, request mcp.CallTo
 		return mcp.NewToolResultError(fmt.Sprintf("invalid end time: %v", err)), nil
 	}
 
-	opts := SearchTagsV2Options{
+	opts := tempoclient.SearchTagsV2Options{
 		Scope:          request.GetString("scope", ""),
 		Query:          request.GetString("query", ""),
 		Start:          start,

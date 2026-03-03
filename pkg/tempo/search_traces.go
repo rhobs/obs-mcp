@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
+	tempoclient "github.com/rhobs/obs-mcp/pkg/tempo/client"
 )
 
 func SearchTracesTool() mcp.Tool {
@@ -53,7 +55,7 @@ func (t *TempoToolset) SearchTracesHandler(ctx context.Context, request mcp.Call
 		return mcp.NewToolResultError(fmt.Sprintf("invalid end time: %v", err)), nil
 	}
 
-	opts := SearchOptions{
+	opts := tempoclient.SearchOptions{
 		Query: query,
 		Limit: request.GetInt("limit", 0),
 		Start: start,

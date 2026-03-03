@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
+	tempoclient "github.com/rhobs/obs-mcp/pkg/tempo/client"
 	"github.com/rhobs/obs-mcp/pkg/tempo/discovery"
 )
 
@@ -58,7 +59,7 @@ func withTempoInstanceParams() mcp.ToolOption {
 }
 
 // getTempoClient returns a Tempo client based on the tempoNamespace, tempoName and tenant parameters.
-func (t *TempoToolset) getTempoClient(ctx context.Context, request mcp.CallToolRequest) (*TempoClient, error) {
+func (t *TempoToolset) getTempoClient(ctx context.Context, request mcp.CallToolRequest) (tempoclient.Loader, error) {
 	namespace, err := request.RequireString("tempoNamespace")
 	if err != nil {
 		return nil, err
@@ -104,7 +105,7 @@ func (t *TempoToolset) getTempoClient(ctx context.Context, request mcp.CallToolR
 		return nil, err
 	}
 
-	return NewTempoClient(httpClient, url), nil
+	return tempoclient.NewTempoLoader(httpClient, url), nil
 }
 
 func findInstanceByName(instances []discovery.TempoInstance, namespace, name string) (discovery.TempoInstance, error) {

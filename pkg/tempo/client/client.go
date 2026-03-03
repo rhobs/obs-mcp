@@ -1,4 +1,4 @@
-package tempo
+package client
 
 import (
 	"context"
