@@ -31,6 +31,8 @@ linters:
         - diagnostic
         - style
         - performance
+      disabled-checks:
+        - hugeParam
   exclusions:
     presets:
       - comments

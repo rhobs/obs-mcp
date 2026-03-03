@@ -52,7 +52,7 @@ func NewTestConfig() *TestConfig {
 	if namespace == "" {
 		namespace = defaultNamespace
 	}
-	return &TestConfig{
+	config := &TestConfig{
 		Namespace:        namespace,
 		ServiceName:      defaultServiceName,
 		ServicePort:      defaultServicePort,
@@ -60,6 +60,9 @@ func NewTestConfig() *TestConfig {
 		PodLabelSelector: defaultPodLabelSelector,
 		Timeout:          defaultTimeout,
 	}
+	fmt.Printf("Test config: namespace=%s, service=%s, port=%d, timeout=%v\n",
+		config.Namespace, config.ServiceName, config.ServicePort, config.Timeout)
+	return config
 }
 
 // Setup initializes the test environment with a cancellable context
@@ -108,21 +111,9 @@ func (c *TestConfig) getMCPURL() (string, bool) {
 		return envURL, false // No port-forward needed
 	}
 
-	// 2. Detect in-cluster environment (e.g., OpenShift Prow)
-	if isInCluster() {
-		inClusterURL := fmt.Sprintf("http://%s.%s.svc:%d", c.ServiceName, c.Namespace, c.ServicePort)
-		fmt.Printf("Detected in-cluster environment, using service DNS: %s\n", inClusterURL)
-		return inClusterURL, false // No port-forward needed
-	}
-
-	// 3. External access - need port-forward
-	fmt.Println("External environment detected, will use port-forward")
+	// 2. Default: use port-forward (works for both local dev and CI)
+	fmt.Println("Using port-forward to access obs-mcp")
 	return fmt.Sprintf("http://localhost:%d", c.LocalPort), true
-}
-
-// isInCluster detects if we're running inside a Kubernetes cluster
-func isInCluster() bool {
-	return os.Getenv("KUBERNETES_SERVICE_HOST") != ""
 }
 
 // getKubeConfig returns the appropriate Kubernetes config
@@ -241,6 +232,8 @@ func (c *TestConfig) waitForReady(ctx context.Context, targetURL string) error {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
+	fmt.Printf("Waiting for %s to be ready (timeout: %v)\n", targetURL, c.Timeout)
+	attempt := 0
 	var lastErr error
 	for {
 		select {
@@ -250,16 +243,20 @@ func (c *TestConfig) waitForReady(ctx context.Context, targetURL string) error {
 			}
 			return fmt.Errorf("timeout waiting for %s to be ready (last error: %v)", targetURL, lastErr)
 		case <-ticker.C:
+			attempt++
 			resp, err := http.Get(targetURL)
 			if err != nil {
 				lastErr = err
+				fmt.Printf("Health check attempt %d failed: %v\n", attempt, err)
 				continue
 			}
 			resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
+				fmt.Printf("Health check succeeded after %d attempts\n", attempt)
 				return nil
 			}
 			lastErr = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+			fmt.Printf("Health check attempt %d: status=%d\n", attempt, resp.StatusCode)
 		}
 	}
 }

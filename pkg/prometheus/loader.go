@@ -18,7 +18,7 @@ const (
 
 // Loader defines the interface for querying Prometheus
 type Loader interface {
-	ListMetrics(ctx context.Context) ([]string, error)
+	ListMetrics(ctx context.Context, nameRegex string) ([]string, error)
 	ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error)
 	ExecuteInstantQuery(ctx context.Context, query string, time time.Time) (map[string]any, error)
 	GetLabelNames(ctx context.Context, metricName string, start, end time.Time) ([]string, error)
@@ -26,13 +26,12 @@ type Loader interface {
 	GetSeries(ctx context.Context, matches []string, start, end time.Time) ([]map[string]string, error)
 }
 
-// PrometheusClient implements PromClient
+// RealLoader implements Loader using the Prometheus HTTP API.
 type RealLoader struct {
 	client     v1.API
 	guardrails *Guardrails
 }
 
-// Ensure PrometheusClient implements PromClient at compile time
 var _ Loader = (*RealLoader)(nil)
 
 func NewPrometheusClient(apiConfig api.Config) (*RealLoader, error) {
@@ -54,8 +53,16 @@ func (p *RealLoader) WithGuardrails(g *Guardrails) *RealLoader {
 	return p
 }
 
-func (p *RealLoader) ListMetrics(ctx context.Context) ([]string, error) {
-	labelValues, _, err := p.client.LabelValues(ctx, "__name__", []string{}, time.Now().Add(-ListMetricsTimeRange), time.Now())
+func (p *RealLoader) ListMetrics(ctx context.Context, nameRegex string) ([]string, error) {
+	var matches []string
+
+	// For blanket regex patterns like ".*", use empty matcher to get all metrics to not get 4xx.
+	if nameRegex != ".*" && nameRegex != ".+" && nameRegex != "" {
+		matcher := fmt.Sprintf("{__name__=~\"%s\"}", nameRegex) //nolint:gocritic
+		matches = []string{matcher}
+	}
+
+	labelValues, _, err := p.client.LabelValues(ctx, "__name__", matches, time.Now().Add(-ListMetricsTimeRange), time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("error fetching metric names: %w", err)
 	}
@@ -81,7 +88,8 @@ func (p *RealLoader) ValidateMetricsExist(ctx context.Context, query string) err
 		return nil
 	}
 
-	availableMetricsList, err := p.ListMetrics(ctx)
+	// Use ".*" to match all metrics for validation
+	availableMetricsList, err := p.ListMetrics(ctx, ".*")
 	if err != nil {
 		return fmt.Errorf("failed to fetch available metrics: %w", err)
 	}
@@ -100,20 +108,29 @@ func (p *RealLoader) ValidateMetricsExist(ctx context.Context, query string) err
 	return nil
 }
 
-func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
-	// Always validate that metrics exist in Prometheus TSDB
+// validateQuery checks that all metrics in the query exist and that
+// the query passes any configured guardrails.
+func (p *RealLoader) validateQuery(ctx context.Context, query string) error {
 	if err := p.ValidateMetricsExist(ctx, query); err != nil {
-		return nil, fmt.Errorf("metric validation failed: %w", err)
+		return fmt.Errorf("metric validation failed: %w", err)
 	}
 
 	if p.guardrails != nil {
 		isSafe, err := p.guardrails.IsSafeQuery(ctx, query, p.client)
 		if err != nil {
-			return nil, fmt.Errorf("query validation failed: %w", err)
+			return fmt.Errorf("query validation failed: %w", err)
 		}
 		if !isSafe {
-			return nil, fmt.Errorf("query is not safe")
+			return fmt.Errorf("query is not safe")
 		}
+	}
+
+	return nil
+}
+
+func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+	if err := p.validateQuery(ctx, query); err != nil {
+		return nil, err
 	}
 
 	r := v1.Range{
@@ -140,19 +157,8 @@ func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start,
 }
 
 func (p *RealLoader) ExecuteInstantQuery(ctx context.Context, query string, ts time.Time) (map[string]any, error) {
-	// Always validate that metrics exist in Prometheus TSDB
-	if err := p.ValidateMetricsExist(ctx, query); err != nil {
-		return nil, fmt.Errorf("metric validation failed: %w", err)
-	}
-
-	if p.guardrails != nil {
-		isSafe, err := p.guardrails.IsSafeQuery(ctx, query, p.client)
-		if err != nil {
-			return nil, fmt.Errorf("query validation failed: %w", err)
-		}
-		if !isSafe {
-			return nil, fmt.Errorf("query is not safe")
-		}
+	if err := p.validateQuery(ctx, query); err != nil {
+		return nil, err
 	}
 
 	result, warnings, err := p.client.Query(ctx, query, ts)

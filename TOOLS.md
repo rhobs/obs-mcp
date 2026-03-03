@@ -12,13 +12,15 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 **Usage Tips:**
 
 - YOU MUST CALL THIS TOOL BEFORE ANY OTHER QUERY TOOL
-- This tool MUST be called first for EVERY observability question to: 1. Discover what metrics actually exist in this environment 2. Find the EXACT metric name to use in queries 3. Avoid querying non-existent metrics
+- This tool MUST be called first for EVERY observability question to: 1. Discover what metrics actually exist in this environment 2. Find the EXACT metric name to use in queries 3. Avoid querying non-existent metrics 4. The 'name_regex' parameter should always be provided, and be a best guess of what the metric would be named like. 5. Do not use a blanket regex like .* or .+ in the 'name_regex' parameter. Use specific ones like kube.*, node.*, etc.
 - NEVER skip this step. NEVER guess metric names. Metric names vary between environments.
 - After calling this tool: 1. Search the returned list for relevant metrics 2. Use the EXACT metric name found in subsequent queries 3. If no relevant metric exists, inform the user
 
-|                |      |
-| :------------- | :--- |
-| **Parameters** | None |
+**Parameters:**
+
+| Parameter    | Type     | Required | Description                                                                                                                           |
+| :----------- | :------- | :------: | :------------------------------------------------------------------------------------------------------------------------------------ |
+| `name_regex` | `string` | ✅        | Regex pattern to filter metric names (e.g., 'http_.*', 'node_.*', 'kube.*'). This parameter is required. Don't pass in blanket regex. |
 
 **Output Schema:**
 

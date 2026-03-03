@@ -14,6 +14,7 @@ import (
 	promcfg "github.com/prometheus/common/config"
 	"k8s.io/client-go/rest"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanager"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
@@ -71,12 +72,12 @@ func getPromClient(ctx context.Context, opts ObsMCPOptions) (prometheus.Loader, 
 
 	apiConfig, err := createAPIConfig(ctx, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create API config: %v", err)
+		return nil, fmt.Errorf("failed to create API config: %w", err)
 	}
 
 	promClient, err := prometheus.NewPrometheusClient(apiConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Prometheus client: %v", err)
+		return nil, fmt.Errorf("failed to create Prometheus client: %w", err)
 	}
 
 	promClient.WithGuardrails(opts.Guardrails)
@@ -97,6 +98,30 @@ func getTempoHTTPClient(ctx context.Context, opts ObsMCPOptions) (*http.Client, 
 	return &http.Client{
 		Transport: apiConfig.RoundTripper,
 	}, nil
+}
+
+func getAlertmanagerClient(ctx context.Context, opts ObsMCPOptions) (alertmanager.Loader, error) {
+	// Check if a test client was injected via context
+	if testClient := ctx.Value(TestAlertmanagerClientKey); testClient != nil {
+		if client, ok := testClient.(alertmanager.Loader); ok {
+			return client, nil
+		}
+	}
+
+	apiConfig, err := createAPIConfig(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API config: %w", err)
+	}
+
+	// Update the address to use AlertmanagerURL instead of MetricsBackendURL
+	apiConfig.Address = opts.AlertmanagerURL
+
+	amClient, err := alertmanager.NewAlertmanagerClient(apiConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Alertmanager client: %w", err)
+	}
+
+	return amClient, nil
 }
 
 func createAPIConfig(ctx context.Context, opts ObsMCPOptions) (promapi.Config, error) {
