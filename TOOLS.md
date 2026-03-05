@@ -223,16 +223,6 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 ---
 
-## `get_current_time`
-
-> Get the current date and time in RFC3339 format
-
-|                |      |
-| :------------- | :--- |
-| **Parameters** | None |
-
----
-
 ## `tempo_list_instances`
 
 > List all Tempo instances. The assistant should display the instances in a table.

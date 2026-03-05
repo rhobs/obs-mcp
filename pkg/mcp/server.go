@@ -73,7 +73,6 @@ func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
 	getSeriesTool := CreateGetSeriesTool()
 	getAlertsTool := CreateGetAlertsTool()
 	getSilencesTool := CreateGetSilencesTool()
-	getCurrentTimeTool := CreateGetCurrentTimeTool()
 
 	// Create handlers
 	listMetricsHandler := ListMetricsHandler(opts)
@@ -94,7 +93,6 @@ func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
 	mcpServer.AddTool(getSeriesTool, getSeriesHandler)
 	mcpServer.AddTool(getAlertsTool, getAlertsHandler)
 	mcpServer.AddTool(getSilencesTool, getSilencesHandler)
-	mcpServer.AddTool(getCurrentTimeTool, CurrentTimeHandler)
 
 	tempoToolset := &tempo.Toolset{}
 	restConfig, err := k8s.GetClientConfig()

@@ -19,7 +19,6 @@ func AllTools() []mcp.Tool {
 		CreateGetSeriesTool(),
 		CreateGetAlertsTool(),
 		CreateGetSilencesTool(),
-		CreateGetCurrentTimeTool(),
 		tempo.ListInstancesTool.ToMCPTool(),
 		tempo.GetTraceByIdTool.ToMCPTool(),
 		tempo.SearchTracesTool.ToMCPTool(),
