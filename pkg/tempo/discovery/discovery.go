@@ -137,7 +137,7 @@ func getStatusFromConditions(conditions []metav1.Condition) string {
 	return ""
 }
 
-func getHostname(ctx context.Context, k8sClient dynamic.Interface, useRoute bool, namespace string, name string) (string, error) {
+func getHostname(ctx context.Context, k8sClient dynamic.Interface, useRoute bool, namespace, name string) (string, error) {
 	serviceName := DNSName(fmt.Sprintf("tempo-%s-gateway", name))
 	if !useRoute {
 		return fmt.Sprintf("%s.%s.svc", serviceName, namespace), nil

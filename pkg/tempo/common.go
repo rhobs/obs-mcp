@@ -23,19 +23,19 @@ var (
 	tempoNamespaceParameter = tools.ParamDef{
 		Name:        "tempoNamespace",
 		Type:        tools.ParamTypeString,
-		Description: "The namespace of the Tempo instance to query",
+		Description: "The Kubernetes namespace where the Tempo instance is deployed. Use tempo_list_instances to discover available namespaces.",
 		Required:    true,
 	}
 	tempoNameParameter = tools.ParamDef{
 		Name:        "tempoName",
 		Type:        tools.ParamTypeString,
-		Description: "The name of the Tempo instance to query",
+		Description: "The name of the Tempo instance to query. Use tempo_list_instances to discover available instance names.",
 		Required:    true,
 	}
 	tempoTenantParameter = tools.ParamDef{
 		Name:        "tenant",
 		Type:        tools.ParamTypeString,
-		Description: "The tenant to query",
+		Description: "The tenant to query. Multi-tenant Tempo instances isolate data by tenant. Use tempo_list_instances to discover available tenants for each instance.",
 		Required:    true,
 	}
 )

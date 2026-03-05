@@ -9,42 +9,50 @@ import (
 )
 
 var SearchTagsTool = tools.ToolDef{
-	Name:        "tempo_search_tags",
-	Description: "Search for tag names in Tempo",
-	Title:       "Search tags",
+	Name: "tempo_search_tags",
+	Description: `List available tag names (attribute keys) in Tempo, grouped by scope.
+Use this tool to discover which attributes are available for building TraceQL queries with tempo_search_traces.
+For example, this tool may reveal tag names like "service.name" (in the "resource" scope) or "http.response.status_code" (in the "span" scope).
+To use these in TraceQL queries, prefix them with their scope, e.g. "resource.service.name" or "span.http.response.status_code".`,
+	Title: "Search tags",
 	Params: []tools.ParamDef{
 		tempoNamespaceParameter,
 		tempoNameParameter,
 		tempoTenantParameter,
 		{
-			Name:        "scope",
-			Type:        tools.ParamTypeString,
-			Description: "Scope to filter tags: resource, span, intrinsic, event, link, or instrumentation",
+			Name: "scope",
+			Type: tools.ParamTypeString,
+			Description: `Filter tags to a specific scope. One of:
+"resource" (service-level attributes like service.name),
+"span" (individual span attributes like http.response.status_code),
+"intrinsic" (built-in fields like duration, status, name).
+If omitted, tags from all scopes are returned.`,
 		},
 		{
-			Name:        "query",
-			Type:        tools.ParamTypeString,
-			Description: "TraceQL query for filtering tag names",
+			Name: "query",
+			Type: tools.ParamTypeString,
+			Description: `Optional TraceQL query to filter which traces are considered when listing tags,
+e.g. '{ resource.service.name="payment-service" }' to only show tags present in traces from the 'payment-service' service.`,
 		},
 		{
 			Name:        "start",
 			Type:        tools.ParamTypeString,
-			Description: "Start time in RFC 3339 format",
+			Description: `Optional start of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing tags.`,
 		},
 		{
 			Name:        "end",
 			Type:        tools.ParamTypeString,
-			Description: "End time in RFC 3339 format",
+			Description: `Optional end of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing tags.`,
 		},
 		{
 			Name:        "limit",
 			Type:        tools.ParamTypeNumber,
-			Description: "Maximum number of tag names per scope",
+			Description: "Maximum number of tag names to return per scope.",
 		},
 		{
 			Name:        "maxStaleValues",
 			Type:        tools.ParamTypeNumber,
-			Description: "Search termination threshold for stale values",
+			Description: "Maximum number of consecutive blocks without new tag names before the search stops early. Higher values are more thorough but slower.",
 		},
 	},
 	ReadOnly:    true,

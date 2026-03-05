@@ -9,43 +9,47 @@ import (
 )
 
 var SearchTagValuesTool = tools.ToolDef{
-	Name:        "tempo_search_tag_values",
-	Description: "Search for tag values in Tempo",
-	Title:       "Search tag values",
+	Name: "tempo_search_tag_values",
+	Description: `List the known values for a specific tag (attribute key) in Tempo.
+Use this tool to discover what values exist for a given tag, e.g. to find all service names (values of "resource.service.name") or all HTTP methods (values of "span.http.request.method").
+This is useful for building accurate TraceQL queries with tempo_search_traces.`,
+	Title: "Search tag values",
 	Params: []tools.ParamDef{
 		tempoNamespaceParameter,
 		tempoNameParameter,
 		tempoTenantParameter,
 		{
-			Name:        "tag",
-			Type:        tools.ParamTypeString,
-			Description: "The tag name to get values for",
-			Required:    true,
+			Name: "tag",
+			Type: tools.ParamTypeString,
+			Description: `The fully qualified tag name to get values for, including its scope prefix, e.g. "resource.service.name" or "span.http.response.status_code".
+Use tempo_search_tags to discover available tag names.`,
+			Required: true,
 		},
 		{
-			Name:        "query",
-			Type:        tools.ParamTypeString,
-			Description: "TraceQL query for filtering tag values",
+			Name: "query",
+			Type: tools.ParamTypeString,
+			Description: `Optional TraceQL query to filter which traces are considered when listing values,
+e.g. '{ resource.service.name="payment-service" }' to only show tag values from the 'payment-service' service.`,
 		},
 		{
 			Name:        "start",
 			Type:        tools.ParamTypeString,
-			Description: "Start time in RFC 3339 format",
+			Description: `Optional start of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing values.`,
 		},
 		{
 			Name:        "end",
 			Type:        tools.ParamTypeString,
-			Description: "End time in RFC 3339 format",
+			Description: `Optional end of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing values.`,
 		},
 		{
 			Name:        "limit",
 			Type:        tools.ParamTypeNumber,
-			Description: "Maximum number of tag values to return",
+			Description: "Maximum number of tag values to return.",
 		},
 		{
 			Name:        "maxStaleValues",
 			Type:        tools.ParamTypeNumber,
-			Description: "Search termination threshold for stale values",
+			Description: "Maximum number of consecutive blocks without new values before the search stops early. Higher values are more thorough but slower.",
 		},
 	},
 	ReadOnly:    true,

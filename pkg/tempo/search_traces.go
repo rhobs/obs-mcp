@@ -9,38 +9,48 @@ import (
 )
 
 var SearchTracesTool = tools.ToolDef{
-	Name:        "tempo_search_traces",
-	Description: "Search for traces in Tempo",
-	Title:       "Search traces",
+	Name: "tempo_search_traces",
+	Description: `Search for distributed traces in Tempo using TraceQL.
+Use this tool to find traces matching specific criteria such as service name, HTTP status code, duration, or other span or resource attributes.`,
+	Title: "Search traces",
 	Params: []tools.ParamDef{
 		tempoNamespaceParameter,
 		tempoNameParameter,
 		tempoTenantParameter,
 		{
-			Name:        "query",
-			Type:        tools.ParamTypeString,
-			Description: "Search query in the TraceQL query language",
-			Required:    true,
+			Name: "query",
+			Type: tools.ParamTypeString,
+			Description: `A TraceQL query expression. Examples:
+all traces: {}
+by service: { resource.service.name="frontend" }
+by status: { span.http.response.status_code=500 }
+by duration: { duration>1s }
+combined conditions: { resource.service.name="frontend" && span.http.response.status_code>=400 }`,
+			Required: true,
 		},
 		{
 			Name:        "limit",
 			Type:        tools.ParamTypeNumber,
-			Description: "Maximum search results",
+			Description: "Maximum number of traces to return. Defaults to the server-side limit if not specified.",
 		},
 		{
-			Name:        "start",
-			Type:        tools.ParamTypeString,
-			Description: "Start time in RFC 3339 format",
+			Name: "start",
+			Type: tools.ParamTypeString,
+			Description: `Start of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".
+Use "NOW" for current time.
+Both start and end should be provided to search the full time range; if omitted, only a small window of recent data is searched.`,
 		},
 		{
-			Name:        "end",
-			Type:        tools.ParamTypeString,
-			Description: "End time in RFC 3339 format",
+			Name: "end",
+			Type: tools.ParamTypeString,
+			Description: `End of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".
+Use "NOW" for current time.
+Both start and end should be provided to search the full time range; if omitted, only a small window of recent data is searched.`,
 		},
 		{
 			Name:        "spss",
 			Type:        tools.ParamTypeNumber,
-			Description: "Spans per span-set limit",
+			Description: "Maximum number of matching spans to return per trace.",
 		},
 	},
 	ReadOnly:    true,

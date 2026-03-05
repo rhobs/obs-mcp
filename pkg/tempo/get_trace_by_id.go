@@ -9,9 +9,11 @@ import (
 )
 
 var GetTraceByIdTool = tools.ToolDef{
-	Name:        "tempo_get_trace_by_id",
-	Description: "Get a trace by trace ID",
-	Title:       "Get trace by ID",
+	Name: "tempo_get_trace_by_id",
+	Description: `Retrieve a single distributed trace by its trace ID from Tempo.
+Returns the full trace with all its spans, including service names, operation names, durations, and attributes.
+Use this tool when you already have a specific trace ID, e.g. from search results or logs.`,
+	Title: "Get trace by ID",
 	Params: []tools.ParamDef{
 		tempoNamespaceParameter,
 		tempoNameParameter,
@@ -19,18 +21,20 @@ var GetTraceByIdTool = tools.ToolDef{
 		{
 			Name:        "traceid",
 			Type:        tools.ParamTypeString,
-			Description: "TraceID of the trace",
+			Description: `The trace ID to retrieve, e.g. "26dad4a0e2b0dd9a440dd5ff203a24a4".`,
 			Required:    true,
 		},
 		{
-			Name:        "start",
-			Type:        tools.ParamTypeString,
-			Description: "Start time in RFC 3339 format",
+			Name: "start",
+			Type: tools.ParamTypeString,
+			Description: `Optional start of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".
+Narrows the time range to improve query performance.`,
 		},
 		{
-			Name:        "end",
-			Type:        tools.ParamTypeString,
-			Description: "End time in RFC 3339 format",
+			Name: "end",
+			Type: tools.ParamTypeString,
+			Description: `Optional end of the time range in RFC 3339 format, e.g. "2025-01-02T00:00:00Z".
+Narrows the time range to improve query performance.`,
 		},
 	},
 	ReadOnly:    true,
