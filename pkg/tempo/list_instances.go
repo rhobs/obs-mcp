@@ -1,29 +1,28 @@
 package tempo
 
 import (
-	"context"
-
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/rhobs/obs-mcp/pkg/resultutil"
+	"github.com/rhobs/obs-mcp/pkg/tempo/discovery"
+	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
-func ListInstancesTool() mcp.Tool {
-	tool := mcp.NewTool("tempo_list_instances",
-		mcp.WithDescription("List all Tempo instances. The assistant should display the instances in a table."),
-		mcp.WithReadOnlyHintAnnotation(true),
-	)
-	// workaround for tool with no parameter
-	// see https://github.com/containers/kubernetes-mcp-server/pull/341/files#diff-8f8a99cac7a7cbb9c14477d40539efa1494b62835603244ba9f10e6be1c7e44c
-	tool.InputSchema = mcp.ToolInputSchema{}
-	tool.RawInputSchema = []byte(`{"type":"object","properties":{}}`)
-	return tool
+var ListInstancesTool = tools.ToolDef{
+	Name:        "tempo_list_instances",
+	Description: "List all Tempo instances. The assistant should display the instances in a table.",
+	Title:       "List Tempo instances",
+	ReadOnly:    true,
+	Destructive: false,
+	Idempotent:  true,
+	OpenWorld:   true,
 }
-func (t *TempoToolset) ListInstancesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	instances, err := t.discovery.ListInstances(ctx)
+
+func (t *Toolset) ListInstancesHandler(params ToolParams) *resultutil.Result {
+	instances, err := discovery.ListInstances(params.context, params.dynamicClient, params.config.UseRoute)
 	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
+		return resultutil.NewErrorResult(err)
 	}
 
-	return mcp.NewToolResultStructuredOnly(map[string]any{
+	return resultutil.NewSuccessResult(map[string]any{
 		"instances": instances,
-	}), nil
+	})
 }

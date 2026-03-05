@@ -1,78 +1,98 @@
 package tempo
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
-
+	"github.com/rhobs/obs-mcp/pkg/resultutil"
 	tempoclient "github.com/rhobs/obs-mcp/pkg/tempo/client"
+	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
-func SearchTagValuesTool() mcp.Tool {
-	return mcp.NewTool(
-		"tempo_search_tag_values",
-		mcp.WithDescription("Search for tag values in Tempo"),
-		mcp.WithReadOnlyHintAnnotation(true),
-		withTempoInstanceParams(),
-		mcp.WithString("tag",
-			mcp.Required(),
-			mcp.Description("The tag name to get values for"),
-		),
-		mcp.WithString("query",
-			mcp.Description("TraceQL query for filtering tag values"),
-		),
-		mcp.WithString("start",
-			mcp.Description("Start time in RFC 3339 format"),
-		),
-		mcp.WithString("end",
-			mcp.Description("End time in RFC 3339 format"),
-		),
-		mcp.WithNumber("limit",
-			mcp.Description("Maximum number of tag values to return"),
-		),
-		mcp.WithNumber("maxStaleValues",
-			mcp.Description("Search termination threshold for stale values"),
-		),
-	)
+var SearchTagValuesTool = tools.ToolDef{
+	Name:        "tempo_search_tag_values",
+	Description: "Search for tag values in Tempo",
+	Title:       "Search tag values",
+	Params: []tools.ParamDef{
+		tempoNamespaceParameter,
+		tempoNameParameter,
+		tempoTenantParameter,
+		{
+			Name:        "tag",
+			Type:        tools.ParamTypeString,
+			Description: "The tag name to get values for",
+			Required:    true,
+		},
+		{
+			Name:        "query",
+			Type:        tools.ParamTypeString,
+			Description: "TraceQL query for filtering tag values",
+		},
+		{
+			Name:        "start",
+			Type:        tools.ParamTypeString,
+			Description: "Start time in RFC 3339 format",
+		},
+		{
+			Name:        "end",
+			Type:        tools.ParamTypeString,
+			Description: "End time in RFC 3339 format",
+		},
+		{
+			Name:        "limit",
+			Type:        tools.ParamTypeNumber,
+			Description: "Maximum number of tag values to return",
+		},
+		{
+			Name:        "maxStaleValues",
+			Type:        tools.ParamTypeNumber,
+			Description: "Search termination threshold for stale values",
+		},
+	},
+	ReadOnly:    true,
+	Destructive: false,
+	Idempotent:  true,
+	OpenWorld:   true,
 }
 
-func (t *TempoToolset) SearchTagValuesHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	client, err := t.getTempoClient(ctx, request)
+func (t *Toolset) SearchTagValuesHandler(params ToolParams) *resultutil.Result {
+	client, err := t.getTempoClient(params)
 	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
+		return resultutil.NewErrorResult(err)
 	}
 
-	tag, err := request.RequireString("tag")
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
+	args := params.arguments
+
+	tag := tools.GetString(args, "tag", "")
 	if tag == "" {
-		return mcp.NewToolResultError("tag parameter must not be empty"), nil
+		return resultutil.NewErrorResult(fmt.Errorf("tag parameter must not be empty"))
 	}
 
-	start, err := parseDate(request.GetString("start", ""))
+	start, err := parseDate(tools.GetString(args, "start", ""))
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("invalid start time: %v", err)), nil
+		return resultutil.NewErrorResult(fmt.Errorf("invalid start time: %v", err))
 	}
 
-	end, err := parseDate(request.GetString("end", ""))
+	end, err := parseDate(tools.GetString(args, "end", ""))
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("invalid end time: %v", err)), nil
+		return resultutil.NewErrorResult(fmt.Errorf("invalid end time: %v", err))
 	}
+
+	query := tools.GetString(args, "query", "")
+	limit := tools.GetInt(args, "limit", 0)
+	maxStaleValues := tools.GetInt(args, "maxStaleValues", 0)
 
 	opts := tempoclient.SearchTagValuesV2Options{
-		Query:          request.GetString("query", ""),
+		Query:          query,
 		Start:          start,
 		End:            end,
-		Limit:          request.GetInt("limit", 0),
-		MaxStaleValues: request.GetInt("maxStaleValues", 0),
+		Limit:          limit,
+		MaxStaleValues: maxStaleValues,
 	}
 
-	result, err := client.SearchTagValuesV2(ctx, tag, opts)
+	result, err := client.SearchTagValuesV2(params.context, tag, opts)
 	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
+		return resultutil.NewErrorResult(err)
 	}
 
-	return mcp.NewToolResultText(result), nil
+	return resultutil.NewJSONSuccessResult(result)
 }

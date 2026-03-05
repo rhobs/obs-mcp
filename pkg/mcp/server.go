@@ -13,6 +13,7 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
@@ -95,26 +96,20 @@ func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
 	mcpServer.AddTool(getSilencesTool, getSilencesHandler)
 	mcpServer.AddTool(getCurrentTimeTool, CurrentTimeHandler)
 
-	k8sClient, err := k8s.GetDynamicClient()
+	tempoToolset := &tempo.Toolset{}
+	restConfig, err := k8s.GetClientConfig()
 	if err != nil {
 		return err
 	}
-
-	// Workaround to break import cycle of mcp pkg imports tempo pkg (to register tools),
-	// and tempo pkg imports mcp pkg (to use auth functionality).
-	httpClientFactory := func(ctx context.Context) (*http.Client, error) {
-		// This will be called for every MCP tool request.
-		// When using "header" auth mode, it will forward the authorization header to the Tempo gateway.
-		return getTempoHTTPClient(ctx, opts)
+	dynamicClient, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		return err
 	}
-	useRoute := opts.AuthMode == AuthModeKubeConfig
-
-	tempoToolset := tempo.NewTempoToolset(k8sClient, useRoute, httpClientFactory)
-	mcpServer.AddTool(tempo.ListInstancesTool(), tempoToolset.ListInstancesHandler)
-	mcpServer.AddTool(tempo.GetTraceByIdTool(), tempoToolset.GetTraceByIdHandler)
-	mcpServer.AddTool(tempo.SearchTracesTool(), tempoToolset.SearchTracesHandler)
-	mcpServer.AddTool(tempo.SearchTagsTool(), tempoToolset.SearchTagsHandler)
-	mcpServer.AddTool(tempo.SearchTagValuesTool(), tempoToolset.SearchTagValuesHandler)
+	mcpServer.AddTool(tempo.ListInstancesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.ListInstancesHandler))
+	mcpServer.AddTool(tempo.GetTraceByIdTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.GetTraceByIdHandler))
+	mcpServer.AddTool(tempo.SearchTracesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.SearchTracesHandler))
+	mcpServer.AddTool(tempo.SearchTagsTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.SearchTagsHandler))
+	mcpServer.AddTool(tempo.SearchTagValuesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.SearchTagValuesHandler))
 
 	return nil
 }

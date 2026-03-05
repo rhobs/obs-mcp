@@ -1,55 +1,65 @@
 package tempo
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
-
+	"github.com/rhobs/obs-mcp/pkg/resultutil"
 	tempoclient "github.com/rhobs/obs-mcp/pkg/tempo/client"
+	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
-func GetTraceByIdTool() mcp.Tool {
-	return mcp.NewTool(
-		"tempo_get_trace_by_id",
-		mcp.WithDescription("Get a trace by trace ID"),
-		mcp.WithReadOnlyHintAnnotation(true),
-		withTempoInstanceParams(),
-		mcp.WithString("traceid",
-			mcp.Required(),
-			mcp.Description("TraceID of the trace"),
-		),
-		mcp.WithString("start",
-			mcp.Description("Start time in RFC 3339 format"),
-		),
-		mcp.WithString("end",
-			mcp.Description("End time in RFC 3339 format"),
-		),
-	)
+var GetTraceByIdTool = tools.ToolDef{
+	Name:        "tempo_get_trace_by_id",
+	Description: "Get a trace by trace ID",
+	Title:       "Get trace by ID",
+	Params: []tools.ParamDef{
+		tempoNamespaceParameter,
+		tempoNameParameter,
+		tempoTenantParameter,
+		{
+			Name:        "traceid",
+			Type:        tools.ParamTypeString,
+			Description: "TraceID of the trace",
+			Required:    true,
+		},
+		{
+			Name:        "start",
+			Type:        tools.ParamTypeString,
+			Description: "Start time in RFC 3339 format",
+		},
+		{
+			Name:        "end",
+			Type:        tools.ParamTypeString,
+			Description: "End time in RFC 3339 format",
+		},
+	},
+	ReadOnly:    true,
+	Destructive: false,
+	Idempotent:  true,
+	OpenWorld:   true,
 }
 
-func (t *TempoToolset) GetTraceByIdHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	client, err := t.getTempoClient(ctx, request)
+func (t *Toolset) GetTraceByIdHandler(params ToolParams) *resultutil.Result {
+	client, err := t.getTempoClient(params)
 	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
+		return resultutil.NewErrorResult(err)
 	}
 
-	traceid, err := request.RequireString("traceid")
-	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
-	}
+	args := params.arguments
+
+	traceid := tools.GetString(args, "traceid", "")
 	if traceid == "" {
-		return mcp.NewToolResultError("traceid parameter must not be empty"), nil
+		return resultutil.NewErrorResult(fmt.Errorf("traceid parameter must not be empty"))
 	}
 
-	start, err := parseDate(request.GetString("start", ""))
+	start, err := parseDate(tools.GetString(args, "start", ""))
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("invalid start time: %v", err)), nil
+		return resultutil.NewErrorResult(fmt.Errorf("invalid start time: %v", err))
 	}
 
-	end, err := parseDate(request.GetString("end", ""))
+	end, err := parseDate(tools.GetString(args, "end", ""))
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("invalid end time: %v", err)), nil
+		return resultutil.NewErrorResult(fmt.Errorf("invalid end time: %v", err))
 	}
 
 	opts := tempoclient.QueryV2Options{
@@ -57,10 +67,10 @@ func (t *TempoToolset) GetTraceByIdHandler(ctx context.Context, request mcp.Call
 		End:   end,
 	}
 
-	trace, err := client.QueryV2(ctx, traceid, opts)
+	trace, err := client.QueryV2(params.context, traceid, opts)
 	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
+		return resultutil.NewErrorResult(err)
 	}
 
-	return mcp.NewToolResultText(trace), nil
+	return resultutil.NewJSONSuccessResult(trace)
 }

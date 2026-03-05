@@ -3,16 +3,12 @@ package discovery
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/url"
-	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 )
-
-const CACHE_DURATION = 5 * time.Minute
 
 type TempoInstance struct {
 	Kind      KindType `json:"kind"`
@@ -30,50 +26,26 @@ const (
 	KindTempoMonolithic KindType = "TempoMonolithic"
 )
 
-type TempoDiscovery struct {
-	k8sClient *dynamic.DynamicClient
-	useRoute  bool
-
-	cachedInstances []TempoInstance
-	cacheExpiry     time.Time
-}
-
-// The k8sClient must have permission to list TempoStack and TempoMonolithic resources cluster-wide.
-func New(k8sClient *dynamic.DynamicClient, useRoute bool) *TempoDiscovery {
-	return &TempoDiscovery{
-		k8sClient: k8sClient,
-		useRoute:  useRoute,
-	}
-}
-
-func (d *TempoDiscovery) ListInstances(ctx context.Context) ([]TempoInstance, error) {
-	if time.Now().Before(d.cacheExpiry) {
-		return d.cachedInstances, nil
-	}
-
-	slog.Debug("fetching TempoStack and TempoMonolithic instances from cluster")
+func ListInstances(ctx context.Context, k8sClient dynamic.Interface, useRoute bool) ([]TempoInstance, error) {
 	tempos := []TempoInstance{}
 
-	tempoStacks, err := d.listTempoStacks(ctx)
+	tempoStacks, err := listTempoStacks(ctx, k8sClient, useRoute)
 	if err != nil {
 		return nil, err
 	}
 	tempos = append(tempos, tempoStacks...)
 
-	tempoMonolithics, err := d.listTempoMonolithics(ctx)
+	tempoMonolithics, err := listTempoMonolithics(ctx, k8sClient, useRoute)
 	if err != nil {
 		return nil, err
 	}
 	tempos = append(tempos, tempoMonolithics...)
 
-	d.cachedInstances = tempos
-	d.cacheExpiry = time.Now().Add(CACHE_DURATION)
-
 	return tempos, nil
 }
 
-func (d *TempoDiscovery) listTempoStacks(ctx context.Context) ([]TempoInstance, error) {
-	list, err := d.k8sClient.Resource(tempoStackGVR).List(ctx, metav1.ListOptions{})
+func listTempoStacks(ctx context.Context, k8sClient dynamic.Interface, useRoute bool) ([]TempoInstance, error) {
+	list, err := k8sClient.Resource(tempoStackGVR).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list TempoStacks: %w", err)
 	}
@@ -96,7 +68,7 @@ func (d *TempoDiscovery) listTempoStacks(ctx context.Context) ([]TempoInstance, 
 		}
 
 		status := getStatusFromConditions(tempo.Status.Conditions)
-		hostname, err := d.getHostname(ctx, tempo.Namespace, tempo.Name)
+		hostname, err := getHostname(ctx, k8sClient, useRoute, tempo.Namespace, tempo.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -114,8 +86,8 @@ func (d *TempoDiscovery) listTempoStacks(ctx context.Context) ([]TempoInstance, 
 	return instances, nil
 }
 
-func (d *TempoDiscovery) listTempoMonolithics(ctx context.Context) ([]TempoInstance, error) {
-	list, err := d.k8sClient.Resource(tempoMonolithicGVR).List(ctx, metav1.ListOptions{})
+func listTempoMonolithics(ctx context.Context, k8sClient dynamic.Interface, useRoute bool) ([]TempoInstance, error) {
+	list, err := k8sClient.Resource(tempoMonolithicGVR).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list TempoMonolithics: %w", err)
 	}
@@ -138,7 +110,7 @@ func (d *TempoDiscovery) listTempoMonolithics(ctx context.Context) ([]TempoInsta
 		}
 
 		status := getStatusFromConditions(tempo.Status.Conditions)
-		hostname, err := d.getHostname(ctx, tempo.Namespace, tempo.Name)
+		hostname, err := getHostname(ctx, k8sClient, useRoute, tempo.Namespace, tempo.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -165,15 +137,15 @@ func getStatusFromConditions(conditions []metav1.Condition) string {
 	return ""
 }
 
-func (d *TempoDiscovery) getHostname(ctx context.Context, namespace, name string) (string, error) {
+func getHostname(ctx context.Context, k8sClient dynamic.Interface, useRoute bool, namespace string, name string) (string, error) {
 	serviceName := DNSName(fmt.Sprintf("tempo-%s-gateway", name))
-	if !d.useRoute {
+	if !useRoute {
 		return fmt.Sprintf("%s.%s.svc", serviceName, namespace), nil
 	}
 
 	// fetch the route and extract the host field from the spec
 	routeName := serviceName
-	unstructured, err := d.k8sClient.Resource(routeGVR).Namespace(namespace).Get(ctx, routeName, metav1.GetOptions{})
+	unstructured, err := k8sClient.Resource(routeGVR).Namespace(namespace).Get(ctx, routeName, metav1.GetOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to get route %s/%s: %w", namespace, routeName, err)
 	}

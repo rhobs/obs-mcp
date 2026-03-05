@@ -15,6 +15,8 @@ type TempoClient struct {
 	baseURL    string
 }
 
+const maxResponseSize = 10 * 1024 * 1024 // 10 MB
+
 func NewTempoClient(httpClient *http.Client, url string) *TempoClient {
 	return &TempoClient{
 		httpClient: httpClient,
@@ -32,7 +34,7 @@ func (c *TempoClient) doRequest(req *http.Request) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 	if err != nil {
 		return "", err
 	}

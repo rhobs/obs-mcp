@@ -20,11 +20,11 @@ func AllTools() []mcp.Tool {
 		CreateGetAlertsTool(),
 		CreateGetSilencesTool(),
 		CreateGetCurrentTimeTool(),
-		tempo.ListInstancesTool(),
-		tempo.GetTraceByIdTool(),
-		tempo.SearchTracesTool(),
-		tempo.SearchTagsTool(),
-		tempo.SearchTagValuesTool(),
+		tempo.ListInstancesTool.ToMCPTool(),
+		tempo.GetTraceByIdTool.ToMCPTool(),
+		tempo.SearchTracesTool.ToMCPTool(),
+		tempo.SearchTagsTool.ToMCPTool(),
+		tempo.SearchTagValuesTool.ToMCPTool(),
 	}
 }
 

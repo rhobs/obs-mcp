@@ -1,70 +1,94 @@
 package tempo
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
-
+	"github.com/rhobs/obs-mcp/pkg/resultutil"
 	tempoclient "github.com/rhobs/obs-mcp/pkg/tempo/client"
+	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
-func SearchTagsTool() mcp.Tool {
-	return mcp.NewTool(
-		"tempo_search_tags",
-		mcp.WithDescription("Search for tag names in Tempo"),
-		mcp.WithReadOnlyHintAnnotation(true),
-		withTempoInstanceParams(),
-		mcp.WithString("scope",
-			mcp.Description("Scope to filter tags: resource, span, intrinsic, event, link, or instrumentation"),
-		),
-		mcp.WithString("query",
-			mcp.Description("TraceQL query for filtering tag names"),
-		),
-		mcp.WithString("start",
-			mcp.Description("Start time in RFC 3339 format"),
-		),
-		mcp.WithString("end",
-			mcp.Description("End time in RFC 3339 format"),
-		),
-		mcp.WithNumber("limit",
-			mcp.Description("Maximum number of tag names per scope"),
-		),
-		mcp.WithNumber("maxStaleValues",
-			mcp.Description("Search termination threshold for stale values"),
-		),
-	)
+var SearchTagsTool = tools.ToolDef{
+	Name:        "tempo_search_tags",
+	Description: "Search for tag names in Tempo",
+	Title:       "Search tags",
+	Params: []tools.ParamDef{
+		tempoNamespaceParameter,
+		tempoNameParameter,
+		tempoTenantParameter,
+		{
+			Name:        "scope",
+			Type:        tools.ParamTypeString,
+			Description: "Scope to filter tags: resource, span, intrinsic, event, link, or instrumentation",
+		},
+		{
+			Name:        "query",
+			Type:        tools.ParamTypeString,
+			Description: "TraceQL query for filtering tag names",
+		},
+		{
+			Name:        "start",
+			Type:        tools.ParamTypeString,
+			Description: "Start time in RFC 3339 format",
+		},
+		{
+			Name:        "end",
+			Type:        tools.ParamTypeString,
+			Description: "End time in RFC 3339 format",
+		},
+		{
+			Name:        "limit",
+			Type:        tools.ParamTypeNumber,
+			Description: "Maximum number of tag names per scope",
+		},
+		{
+			Name:        "maxStaleValues",
+			Type:        tools.ParamTypeNumber,
+			Description: "Search termination threshold for stale values",
+		},
+	},
+	ReadOnly:    true,
+	Destructive: false,
+	Idempotent:  true,
+	OpenWorld:   true,
 }
 
-func (t *TempoToolset) SearchTagsHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	client, err := t.getTempoClient(ctx, request)
+func (t *Toolset) SearchTagsHandler(params ToolParams) *resultutil.Result {
+	client, err := t.getTempoClient(params)
 	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
+		return resultutil.NewErrorResult(err)
 	}
 
-	start, err := parseDate(request.GetString("start", ""))
+	args := params.arguments
+
+	start, err := parseDate(tools.GetString(args, "start", ""))
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("invalid start time: %v", err)), nil
+		return resultutil.NewErrorResult(fmt.Errorf("invalid start time: %v", err))
 	}
 
-	end, err := parseDate(request.GetString("end", ""))
+	end, err := parseDate(tools.GetString(args, "end", ""))
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("invalid end time: %v", err)), nil
+		return resultutil.NewErrorResult(fmt.Errorf("invalid end time: %v", err))
 	}
+
+	scope := tools.GetString(args, "scope", "")
+	query := tools.GetString(args, "query", "")
+	limit := tools.GetInt(args, "limit", 0)
+	maxStaleValues := tools.GetInt(args, "maxStaleValues", 0)
 
 	opts := tempoclient.SearchTagsV2Options{
-		Scope:          request.GetString("scope", ""),
-		Query:          request.GetString("query", ""),
+		Scope:          scope,
+		Query:          query,
 		Start:          start,
 		End:            end,
-		Limit:          request.GetInt("limit", 0),
-		MaxStaleValues: request.GetInt("maxStaleValues", 0),
+		Limit:          limit,
+		MaxStaleValues: maxStaleValues,
 	}
 
-	result, err := client.SearchTagsV2(ctx, opts)
+	result, err := client.SearchTagsV2(params.context, opts)
 	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
+		return resultutil.NewErrorResult(err)
 	}
 
-	return mcp.NewToolResultText(result), nil
+	return resultutil.NewJSONSuccessResult(result)
 }

@@ -21,7 +21,7 @@ type RealLoader struct {
 
 var _ Loader = (*RealLoader)(nil)
 
-const MAX_TRACE_LIMIT = 1000
+const MaxTraceLimit = 1000
 
 func NewTempoLoader(httpClient *http.Client, url string) Loader {
 	client := NewTempoClient(httpClient, url)
@@ -36,8 +36,8 @@ func (r *RealLoader) QueryV2(ctx context.Context, traceID string, opts QueryV2Op
 }
 
 func (r *RealLoader) Search(ctx context.Context, opts SearchOptions) (string, error) {
-	if opts.Limit > MAX_TRACE_LIMIT {
-		return "", fmt.Errorf("Requested search results limit %d is greater than max limit %d. Please decrease the search results limit.", opts.Limit, MAX_TRACE_LIMIT)
+	if opts.Limit > MaxTraceLimit {
+		return "", fmt.Errorf("requested search results limit %d is greater than max limit %d", opts.Limit, MaxTraceLimit)
 	}
 	return r.client.Search(ctx, opts)
 }
