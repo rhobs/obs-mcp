@@ -63,3 +63,23 @@ The metrics backend URL is determined in the following order:
 > [!NOTE]
 >
 > Auto-discovery only works in `kubeconfig` mode. For in-cluster deployments, you must set `PROMETHEUS_URL` explicitly.
+
+### Guardrails and Thanos Compatibility
+
+obs-mcp includes query guardrails that prevent expensive or unsafe PromQL queries. Two guardrails rely on the `/api/v1/status/tsdb` endpoint:
+
+| Guardrail | What it checks |
+|-----------|----------------|
+| `max-metric-cardinality` | Rejects queries against metrics with more series than the configured limit |
+| `max-label-cardinality` (with `disallow-blanket-regex`) | Rejects blanket regex matchers (`=~".+"`) on high-cardinality labels |
+
+**Thanos compatibility:**
+
+- **Thanos v0.40.0+** (Oct 2025): The Query component exposes `/api/v1/status/tsdb` ([#8484](https://github.com/thanos-io/thanos/pull/8484)), so all guardrails work.
+- **Thanos < v0.40.0**: The TSDB status endpoint is not available on the Query component. Use `--guardrails=none` or disable only the cardinality guardrails while keeping the others enabled:
+
+  ```shell
+  --guardrails=disallow-explicit-name-label,require-label-matcher,disallow-blanket-regex --guardrails.max-label-cardinality=0
+  ```
+
+- **Prometheus**: All guardrails work with any supported Prometheus version.

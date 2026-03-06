@@ -24,6 +24,47 @@ Run unit tests with:
 make test-unit
 ```
 
+## Manual Testing
+
+Use the Makefile run targets to start the server locally for manual testing with curl or an MCP client.
+
+### Start the server in HTTP mode
+
+```bash
+make run
+```
+
+This builds the binary and starts the server on `:9100` with `kubeconfig` auth, debug logging, and TLS verification disabled. Override defaults as needed:
+
+```bash
+LISTEN_ADDR=:8080 AUTH_MODE=header LOG_LEVEL=info make run
+```
+
+To point at a specific Prometheus/Alertmanager instance:
+
+```bash
+PROMETHEUS_URL=https://thanos.example.com ALERTMANAGER_URL=https://alertmanager.example.com make run
+```
+
+### Start the server with guardrails disabled
+
+Useful when testing against Thanos versions before v0.40.0 (which don't expose `/api/v1/status/tsdb`):
+
+```bash
+make run-no-guardrails
+```
+
+### Structured log output
+
+With `LOG_LEVEL=debug` (the default for make targets), every backend API call logs timing and result information:
+
+```bash
+level=debug msg="Backend call completed" backend=prometheus operation=list_metrics duration_ms=42 result_count=1523
+level=warn msg="Guardrail rejected query" guardrail=disallow-blanket-regex query="up{job=~\".+\"}" error="..."
+```
+
+This is useful for spotting slow backend calls, guardrail rejections, and backend errors without any additional tooling.
+
 ## End-to-End (E2E) Tests
 
 E2E tests validate obs-mcp against a real Kubernetes cluster with Prometheus.
