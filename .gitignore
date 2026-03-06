@@ -17,3 +17,6 @@ integration-tests/videos
 integration-tests/screenshots
 .vscode/*
 tmp/*
+
+cpu.prof
+mem.prof

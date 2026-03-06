@@ -42,6 +42,11 @@ type Config struct {
 	// Set to 0 to always disallow blanket regex.
 	// Default: 500
 	MaxLabelCardinality uint64 `toml:"max_label_cardinality,omitempty"`
+
+	// SummarizeRangeQuery controls whether range queries return summary statistics
+	// (max, min, avg, count) instead of full data points.
+	// Default: false (return full data)
+	SummarizeRangeQuery bool `toml:"summarize_range_query,omitempty"`
 }
 
 var _ api.ExtendedConfig = (*Config)(nil)

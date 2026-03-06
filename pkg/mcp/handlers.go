@@ -51,7 +51,12 @@ func ListMetricsHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRe
 
 // ExecuteRangeQueryHandler handles the execution of Prometheus range queries.
 func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return createPrometheusToolHandler(opts, tools.BuildRangeQueryInput, tools.ExecuteRangeQueryHandler)
+	return createPrometheusToolHandler(opts, tools.BuildRangeQueryInput, func(ctx context.Context, promClient prometheus.Loader, input tools.RangeQueryInput) *resultutil.Result {
+		if opts.SummarizeRangeQuery {
+			return tools.ExecuteRangeQueryHandler(ctx, promClient, input, true)
+		}
+		return tools.ExecuteRangeQueryHandler(ctx, promClient, input, false)
+	})
 }
 
 // ExecuteInstantQueryHandler handles the execution of Prometheus instant queries.

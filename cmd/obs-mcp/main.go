@@ -33,6 +33,7 @@ func main() {
 	var guardrails = flag.String("guardrails", "all", "Guardrails configuration: 'all' (default), 'none', or comma-separated list of guardrails to enable (disallow-explicit-name-label, require-label-matcher, disallow-blanket-regex)")
 	var maxMetricCardinality = flag.Uint64("guardrails.max-metric-cardinality", 20000, "Maximum allowed series count per metric (0 = disabled)")
 	var maxLabelCardinality = flag.Uint64("guardrails.max-label-cardinality", 500, "Maximum allowed label value count for blanket regex (0 = always disallow blanket regex). Only takes effect if disallow-blanket-regex is enabled.")
+	var summarizeRangeQuery = flag.Bool("summarize-range-query", false, "Return summary statistics (max, min, avg, count) instead of full data points for range queries")
 	flag.Parse()
 
 	// Configure slog with specified log level
@@ -83,11 +84,12 @@ func main() {
 
 	// Create MCP options
 	opts := mcp.ObsMCPOptions{
-		AuthMode:          parsedAuthMode,
-		MetricsBackendURL: metricsBackendURL,
-		AlertmanagerURL:   alertmanagerURL,
-		Insecure:          *insecure,
-		Guardrails:        parsedGuardrails,
+		AuthMode:            parsedAuthMode,
+		MetricsBackendURL:   metricsBackendURL,
+		AlertmanagerURL:     alertmanagerURL,
+		Insecure:            *insecure,
+		Guardrails:          parsedGuardrails,
+		SummarizeRangeQuery: *summarizeRangeQuery,
 	}
 
 	// Create MCP server
