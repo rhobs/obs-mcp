@@ -51,10 +51,10 @@ func main() {
 	}
 
 	// Determine metrics backend URL - pass the backend type
-	metricsBackendURL := determineMetricsBackendURL(parsedAuthMode, parsedMetricsBackend)
+	metricsBackendURL := determineMetricsBackendURL(parsedMetricsBackend)
 
 	// Determine Alertmanager URL
-	alertmanagerURL := determineAlertmanagerURL(parsedAuthMode)
+	alertmanagerURL := determineAlertmanagerURL()
 
 	// Parse guardrails configuration
 	parsedGuardrails, err := prometheus.ParseGuardrails(*guardrails)
@@ -113,7 +113,7 @@ func parseMetricsBackend(backend string) (k8s.MetricsBackend, error) {
 }
 
 // determineMetricsBackendURL determines the metrics backend URL based on auth mode and environment.
-func determineMetricsBackendURL(authMode mcp.AuthMode, backend k8s.MetricsBackend) string {
+func determineMetricsBackendURL(backend k8s.MetricsBackend) string {
 	// Get metrics backend URL from environment variable PROMETHEUS_URL
 	prometheusURL := os.Getenv("PROMETHEUS_URL")
 
@@ -122,26 +122,21 @@ func determineMetricsBackendURL(authMode mcp.AuthMode, backend k8s.MetricsBacken
 		return prometheusURL
 	}
 
-	// For kubeconfig mode, attempt to discover route based on selected backend
-	if authMode == mcp.AuthModeKubeConfig {
-		slog.Info("No metrics backend URL provided, attempting to discover via kubeconfig", "backend", backend)
+	// Attempt to discover route based on selected backend
+	slog.Info("No metrics backend URL provided, attempting to discover via kubeconfig", "backend", backend)
 
-		url, err := k8s.GetMetricsBackendURL(backend)
-		if err != nil {
-			slog.Warn("Failed to discover metrics backend via kubeconfig", "err", err, "fallback_url", defaultPrometheusURL)
-			return defaultPrometheusURL
-		}
-
-		slog.Info("Discovered metrics backend URL", "url", url)
-		return url
+	url, err := k8s.GetMetricsBackendURL(backend)
+	if err != nil {
+		slog.Warn("Failed to discover metrics backend via kubeconfig", "err", err, "fallback_url", defaultPrometheusURL)
+		return defaultPrometheusURL
 	}
 
-	// Default to localhost for all other auth modes
-	return defaultPrometheusURL
+	slog.Info("Discovered metrics backend URL", "url", url)
+	return url
 }
 
 // determineAlertmanagerURL determines the Alertmanager URL based on auth mode and environment.
-func determineAlertmanagerURL(authMode mcp.AuthMode) string {
+func determineAlertmanagerURL() string {
 	// Get Alertmanager URL from environment variable ALERTMANAGER_URL
 	alertmanagerURL := os.Getenv("ALERTMANAGER_URL")
 
@@ -150,22 +145,17 @@ func determineAlertmanagerURL(authMode mcp.AuthMode) string {
 		return alertmanagerURL
 	}
 
-	// For kubeconfig mode, attempt to discover route
-	if authMode == mcp.AuthModeKubeConfig {
-		slog.Info("No Alertmanager URL provided, attempting to discover via kubeconfig")
+	// Attempt to discover route
+	slog.Info("No Alertmanager URL provided, attempting to discover via kubeconfig")
 
-		url, err := k8s.GetAlertmanagerURL()
-		if err != nil {
-			slog.Warn("Failed to discover Alertmanager via kubeconfig", "err", err, "fallback_url", defaultAlertmanagerURL)
-			return defaultAlertmanagerURL
-		}
-
-		slog.Info("Discovered Alertmanager URL", "url", url)
-		return url
+	url, err := k8s.GetAlertmanagerURL()
+	if err != nil {
+		slog.Warn("Failed to discover Alertmanager via kubeconfig", "err", err, "fallback_url", defaultAlertmanagerURL)
+		return defaultAlertmanagerURL
 	}
 
-	// Default to localhost for all other auth modes
-	return defaultAlertmanagerURL
+	slog.Info("Discovered Alertmanager URL", "url", url)
+	return url
 }
 
 // configureLogging sets up the slog logger with the specified log level
