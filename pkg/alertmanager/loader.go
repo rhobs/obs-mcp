@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/prometheus/alertmanager/api/v2/client"
 	"github.com/prometheus/alertmanager/api/v2/client/alert"
 	"github.com/prometheus/alertmanager/api/v2/client/silence"
@@ -30,7 +32,6 @@ type RealLoader struct {
 var _ Loader = (*RealLoader)(nil)
 
 func NewAlertmanagerClient(apiConfig api.Config) (*RealLoader, error) {
-	// Parse the URL to extract scheme and host
 	parsedURL, err := url.Parse(apiConfig.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse Alertmanager URL: %w", err)
@@ -50,7 +51,13 @@ func NewAlertmanagerClient(apiConfig api.Config) (*RealLoader, error) {
 		WithHost(host).
 		WithSchemes([]string{scheme})
 
-	c := client.NewHTTPClientWithConfig(nil, cfg)
+	rt := apiConfig.RoundTripper
+	if rt == nil {
+		rt = http.DefaultTransport
+	}
+	httpClient := &http.Client{Transport: rt}
+	transport := httptransport.NewWithClient(cfg.Host, cfg.BasePath, cfg.Schemes, httpClient)
+	c := client.New(transport, nil)
 
 	return &RealLoader{
 		client: c,
