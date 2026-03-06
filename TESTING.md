@@ -119,3 +119,38 @@ make test-e2e
 ```bash
 make test-e2e-teardown
 ```
+
+## OpenShift E2E Tests
+
+OpenShift-specific tests run against real OpenShift in-cluster monitoring. They use the `e2e,openshift` build tags and are kept separate from the Kind-based tests.
+
+In CI, obs-mcp is built and deployed first (`make test-e2e-openshift-deploy`), then the tests run.
+
+### Prerequisites
+
+- Active `oc login` session with cluster-admin or monitoring access
+- obs-mcp deployed to the cluster:
+  ```bash
+  IMAGE=<image> make test-e2e-openshift-deploy
+  ```
+
+### What is tested
+
+| Test | Description |
+|------|-------------|
+| `TestRouteDiscovery_ThanosQuerier` | Discovers `thanos-querier` route in `openshift-monitoring` |
+| `TestRouteDiscovery_PrometheusK8s` | Discovers `prometheus-k8s` route in `openshift-monitoring` |
+| `TestRouteDiscovery_Alertmanager` | Discovers `alertmanager-main` route in `openshift-monitoring` |
+| `TestRouteDiscovery_URLsAreReachable` | Verifies discovered URLs respond to HTTP requests (401 is acceptable) |
+| `TestOpenShiftMetricsPresent` | Confirms `cluster_version` metric is reachable through obs-mcp (OpenShift-only metric) |
+
+General tool correctness (instant query, range query, alerts, guardrails) is covered by the Kind-based `make test-e2e` suite and is not duplicated here.
+
+### Running
+
+```bash
+make test-e2e-openshift
+```
+
+> [!NOTE]
+> Route discovery tests (`TestRouteDiscovery_*`) call `pkg/k8s` directly using your local kubeconfig. `TestOpenShiftMetricsPresent` requires obs-mcp to be deployed and reachable.

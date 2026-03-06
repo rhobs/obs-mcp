@@ -134,9 +134,17 @@ test-e2e-teardown: ## Teardown E2E test cluster
 .PHONY: test-e2e-full
 test-e2e-full: test-e2e-setup test-e2e-deploy test-e2e test-e2e-teardown ## Run full E2E test cycle (setup, test, teardown)
 
-# OpenShift E2E Testing (for OpenShift CI - image is built by CI)
+# OpenShift E2E Testing
+# In CI, deploy-obs-mcp step calls test-e2e-openshift-deploy, then the step registry runs test-e2e && test-e2e-openshift.
+# CI config:      https://github.com/openshift/release/blob/main/ci-operator/config/rhobs/obs-mcp/rhobs-obs-mcp-main.yaml
+# Step registry:  https://github.com/openshift/release/blob/main/ci-operator/step-registry/rhobs/obs-mcp-e2e-tests/rhobs-obs-mcp-e2e-tests-commands.sh
 .PHONY: test-e2e-openshift-deploy
 test-e2e-openshift-deploy: ## Deploy obs-mcp to OpenShift (uses IMAGE env var from CI)
 	oc apply -f manifests/openshift_e2e/
 	oc set image deployment/obs-mcp -n obs-mcp obs-mcp=$(IMAGE)
 	oc -n obs-mcp rollout status deployment/obs-mcp --timeout=3m
+
+.PHONY: test-e2e-openshift
+test-e2e-openshift: ## Run OpenShift-specific E2E tests (route discovery + tool smoke tests, requires oc login and deployed obs-mcp)
+	@echo "Running OpenShift E2E tests (requires active oc login and deployed obs-mcp)"
+	go test -mod=mod -v -tags=e2e,openshift -timeout=10m ./tests/e2e/...
