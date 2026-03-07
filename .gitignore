@@ -2,7 +2,7 @@
 **/.DS_Store
 
 # Go binaries
-obs-mcp
+/obs-mcp
 
 # Go test coverage
 **/coverage.out
