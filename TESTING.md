@@ -124,16 +124,6 @@ make test-e2e-teardown
 
 OpenShift-specific tests run against real OpenShift in-cluster monitoring. They use the `e2e,openshift` build tags and are kept separate from the Kind-based tests.
 
-In CI, obs-mcp is built and deployed first (`make test-e2e-openshift-deploy`), then the tests run.
-
-### Prerequisites
-
-- Active `oc login` session with cluster-admin or monitoring access
-- obs-mcp deployed to the cluster:
-  ```bash
-  IMAGE=<image> make test-e2e-openshift-deploy
-  ```
-
 ### What is tested
 
 | Test | Description |
@@ -146,11 +136,23 @@ In CI, obs-mcp is built and deployed first (`make test-e2e-openshift-deploy`), t
 
 General tool correctness (instant query, range query, alerts, guardrails) is covered by the Kind-based `make test-e2e` suite and is not duplicated here.
 
-### Running
+### Running locally
+
+The simplest local setup — no deployment needed:
 
 ```bash
-make test-e2e-openshift
+oc login                              # log into your OpenShift cluster
+make run                              # starts server at :9100, auto-discovers Thanos/Prometheus via kubeconfig
+OBS_MCP_URL=http://localhost:9100 make test-e2e-openshift
 ```
 
-> [!NOTE]
-> Route discovery tests (`TestRouteDiscovery_*`) call `pkg/k8s` directly using your local kubeconfig. `TestOpenShiftMetricsPresent` requires obs-mcp to be deployed and reachable.
+`TestRouteDiscovery_*` tests call `pkg/k8s` directly and don't need the server at all. Only `TestOpenShiftMetricsPresent` requires a running server.
+
+### Running in CI
+
+In CI, obs-mcp is deployed to the cluster first (`serviceaccount` auth mode) and then tests run against it:
+
+```bash
+IMAGE=<image> make test-e2e-openshift-deploy   # deploy to cluster (CI sets IMAGE automatically)
+make test-e2e-openshift                         # run tests via port-forward
+```

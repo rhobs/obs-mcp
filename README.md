@@ -12,6 +12,10 @@ obs-mcp is a [mcp](https://modelcontextprotocol.io/introduction) server to allow
 
 ## Quickstart
 
+Run `make help` to see all available commands.
+
+
+
 ### 1. Using Kubeconfig (OpenShift)
 
 The easiest way to get the obs-mcp connected to the cluster is via a kubeconfig:
