@@ -20,6 +20,12 @@ The easiest way to get the obs-mcp connected to the cluster is via a kubeconfig:
  2. Run the server with
 
  ```shell
+ make run
+ ```
+
+ Or directly:
+
+ ```shell
  go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --insecure
  ```
 
@@ -44,7 +50,13 @@ go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-b
 
 > [!NOTE]
 >
-> Thanos in OpenShift doesn't expose the TSDB endpoint, so guardrails that rely on TSDB stats won't work. Use `--guardrails=none` when using Thanos.
+> Thanos versions before v0.40.0 do not expose the `/api/v1/status/tsdb` endpoint, so guardrails that rely on TSDB stats (`max-metric-cardinality`, `max-label-cardinality`) will fail. Use `--guardrails=none` when using older Thanos versions. Thanos v0.40.0+ ([#8484](https://github.com/thanos-io/thanos/pull/8484)) added TSDB status support to the Query component, so guardrails should work if your cluster runs that version or later.
+
+```shell
+make run-no-guardrails
+```
+
+Or directly:
 
 ```shell
 go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-backend thanos --insecure --guardrails=none
@@ -61,8 +73,7 @@ go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-b
 > **Example using explicit PROMETHEUS_URL:**
 >
   ```shell
-  export PROMETHEUS_URL=https://thanos-querier.openshift-monitoring.svc.cluster.local:9091/
-  go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --insecure
+  PROMETHEUS_URL=https://thanos-querier.openshift-monitoring.svc.cluster.local:9091/ make run
   ```
 
 ### 2. Port-forwarding alternative
@@ -80,7 +91,7 @@ This scenario opens a local port via port-forward that the obs-mcp will connect 
   Run the server with:
 
   ```shell
-  go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode header
+  AUTH_MODE=header make run
   ```
 
 ### 3. Local Development with Kind (using E2E test infrastructure)

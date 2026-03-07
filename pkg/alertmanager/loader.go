@@ -3,8 +3,10 @@ package alertmanager
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/prometheus/alertmanager/api/v2/client"
 	"github.com/prometheus/alertmanager/api/v2/client/alert"
@@ -77,10 +79,16 @@ func (a *RealLoader) GetAlerts(ctx context.Context, active, silenced, inhibited,
 		params = params.WithReceiver(&receiver)
 	}
 
+	start := time.Now()
 	resp, err := a.client.Alert.GetAlerts(params)
+	duration := time.Since(start)
 	if err != nil {
+		slog.Error("Backend call failed", "backend", "alertmanager", "operation", "alerts",
+			"duration_ms", duration.Milliseconds(), "error", err)
 		return nil, fmt.Errorf("error fetching alerts: %w", err)
 	}
+	slog.Debug("Backend call completed", "backend", "alertmanager", "operation", "alerts",
+		"duration_ms", duration.Milliseconds(), "result_count", len(resp.Payload))
 
 	return resp.Payload, nil
 }
@@ -92,10 +100,16 @@ func (a *RealLoader) GetSilences(ctx context.Context, filter []string) (models.G
 		params = params.WithFilter(filter)
 	}
 
+	start := time.Now()
 	resp, err := a.client.Silence.GetSilences(params)
+	duration := time.Since(start)
 	if err != nil {
+		slog.Error("Backend call failed", "backend", "alertmanager", "operation", "silences",
+			"duration_ms", duration.Milliseconds(), "error", err)
 		return nil, fmt.Errorf("error fetching silences: %w", err)
 	}
+	slog.Debug("Backend call completed", "backend", "alertmanager", "operation", "silences",
+		"duration_ms", duration.Milliseconds(), "result_count", len(resp.Payload))
 
 	return resp.Payload, nil
 }
