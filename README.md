@@ -80,10 +80,10 @@ go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-b
 
 ### 2. Port-forwarding alternative
 
-Port-forwards `prometheus-k8s-0:9090` to localhost and starts obs-mcp with header auth, bypassing the OAuth proxy. Requires `oc login`:
+Port-forwards `prometheus-k8s-0:9090` to localhost and starts obs-mcp with `header` auth. Requires `oc login`:
 
 ```shell
-make run-openshift-prometheus
+make run-openshift-pf-prometheus
 ```
 
 ### 3. Local Development with Kind (using E2E test infrastructure)

@@ -1,5 +1,7 @@
 # Makefile for obs-mcp server
 
+.DEFAULT_GOAL := run
+
 CONTAINER_CLI ?= docker
 IMAGE ?= ghcr.io/rhobs/obs-mcp
 TAG ?= $(shell git rev-parse --short HEAD)
@@ -90,14 +92,27 @@ run: build ## Run obs-mcp in HTTP mode (use LOG_LEVEL=debug to see backend call 
 	@echo "Note: AUTH_MODE=serviceaccount or header requires PROMETHEUS_URL and ALERTMANAGER_URL to be set"
 	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --insecure --log-level $(LOG_LEVEL)
 
-.PHONY: run-openshift-prometheus
-run-openshift-prometheus: build ## Port-forward prometheus-k8s-0:9090 and start obs-mcp with header auth (requires oc login)
-	@echo "Port-forwarding prometheus-k8s-0:9090 and starting obs-mcp..."
+.PHONY: run-prometheus
+run-prometheus: build ## Run obs-mcp with Prometheus as the metrics backend
+	@echo "Tip: Override backend URL with PROMETHEUS_URL=https://... make run-prometheus"
+	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --metrics-backend prometheus --insecure --log-level $(LOG_LEVEL)
+
+
+.PHONY: pf-alertmanager
+pf-alertmanager: ## Port-forward alertmanager-main-0:9093 in background (prerequisite for pf targets)
+	@oc port-forward -n openshift-monitoring pod/alertmanager-main-0 9093:9093 &
+	@sleep 2
+
+.PHONY: run-openshift-pf-prometheus
+run-openshift-pf-prometheus: build pf-alertmanager ## Port-forward prometheus-k8s-0:9090 + alertmanager-main-0:9093 and start obs-mcp with header auth (requires oc login)
+	@echo "Port-forwarding prometheus-k8s-0:9090..."
 	@oc port-forward -n openshift-monitoring pod/prometheus-k8s-0 9090:9090 & \
 		PF_PID=$$!; \
 		sleep 2; \
 		trap "kill $$PF_PID 2>/dev/null" EXIT; \
-		PROMETHEUS_URL=http://localhost:9090 ./obs-mcp --listen $(LISTEN_ADDR) --auth-mode header --log-level $(LOG_LEVEL)
+		PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 \
+		./obs-mcp --listen $(LISTEN_ADDR) --auth-mode header --log-level $(LOG_LEVEL)
+
 
 .PHONY: run-no-guardrails
 run-no-guardrails: build ## Run obs-mcp in HTTP mode with guardrails disabled

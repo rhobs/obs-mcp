@@ -19,14 +19,21 @@ make test-unit
 
 ## Manual Testing
 
-**OpenShift** — auto-discovers Thanos/Alertmanager routes via kubeconfig:
+**OpenShift — via kubeconfig (route auto-discovery):**
 
 ```bash
-make run                       # kubeconfig auth, auto-discovers OpenShift Thanos route
-make run-no-guardrails         # same, with guardrails disabled (use for Thanos < v0.40.0)
+make run             # auto-discovers Thanos Querier route (default backend)
+make run-prometheus  # auto-discovers Prometheus route (--metrics-backend prometheus)
+make run-no-guardrails  # auto-discovers Thanos route, guardrails disabled (use for Thanos < v0.40.0)
 ```
 
-**kube-prometheus or any other backend** — set URLs explicitly (auto-discovery requires OpenShift Routes):
+**OpenShift — via port-forward (header auth, useful when kubeconfig lacks a bearer token):**
+
+```bash
+make run-openshift-pf-prometheus     # port-forwards prometheus-k8s-0:9090 + alertmanager-main-0:9093
+```
+
+**kube-prometheus or any other backend** — set URLs explicitly:
 
 ```bash
 PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 make run
@@ -75,7 +82,8 @@ make test-e2e-openshift
 Start obs-mcp in one terminal, then run the tests in another:
 
 ```bash
-make run   # auto-discovers Thanos/Alertmanager routes via kubeconfig bearer token
+make run             # Thanos Querier route (default)
+make run-prometheus  # or Prometheus route
 ```
 
 ```bash

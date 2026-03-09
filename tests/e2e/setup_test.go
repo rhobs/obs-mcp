@@ -17,13 +17,11 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	// Set up signal handler for graceful shutdown on Ctrl+C
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-
 	go func() {
 		<-sigCh
 		fmt.Println("\nReceived interrupt signal, cleaning up...")
@@ -41,9 +39,9 @@ func TestMain(m *testing.M) {
 	}
 
 	mcpClient = NewMCPClient(testConfig.MCPURL)
+	setupThanosDetection()
 
 	code := m.Run()
 	testConfig.Cleanup()
-
 	os.Exit(code)
 }

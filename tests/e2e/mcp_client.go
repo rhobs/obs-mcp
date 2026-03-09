@@ -107,3 +107,47 @@ func (c *MCPClient) CallTool(t *testing.T, id int, toolName string, args map[str
 
 	return c.SendRequest(t, req)
 }
+
+// callToolRaw calls an MCP tool without requiring a *testing.T, for use
+// outside of individual test functions (e.g. TestMain setup).
+func (c *MCPClient) callToolRaw(id int, toolName string, args map[string]any) (map[string]any, error) {
+	req := MCPRequest{
+		JSONRPC: "2.0",
+		ID:      id,
+		Method:  "tools/call",
+		Params: map[string]any{
+			"name":      toolName,
+			"arguments": args,
+		},
+	}
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	httpReq, err := http.NewRequest(http.MethodPost, c.baseURL+mcpEndpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "text/event-stream")
+
+	resp, err := c.client.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var mcpResp MCPResponse
+	if err := json.Unmarshal(respBody, &mcpResp); err != nil {
+		return nil, err
+	}
+
+	return mcpResp.Result, nil
+}
