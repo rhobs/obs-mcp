@@ -68,7 +68,7 @@ echo "==> Waiting for Alertmanager to be ready..."
 kubectl -n monitoring rollout status statefulset/alertmanager-main --timeout=5m
 
 echo "==> Setting up MinIO, OTEL collector, Tempo and example traces"
-kubectl apply -f "${SCRIPT_DIR}/manifests/tracing.yaml"
+kubectl apply -f "${SCRIPT_DIR}/manifests/tracing"
 kubectl -n obs-mcp-tracing wait --for=condition=Ready tempostack/tempo1 --timeout=5m
 kubectl -n obs-mcp-tracing wait --for=condition=Ready tempostack/tempo2 --timeout=5m
 kubectl -n obs-mcp-tracing rollout status statefulset/tempo-tempo1-ingester --timeout=5m
