@@ -58,13 +58,6 @@ echo "==> Installing Tempo operator..."
 kubectl apply -f https://github.com/grafana/tempo-operator/releases/download/v0.20.0/tempo-operator.yaml
 kubectl -n tempo-operator-system rollout status deployment/tempo-operator-controller --timeout=5m
 
-echo "==> Setting up MinIO, OTEL collector, Tempo and example traces"
-kubectl apply -f "${SCRIPT_DIR}/manifests/tracing.yaml"
-kubectl -n obs-mcp-tracing wait --for=condition=Ready tempostack/tempo1 --timeout=5m
-kubectl -n obs-mcp-tracing wait --for=condition=Ready tempostack/tempo2 --timeout=5m
-kubectl -n obs-mcp-tracing rollout status statefulset/tempo-tempo1-ingester --timeout=5m
-kubectl -n obs-mcp-tracing rollout status statefulset/tempo-tempo2-ingester --timeout=5m
-
 echo "==> Waiting for Prometheus Operator to be ready..."
 kubectl -n monitoring rollout status deployment/prometheus-operator --timeout=5m
 
@@ -73,6 +66,13 @@ kubectl -n monitoring rollout status statefulset/prometheus-k8s --timeout=5m
 
 echo "==> Waiting for Alertmanager to be ready..."
 kubectl -n monitoring rollout status statefulset/alertmanager-main --timeout=5m
+
+echo "==> Setting up MinIO, OTEL collector, Tempo and example traces"
+kubectl apply -f "${SCRIPT_DIR}/manifests/tracing.yaml"
+kubectl -n obs-mcp-tracing wait --for=condition=Ready tempostack/tempo1 --timeout=5m
+kubectl -n obs-mcp-tracing wait --for=condition=Ready tempostack/tempo2 --timeout=5m
+kubectl -n obs-mcp-tracing rollout status statefulset/tempo-tempo1-ingester --timeout=5m
+kubectl -n obs-mcp-tracing rollout status statefulset/tempo-tempo2-ingester --timeout=5m
 
 echo "==> Cluster setup complete!"
 echo "    Run 'make test-e2e-deploy' to build and deploy obs-mcp"
