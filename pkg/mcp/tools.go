@@ -3,6 +3,7 @@ package mcp
 import (
 	"github.com/mark3labs/mcp-go/mcp"
 
+	"github.com/rhobs/obs-mcp/pkg/tempo"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
@@ -18,6 +19,11 @@ func AllTools() []mcp.Tool {
 		CreateGetSeriesTool(),
 		CreateGetAlertsTool(),
 		CreateGetSilencesTool(),
+		tempo.ListInstancesTool.ToMCPTool(),
+		tempo.GetTraceByIdTool.ToMCPTool(),
+		tempo.SearchTracesTool.ToMCPTool(),
+		tempo.SearchTagsTool.ToMCPTool(),
+		tempo.SearchTagValuesTool.ToMCPTool(),
 	}
 }
 

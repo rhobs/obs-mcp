@@ -17,3 +17,5 @@ integration-tests/videos
 integration-tests/screenshots
 .vscode/*
 tmp/*
+/vendor
+/.claude

@@ -44,6 +44,20 @@ for f in "${KUBE_PROMETHEUS_DIR}"/manifests/alertmanager-*.yaml; do
     kubectl apply -f "$f"
 done
 
+echo "==> Installing Cert Manager..."
+kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.19.4/cert-manager.yaml
+kubectl -n cert-manager rollout status deployment/cert-manager --timeout=5m
+kubectl -n cert-manager rollout status deployment/cert-manager-cainjector --timeout=5m
+kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=5m
+
+echo "==> Installing OpenTelemetry operator..."
+kubectl apply -f https://github.com/open-telemetry/opentelemetry-operator/releases/download/v0.146.0/opentelemetry-operator.yaml
+kubectl -n opentelemetry-operator-system rollout status deployment/opentelemetry-operator-controller-manager --timeout=5m
+
+echo "==> Installing Tempo operator..."
+kubectl apply -f https://github.com/grafana/tempo-operator/releases/download/v0.20.0/tempo-operator.yaml
+kubectl -n tempo-operator-system rollout status deployment/tempo-operator-controller --timeout=5m
+
 echo "==> Waiting for Prometheus Operator to be ready..."
 kubectl -n monitoring rollout status deployment/prometheus-operator --timeout=5m
 
@@ -52,6 +66,13 @@ kubectl -n monitoring rollout status statefulset/prometheus-k8s --timeout=5m
 
 echo "==> Waiting for Alertmanager to be ready..."
 kubectl -n monitoring rollout status statefulset/alertmanager-main --timeout=5m
+
+echo "==> Setting up MinIO, OTEL collector, Tempo and example traces"
+kubectl apply -f "${SCRIPT_DIR}/manifests/tracing"
+kubectl -n obs-mcp-tracing wait --for=condition=Ready tempostack/tempo1 --timeout=5m
+kubectl -n obs-mcp-tracing wait --for=condition=Ready tempostack/tempo2 --timeout=5m
+kubectl -n obs-mcp-tracing rollout status statefulset/tempo-tempo1-ingester --timeout=5m
+kubectl -n obs-mcp-tracing rollout status statefulset/tempo-tempo2-ingester --timeout=5m
 
 echo "==> Cluster setup complete!"
 echo "    Run 'make test-e2e-deploy' to build and deploy obs-mcp"
