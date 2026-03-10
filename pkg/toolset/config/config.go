@@ -65,7 +65,7 @@ func (c *Config) Validate() error {
 }
 
 // GetGuardrails returns the parsed guardrails configuration with cardinality limits applied.
-func (c *Config) GetGuardrails() (*prometheus.Guardrails, error) {
+func (c *Config) GetGuardrails() (prometheus.Guardrails, error) {
 	guardrailsStr := c.Guardrails
 	if guardrailsStr == "" {
 		guardrailsStr = "all" // default
@@ -82,13 +82,13 @@ func (c *Config) GetGuardrails() (*prometheus.Guardrails, error) {
 		if maxMetricCard == 0 {
 			maxMetricCard = 20000 // default
 		}
-		guardrails.MaxMetricCardinality = maxMetricCard
+		guardrails.SetMaxMetricCardinality(maxMetricCard)
 
 		maxLabelCard := c.MaxLabelCardinality
 		if maxLabelCard == 0 {
 			maxLabelCard = 500 // default
 		}
-		guardrails.MaxLabelCardinality = maxLabelCard
+		guardrails.SetMaxLabelCardinality(maxLabelCard)
 	}
 
 	return guardrails, nil

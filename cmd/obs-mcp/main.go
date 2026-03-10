@@ -78,8 +78,8 @@ func main() {
 
 	// Set max metric cardinality and max label cardinality if guardrails are enabled
 	if parsedGuardrails != nil {
-		parsedGuardrails.MaxMetricCardinality = *maxMetricCardinality
-		parsedGuardrails.MaxLabelCardinality = *maxLabelCardinality
+		parsedGuardrails.SetMaxMetricCardinality(*maxMetricCardinality)
+		parsedGuardrails.SetMaxLabelCardinality(*maxLabelCardinality)
 	}
 
 	// Create MCP options
