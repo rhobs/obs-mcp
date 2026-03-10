@@ -35,8 +35,8 @@ var (
 	tempoTenantParameter = tools.ParamDef{
 		Name:        "tenant",
 		Type:        tools.ParamTypeString,
-		Description: "The tenant to query. Multi-tenant Tempo instances isolate data by tenant. Use tempo_list_instances to discover available tenants for each instance.",
-		Required:    true,
+		Description: "The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance.",
+		Required:    false,
 	}
 )
 
@@ -54,11 +54,6 @@ func (t *Toolset) getTempoClient(params ToolParams) (tempoclient.Loader, error) 
 		return nil, errors.New("tempoName parameter must not be empty")
 	}
 
-	tenant := tools.GetString(args, "tenant", "")
-	if tenant == "" {
-		return nil, errors.New("tenant parameter must not be empty")
-	}
-
 	instances, err := discovery.ListInstances(params.context, params.dynamicClient, params.config.UseRoute)
 	if err != nil {
 		return nil, err
@@ -70,8 +65,14 @@ func (t *Toolset) getTempoClient(params ToolParams) (tempoclient.Loader, error) 
 		return nil, err
 	}
 
-	if !slices.Contains(instance.Tenants, tenant) {
-		return nil, fmt.Errorf("tenant '%s' does not exist for instance '%s' in namespace '%s'", tenant, name, namespace)
+	tenant := tools.GetString(args, "tenant", "")
+	if instance.Multitenancy {
+		if tenant == "" {
+			return nil, errors.New("tenant parameter must not be empty for multi-tenant instance")
+		}
+		if !slices.Contains(instance.Tenants, tenant) {
+			return nil, fmt.Errorf("tenant '%s' does not exist for instance '%s' in namespace '%s'", tenant, name, namespace)
+		}
 	}
 
 	url := instance.GetURL(tenant)

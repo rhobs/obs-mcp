@@ -12,6 +12,8 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -518,4 +520,57 @@ func TestGetAlertsEmptyFilter(t *testing.T) {
 
 	// Should succeed but may return empty alerts array
 	t.Log("Query for non-existent alert handled correctly")
+}
+
+func TestTempoListInstances(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 22, "tempo_list_instances", map[string]any{})
+	if err != nil {
+		t.Fatalf("Failed to call tempo_list_instances: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+
+	structured := resp.Result["structuredContent"].(map[string]any)
+	instances := structured["instances"].([]any)
+	require.Equal(t, []any{
+		map[string]any{"kind": "TempoStack", "tempoNamespace": "obs-mcp-tracing", "tempoName": "tempo1", "multitenancy": false, "status": "Ready"},
+		map[string]any{"kind": "TempoStack", "tempoNamespace": "obs-mcp-tracing", "tempoName": "tempo2", "multitenancy": false, "status": "Ready"},
+	}, instances)
+}
+
+func TestTempoSearchTags(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 22, "tempo_search_tags", map[string]any{
+		"tempoNamespace": "obs-mcp-tracing",
+		"tempoName":      "tempo1",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call tempo_search_tags: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+
+	structured := resp.Result["structuredContent"].(map[string]any)
+	scopes := structured["scopes"].([]any)
+	require.NotEmpty(t, scopes, "expected at least one scope in search tags response")
+
+	// Verify that service.name is present in the resource scope
+	var found bool
+	for _, s := range scopes {
+		scope := s.(map[string]any)
+		if scope["name"] == "resource" {
+			tags := scope["tags"].([]any)
+			for _, tag := range tags {
+				if tag == "service.name" {
+					found = true
+					break
+				}
+			}
+			break
+		}
+	}
+	require.True(t, found, "expected service.name tag in resource scope")
 }

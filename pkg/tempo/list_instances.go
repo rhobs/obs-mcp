@@ -10,7 +10,8 @@ var ListInstancesTool = tools.ToolDef{
 	Name: "tempo_list_instances",
 	Description: `List all Tempo instances available in the Kubernetes cluster.
 Call this tool first to discover available Tempo instances before using other Tempo tools,
-as the returned namespace, name, and tenant values are required parameters for all other Tempo tools.`,
+as the returned namespace, name, and tenant values are required parameters for all other Tempo tools.
+Always print the output of this tool in a table.`,
 	Title:       "List Tempo instances",
 	ReadOnly:    true,
 	Destructive: false,

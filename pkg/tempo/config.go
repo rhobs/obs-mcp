@@ -24,7 +24,7 @@ type Config struct {
 var _ api.ExtendedConfig = (*Config)(nil)
 
 var DefaultConfig = &Config{
-	UseRoute: true,
+	UseRoute: false,
 }
 
 func (c *Config) Validate() error {
