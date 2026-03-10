@@ -23,7 +23,7 @@ type ObsMCPOptions struct {
 	MetricsBackendURL string
 	AlertmanagerURL   string
 	Insecure          bool
-	Guardrails        *prometheus.Guardrails
+	Guardrails        prometheus.Guardrails
 }
 
 const (

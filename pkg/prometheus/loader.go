@@ -32,7 +32,7 @@ type Loader interface {
 // RealLoader implements Loader using the Prometheus HTTP API.
 type RealLoader struct {
 	client     v1.API
-	guardrails *Guardrails
+	guardrails Guardrails
 	backend    string
 }
 
@@ -58,7 +58,7 @@ func NewPrometheusClient(apiConfig api.Config) (*RealLoader, error) {
 }
 
 // WithGuardrails sets a custom Guardrails configuration for the client.
-func (p *RealLoader) WithGuardrails(g *Guardrails) *RealLoader {
+func (p *RealLoader) WithGuardrails(g Guardrails) *RealLoader {
 	p.guardrails = g
 	return p
 }
