@@ -69,9 +69,16 @@ Validates route auto-discovery (`pkg/k8s`) and tool correctness against OpenShif
 `TestRouteDiscovery_*` exercises `pkg/k8s` directly using the kubeconfig — no running obs-mcp needed.
 `TestOpenShiftMetricsPresent` requires `OBS_MCP_URL` and is skipped when not set. In CI, `OBS_MCP_URL` is set automatically by the step registry to point at the deployed obs-mcp instance.
 
+**Authentication:** `TestRouteDiscovery_URLsAreReachable` queries monitoring routes directly. It uses `OPENSHIFT_TOKEN` if set (required in CI where the kubeconfig uses client certs that the OAuth proxy rejects), otherwise falls back to the kubeconfig bearer token (works with `oc login`).
+
+```bash
+# CI: export a token for route authentication
+export OPENSHIFT_TOKEN=$(oc create token prometheus-k8s -n openshift-monitoring)
+```
+
 ### Route discovery only
 
-Verifies route auto-discovery, URL shape, and that each route responds HTTP 200 when accessed with the kubeconfig bearer token against a real `/api` endpoint.
+Verifies route auto-discovery, URL shape, and that each route responds HTTP 200 when accessed with a bearer token against a real `/api` endpoint.
 
 ```bash
 make test-e2e-openshift

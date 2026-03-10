@@ -5,53 +5,12 @@ package e2e
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"testing"
 
-	"k8s.io/client-go/rest"
-
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 )
-
-// authenticatedHTTPClient returns an HTTP client that sends the kubeconfig bearer
-// token on every request and skips TLS verification for OpenShift ingress certs.
-func authenticatedHTTPClient(t *testing.T) *http.Client {
-	t.Helper()
-	restConfig, err := k8s.GetClientConfig()
-	if err != nil {
-		t.Fatalf("Failed to get kubeconfig: %v", err)
-	}
-	restConfig.TLSClientConfig = rest.TLSClientConfig{Insecure: true} //nolint:gosec
-	rt, err := rest.TransportFor(restConfig)
-	if err != nil {
-		t.Fatalf("Failed to create authenticated transport: %v", err)
-	}
-	return &http.Client{Transport: rt}
-}
-
-// assertValidRouteURL checks that a discovered route URL is well-formed:
-// - parseable by net/url
-// - scheme is "https"
-// - host is non-empty and contains a dot (i.e. not just a bare word)
-func assertValidRouteURL(t *testing.T, raw string) {
-	t.Helper()
-	parsed, err := url.Parse(raw)
-	if err != nil {
-		t.Errorf("URL is not parseable: %s (%v)", raw, err)
-		return
-	}
-	if parsed.Scheme != "https" {
-		t.Errorf("Expected scheme 'https', got %q in URL: %s", parsed.Scheme, raw)
-	}
-	if parsed.Host == "" {
-		t.Errorf("URL has no host: %s", raw)
-	}
-	if !strings.Contains(parsed.Host, ".") {
-		t.Errorf("URL host looks invalid (no dot): %s", parsed.Host)
-	}
-}
 
 // Route discovery tests below exercise pkg/k8s directly using the kubeconfig
 // available to the test runner. They validate the auto-discovery path used when
@@ -93,7 +52,6 @@ func TestRouteDiscovery_Alertmanager(t *testing.T) {
 
 // TestRouteDiscovery_URLsAreReachable verifies that the discovered route URLs respond
 // with HTTP 200 when accessed with a valid bearer token against a real /api endpoint.
-// Routes only expose /api paths — hitting the bare URL returns 503 regardless of auth.
 func TestRouteDiscovery_URLsAreReachable(t *testing.T) {
 	tests := []struct {
 		name    string
