@@ -3,6 +3,7 @@ apiVersion: mcpchecker/v1alpha2
 metadata:
   name: "get-series-cardinality"
   difficulty: medium
+  parallel: true
   description: |
     Tests if the agent can use the get_series tool to check cardinality for a metric.
     The agent should first verify the metric exists via list_metrics, then use

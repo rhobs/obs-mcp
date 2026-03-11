@@ -3,6 +3,7 @@ apiVersion: mcpchecker/v1alpha2
 metadata:
   name: "crashlooping-pods"
   difficulty: medium
+  parallel: true
   description: |
     Tests if the agent can identify crashlooping pods by discovering and querying
     the kube_pod_container_status_restarts_total metric over a time range.

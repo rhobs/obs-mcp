@@ -58,7 +58,13 @@ export JUDGE_MODEL_NAME="gpt-4o"
 
 ```bash
 cd evals/mcpchecker
-mcpchecker eval eval.yaml
+mcpchecker check eval.yaml
+```
+
+Run tasks in parallel (recommended — all tasks are marked `parallel: true`):
+
+```bash
+mcpchecker check eval.yaml --parallel 4
 ```
 
 ### 4. View results
@@ -69,13 +75,21 @@ mcpchecker summary mcpchecker-obs-mcp-tools-out.json
 
 ## Using a Different Agent
 
-By default, the evals use `builtin.claude-code`. To use an OpenAI-compatible agent, edit `eval.yaml`:
+By default, the evals use `builtin.claude-code`. To use a different LLM provider, edit `eval.yaml` to use the multi-provider `builtin.llm-agent` with a `provider:model-id` model spec:
 
 ```yaml
 config:
   agent:
-    type: "builtin.openai-agent"
-    model: "gpt-4o"
+    type: "builtin.llm-agent"
+    model: "openai:gpt-4o"
+```
+
+Supported providers include `openai`, `anthropic`, and `gemini`. Set the corresponding API key environment variable:
+
+```bash
+export OPENAI_API_KEY="sk-..."        # for openai:*
+export ANTHROPIC_API_KEY="sk-..."     # for anthropic:*
+export GEMINI_API_KEY="..."           # for gemini:*
 ```
 
 ## Task Structure
