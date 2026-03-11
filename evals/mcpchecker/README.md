@@ -28,12 +28,7 @@ export JUDGE_MODEL_NAME="gpt-4o-mini"                 # Model to use as judge
 export OPENAI_API_KEY="sk-..."
 ```
 
-**Other providers** — edit `eval.yaml` to change the model (see [Using a Different Agent](#using-a-different-agent)):
-
-```bash
-export ANTHROPIC_API_KEY="sk-..."     # for anthropic:* models
-export GEMINI_API_KEY="..."           # for gemini:* models
-```
+For other providers, see [Using a Different Agent](#using-a-different-agent).
 
 ## Quick Start
 
