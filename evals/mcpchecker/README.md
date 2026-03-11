@@ -10,6 +10,23 @@ Evaluations for obs-mcp using [mcpchecker](https://github.com/mcpchecker/mcpchec
 
 ## Environment Variables
 
+mcpchecker uses two separate LLM roles:
+
+- **Agent** — the LLM that interacts with obs-mcp: discovers tools, makes tool calls, and reasons about responses. This is the model being evaluated.
+- **Judge** — a separate LLM that evaluates the agent's output against the expected criteria defined in each task.
+
+Both can use the same provider and API key, or different ones.
+
+### Agent (required)
+
+**OpenAI** (default agent — `builtin.llm-agent` with `openai:gpt-4o-mini`):
+
+```bash
+export OPENAI_API_KEY="sk-..."
+```
+
+For other providers, see [Using a Different Agent](#using-a-different-agent).
+
 ### LLM Judge (required)
 
 All tasks use LLM judge verification to semantically check agent responses. These must be set:
@@ -20,15 +37,7 @@ export JUDGE_API_KEY="sk-..."                         # API key for the judge mo
 export JUDGE_MODEL_NAME="gpt-4o-mini"                 # Model to use as judge
 ```
 
-### Agent-specific
-
-**OpenAI** (default agent — `builtin.llm-agent` with `openai:gpt-4o-mini`):
-
-```bash
-export OPENAI_API_KEY="sk-..."
-```
-
-For other providers, see [Using a Different Agent](#using-a-different-agent).
+> **Tip:** If both agent and judge use OpenAI, `JUDGE_API_KEY` and `OPENAI_API_KEY` can be the same key.
 
 ## Quick Start
 
