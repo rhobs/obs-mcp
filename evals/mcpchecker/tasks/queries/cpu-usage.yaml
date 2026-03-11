@@ -3,6 +3,7 @@ apiVersion: mcpchecker/v1alpha2
 metadata:
   name: "cpu-usage"
   difficulty: medium
+  parallel: true
   description: |
     Tests if the agent can find the appropriate CPU usage metric and query it to
     determine which pods are consuming the most CPU resources.
