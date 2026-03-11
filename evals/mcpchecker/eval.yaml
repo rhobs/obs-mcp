@@ -4,7 +4,8 @@ metadata:
 
 config:
   agent:
-    type: "builtin.claude-code"
+    type: "builtin.llm-agent"
+    model: "openai:gpt-4o-mini"
 
   mcpConfigFile: mcp-config.yaml
 
