@@ -107,8 +107,9 @@ Validates that AI agents can discover and correctly use obs-mcp tools. Requires 
 **Against a Kind cluster — Option 1: obs-mcp deployed in-cluster** (reuses the e2e setup):
 
 ```bash
-make test-e2e-setup         # create Kind cluster with kube-prometheus
-make test-e2e-deploy        # build and deploy obs-mcp
+make test-e2e-setup              # create Kind cluster with kube-prometheus
+make deploy-more-kube-prom-targets        # deploy kube-state-metrics, node-exporter, kubelet scrape configs
+make test-e2e-deploy             # build and deploy obs-mcp
 kubectl port-forward -n obs-mcp svc/obs-mcp 9100:9100 &
 
 export OPENAI_API_KEY="sk-..."
@@ -123,7 +124,8 @@ mcpchecker check eval.yaml --parallel 4
 **Against a Kind cluster — Option 2: obs-mcp running locally**:
 
 ```bash
-make test-e2e-setup         # create Kind cluster with kube-prometheus (skip if already running)
+make test-e2e-setup              # create Kind cluster with kube-prometheus (skip if already running)
+make deploy-more-kube-prom-targets        # deploy kube-state-metrics, node-exporter, kubelet scrape configs
 kubectl port-forward -n monitoring svc/prometheus-k8s 9090:9090 &
 kubectl port-forward -n monitoring svc/alertmanager-main 9093:9093 &
 PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 make run
