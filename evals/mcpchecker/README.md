@@ -6,7 +6,7 @@ Evaluations for obs-mcp using [mcpchecker](https://github.com/mcpchecker/mcpchec
 
 - [mcpchecker](https://github.com/mcpchecker/mcpchecker#installation) installed
 - A Kubernetes cluster with Prometheus and Alertmanager running
-- obs-mcp server deployed and accessible (see [Deployment Guide](../../docs/DEPLOYMENT.md))
+- obs-mcp server deployed and accessible (see [Testing Guide — MCPChecker Evals](../../TESTING.md#mcpchecker-evals))
 
 ## Environment Variables
 
@@ -17,20 +17,20 @@ All tasks use LLM judge verification to semantically check agent responses. Thes
 ```bash
 export JUDGE_BASE_URL="https://api.openai.com/v1"   # OpenAI-compatible API endpoint
 export JUDGE_API_KEY="sk-..."                         # API key for the judge model
-export JUDGE_MODEL_NAME="gpt-4o"                      # Model to use as judge
+export JUDGE_MODEL_NAME="gpt-4o-mini"                 # Model to use as judge
 ```
 
 ### Agent-specific
 
-**Claude Code** (default agent — `builtin.claude-code`):
-
-- The [`claude`](https://docs.anthropic.com/en/docs/claude-code) CLI must be installed and in your `PATH`
-- Authentication is managed by the Claude Code CLI itself
-
-**Multi-provider LLM agent** (`builtin.llm-agent`):
+**OpenAI** (default agent — `builtin.llm-agent` with `openai:gpt-4o-mini`):
 
 ```bash
-export OPENAI_API_KEY="sk-..."        # for openai:* models
+export OPENAI_API_KEY="sk-..."
+```
+
+**Other providers** — edit `eval.yaml` to change the model (see [Using a Different Agent](#using-a-different-agent)):
+
+```bash
 export ANTHROPIC_API_KEY="sk-..."     # for anthropic:* models
 export GEMINI_API_KEY="..."           # for gemini:* models
 ```
@@ -50,9 +50,10 @@ Or if running elsewhere, update `mcp-config.yaml` with the correct URL.
 ### 2. Set environment variables
 
 ```bash
+export OPENAI_API_KEY="sk-..."                       # for the default openai:gpt-4o-mini agent
 export JUDGE_BASE_URL="https://api.openai.com/v1"
 export JUDGE_API_KEY="sk-..."
-export JUDGE_MODEL_NAME="gpt-4o"
+export JUDGE_MODEL_NAME="gpt-4o-mini"   # Model to use as judge
 ```
 
 ### 3. Run the evals
@@ -76,16 +77,7 @@ mcpchecker summary mcpchecker-obs-mcp-tools-out.json
 
 ## Using a Different Agent
 
-By default, the evals use `builtin.claude-code`. To use a different LLM provider, edit `eval.yaml` to use the multi-provider `builtin.llm-agent` with a `provider:model-id` model spec:
-
-```yaml
-config:
-  agent:
-    type: "builtin.llm-agent"
-    model: "openai:gpt-4o"
-```
-
-Supported providers include `openai`, `anthropic`, and `gemini`.
+By default, the evals use `builtin.llm-agent` with `openai:gpt-4o-mini`. To use a different provider or model, edit the `agent` section in `eval.yaml`. See the [mcpchecker agent documentation](https://github.com/mcpchecker/mcpchecker#agents) for available agent types and configuration options.
 
 ## Coverage
 
@@ -95,7 +87,7 @@ Supported providers include `openai`, `anthropic`, and `gemini`.
 |-------------------|------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
 | Metrics discovery | list kube metrics, list node metrics                                                                                   | `list_metrics`                                      |
 | Label exploration | label names, label values, series cardinality                                                                          | `get_label_names`, `get_label_values`, `get_series` |
-| PromQL queries    | CPU usage, pending pods, crashlooping pods, network traffic, Prometheus internals (head series, requests, WAL size)    | `execute_instant_query`, `execute_range_query`      |
+| PromQL queries    | CPU usage, pending pods, crashlooping pods, pods created, network traffic, Prometheus internals (head series, requests, WAL size) | `execute_instant_query`, `execute_range_query`      |
 | Alertmanager      | firing alerts, active alerts, silences                                                                                 | `get_alerts`, `get_silences`                        |
 
 Each task verifies:
