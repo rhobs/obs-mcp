@@ -3,6 +3,7 @@ apiVersion: mcpchecker/v1alpha2
 metadata:
   name: "prometheus-requests"
   difficulty: medium
+  parallel: true
   description: |
     Tests if the agent can calculate the request rate to Prometheus by discovering
     and querying the prometheus_http_requests_total metric.

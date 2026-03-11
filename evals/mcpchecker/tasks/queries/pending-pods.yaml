@@ -3,6 +3,7 @@ apiVersion: mcpchecker/v1alpha2
 metadata:
   name: "pending-pods"
   difficulty: medium
+  parallel: true
   description: |
     Tests if the agent can identify pods stuck in pending state by first discovering
     the kube_pod_status_phase metric and then running an instant query to find

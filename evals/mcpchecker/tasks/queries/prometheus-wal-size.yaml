@@ -3,6 +3,7 @@ apiVersion: mcpchecker/v1alpha2
 metadata:
   name: "prometheus-wal-size"
   difficulty: easy
+  parallel: true
   description: |
     Tests if the agent can query the current Prometheus WAL storage size using
     the prometheus_tsdb_wal_storage_size_bytes metric.

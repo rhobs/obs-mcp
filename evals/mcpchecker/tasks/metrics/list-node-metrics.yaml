@@ -3,6 +3,7 @@ apiVersion: mcpchecker/v1alpha2
 metadata:
   name: "list-node-metrics"
   difficulty: easy
+  parallel: true
   description: |
     Tests if the agent can discover node-related metrics using the list_metrics tool
     with a regex filter for node metrics.

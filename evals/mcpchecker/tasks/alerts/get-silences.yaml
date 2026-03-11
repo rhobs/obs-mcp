@@ -3,6 +3,7 @@ apiVersion: mcpchecker/v1alpha2
 metadata:
   name: "get-silences"
   difficulty: easy
+  parallel: true
   description: |
     Tests if the agent can discover and use the get_silences tool to retrieve
     active silences from Alertmanager.
