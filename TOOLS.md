@@ -13,14 +13,15 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 - YOU MUST CALL THIS TOOL BEFORE ANY OTHER QUERY TOOL
 - This tool MUST be called first for EVERY observability question to: 1. Discover what metrics actually exist in this environment 2. Find the EXACT metric name to use in queries 3. Avoid querying non-existent metrics 4. The 'name_regex' parameter should always be provided, and be a best guess of what the metric would be named like. 5. Do not use a blanket regex like .* or .+ in the 'name_regex' parameter. Use specific ones like kube.*, node.*, etc.
+- REGEX PATTERN GUIDANCE: - Prometheus metrics are typically prefixed (e.g., 'prometheus_tsdb_head_series', 'kube_pod_status_phase') - To match metrics CONTAINING a substring, use wildcards: '.*tsdb.*' matches 'prometheus_tsdb_head_series' - Without wildcards, the pattern matches EXACTLY: 'tsdb' only matches a metric literally named 'tsdb' (which rarely exists) - Common patterns: 'kube_pod.*' (pods), '.*memory.*' (memory-related), 'node_.*' (node metrics) - If you get empty results, try adding '.*' before/after your search term
 - NEVER skip this step. NEVER guess metric names. Metric names vary between environments.
 - After calling this tool: 1. Search the returned list for relevant metrics 2. Use the EXACT metric name found in subsequent queries 3. If no relevant metric exists, inform the user
 
 **Parameters:**
 
-| Parameter    | Type     | Required | Description                                                                                                                           |
-| :----------- | :------- | :------: | :------------------------------------------------------------------------------------------------------------------------------------ |
-| `name_regex` | `string` | ✅        | Regex pattern to filter metric names (e.g., 'http_.*', 'node_.*', 'kube.*'). This parameter is required. Don't pass in blanket regex. |
+| Parameter    | Type     | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| :----------- | :------- | :------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name_regex` | `string` | ✅        | Regex pattern to filter metric names. IMPORTANT: Metric names are typically prefixed (e.g., 'prometheus_tsdb_head_series'). Use wildcards to match substrings: '.*tsdb.*' matches any metric containing 'tsdb', while 'tsdb' only matches the exact string 'tsdb'. Examples: 'http_.*' (starts with http_), '.*memory.*' (contains memory), 'node_.*' (starts with node_). This parameter is required. Don't pass in blanket regex like '.*' or '.+'. |
 
 **Output Schema:**
 
