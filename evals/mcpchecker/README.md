@@ -27,11 +27,12 @@ export JUDGE_MODEL_NAME="gpt-4o"                      # Model to use as judge
 - The [`claude`](https://docs.anthropic.com/en/docs/claude-code) CLI must be installed and in your `PATH`
 - Authentication is managed by the Claude Code CLI itself
 
-**OpenAI-compatible agent** (`builtin.openai-agent`):
+**Multi-provider LLM agent** (`builtin.llm-agent`):
 
 ```bash
-export MODEL_BASE_URL="https://api.openai.com/v1"   # OpenAI-compatible API endpoint
-export MODEL_KEY="sk-..."                             # API key for the agent model
+export OPENAI_API_KEY="sk-..."        # for openai:* models
+export ANTHROPIC_API_KEY="sk-..."     # for anthropic:* models
+export GEMINI_API_KEY="..."           # for gemini:* models
 ```
 
 ## Quick Start
@@ -84,22 +85,42 @@ config:
     model: "openai:gpt-4o"
 ```
 
-Supported providers include `openai`, `anthropic`, and `gemini`. Set the corresponding API key environment variable:
+Supported providers include `openai`, `anthropic`, and `gemini`.
 
-```bash
-export OPENAI_API_KEY="sk-..."        # for openai:*
-export ANTHROPIC_API_KEY="sk-..."     # for anthropic:*
-export GEMINI_API_KEY="..."           # for gemini:*
-```
+## Coverage
+
+16 eval tasks across 4 categories:
+
+| Category          | Tasks                                                                                                                  | Tools Tested                                        |
+|-------------------|------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
+| Metrics discovery | list kube metrics, list node metrics                                                                                   | `list_metrics`                                      |
+| Label exploration | label names, label values, series cardinality                                                                          | `get_label_names`, `get_label_values`, `get_series` |
+| PromQL queries    | CPU usage, pending pods, crashlooping pods, network traffic, Prometheus internals (head series, requests, WAL size)    | `execute_instant_query`, `execute_range_query`      |
+| Alertmanager      | firing alerts, active alerts, silences                                                                                 | `get_alerts`, `get_silences`                        |
+
+Each task verifies:
+
+- The agent selects the correct tool(s)
+- Tool call count stays within bounds
+- Response contains expected content (via LLM judge)
+
+> **Note:** This is a smoke-test level evaluation covering basic tool discovery and usage. We need to add:
+>
+> - **Multi-step reasoning** — tasks requiring 3+ chained tools (e.g., discover metric → query → analyze trend)
+> - **Error handling** — agent recovery from invalid queries or missing metrics
+> - **Guardrail behavior** — agent response when dangerous queries are blocked
+> - **Parameter coverage** — testing less-used params like `silenced`, `inhibited`, `receiver`, `filter`, time ranges
+> - **Ambiguous prompts** — vague diagnostic questions (e.g., "Why is my app slow?") requiring the agent to choose the right tools
+> - **Hard difficulty tasks** — complex multi-tool diagnostic scenarios
 
 ## Task Structure
 
-| Directory        | Description                              | Tools Tested                             |
-|------------------|------------------------------------------|------------------------------------------|
-| `tasks/metrics/` | Metric discovery and listing             | `list_metrics`                           |
-| `tasks/labels/`  | Label names, values, and series          | `get_label_names`, `get_label_values`, `get_series` |
-| `tasks/queries/` | Instant and range PromQL queries         | `execute_instant_query`, `execute_range_query` |
-| `tasks/alerts/`  | Alertmanager alerts and silences         | `get_alerts`, `get_silences`             |
+| Directory          | Description                      | Tools Tested                                        |
+|--------------------|----------------------------------|-----------------------------------------------------|
+| `tasks/metrics/`   | Metric discovery and listing     | `list_metrics`                                      |
+| `tasks/labels/`    | Label names, values, and series  | `get_label_names`, `get_label_values`, `get_series` |
+| `tasks/queries/`   | Instant and range PromQL queries | `execute_instant_query`, `execute_range_query`      |
+| `tasks/alerts/`    | Alertmanager alerts and silences | `get_alerts`, `get_silences`                        |
 
 ## Adding New Tasks
 
@@ -111,6 +132,7 @@ apiVersion: mcpchecker/v1alpha2
 metadata:
   name: "my-new-task"
   difficulty: medium
+  parallel: true
 spec:
   verify:
     - llmJudge:
