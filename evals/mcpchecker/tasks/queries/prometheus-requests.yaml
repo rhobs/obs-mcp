@@ -7,7 +7,7 @@ metadata:
   runs: 3
   labels:
     category: queries
-    toolType: instant-query
+    toolType: query
   description: |
     Tests if the agent can calculate the request rate to Prometheus by discovering
     and querying the prometheus_http_requests_total metric.
