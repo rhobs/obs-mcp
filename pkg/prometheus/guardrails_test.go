@@ -16,7 +16,7 @@ func TestGuardrails_IsSafeQuery(t *testing.T) {
 		GuardrailRequireLabelMatcher:       &Guardrail{Name: GuardrailRequireLabelMatcher, RequireTSDBEndpoint: false, Value: true},
 		GuardrailDisallowBlanketRegex:      &Guardrail{Name: GuardrailDisallowBlanketRegex, RequireTSDBEndpoint: true, Value: true},
 		GuardrailMaxMetricCardinality:      &Guardrail{Name: GuardrailMaxMetricCardinality, RequireTSDBEndpoint: true, Value: uint64(0)}, // Disabled - no TSDB needed
-		GuardrailMaxLabelCardinality:       &Guardrail{Name: GuardrailMaxLabelCardinality, RequireTSDBEndpoint: true, Value: uint64(0)}, // Disabled - blanket regex always rejected
+		GuardrailMaxLabelCardinality:       &Guardrail{Name: GuardrailMaxLabelCardinality, RequireTSDBEndpoint: true, Value: uint64(0)},  // Disabled - blanket regex always rejected
 	}
 	tests := map[string]bool{
 		// Rule 1: __name__ queries
@@ -586,7 +586,7 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 			GuardrailRequireLabelMatcher:       &Guardrail{Name: GuardrailRequireLabelMatcher, RequireTSDBEndpoint: false, Value: false},
 			GuardrailDisallowBlanketRegex:      &Guardrail{Name: GuardrailDisallowBlanketRegex, RequireTSDBEndpoint: true, Value: true},
 			GuardrailMaxMetricCardinality:      &Guardrail{Name: GuardrailMaxMetricCardinality, RequireTSDBEndpoint: true, Value: uint64(10000)}, // Metric threshold
-			GuardrailMaxLabelCardinality:       &Guardrail{Name: GuardrailMaxLabelCardinality, RequireTSDBEndpoint: true, Value: uint64(100)},   // Label threshold
+			GuardrailMaxLabelCardinality:       &Guardrail{Name: GuardrailMaxLabelCardinality, RequireTSDBEndpoint: true, Value: uint64(100)},    // Label threshold
 		}
 
 		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{pod=~".*"}`, mock)
@@ -624,4 +624,3 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 		}
 	})
 }
-
