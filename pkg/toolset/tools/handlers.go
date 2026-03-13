@@ -35,7 +35,8 @@ func ExecuteRangeQueryHandler(params api.ToolHandlerParams) (*api.ToolCallResult
 		return api.NewToolCallResult("", fmt.Errorf("failed to create Prometheus client: %w", err)), nil
 	}
 
-	return tools.ExecuteRangeQueryHandler(params.Context, promClient, tools.BuildRangeQueryInput(params.GetArguments())).ToToolsetResult()
+	cfg := getConfig(params)
+	return tools.ExecuteRangeQueryHandler(params.Context, promClient, tools.BuildRangeQueryInput(params.GetArguments()), cfg.SummarizeRangeQuery).ToToolsetResult()
 }
 
 // GetLabelNamesHandler handles the retrieval of label names.

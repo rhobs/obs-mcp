@@ -83,11 +83,12 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Output Schema:**
 
-| Field        | Type       | Description                                             |
-| :----------- | :--------- | :------------------------------------------------------ |
-| `result`     | `object[]` | The query results as an array of time series            |
-| `resultType` | `string`   | The type of result returned: matrix or vector or scalar |
-| `warnings`   | `string[]` | Any warnings generated during query execution           |
+| Field        | Type       | Description                                                              |
+| :----------- | :--------- | :----------------------------------------------------------------------- |
+| `result`     | `object[]` | The query results as an array of time series                             |
+| `resultType` | `string`   | The type of result returned: matrix or vector or scalar                  |
+| `summary`    | `object[]` | Summary statistics for each time series (when summarize flag is enabled) |
+| `warnings`   | `string[]` | Any warnings generated during query execution                            |
 
 ---
 
