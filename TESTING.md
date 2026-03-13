@@ -121,6 +121,7 @@ export JUDGE_MODEL_NAME="gpt-4o-mini"   # Model to use as judge
 
 cd evals/mcpchecker
 mcpchecker check eval.yaml --parallel 4
+mcpchecker check eval.yaml --run "cpu-usage" --runs 1 --verbose  # single task, verbose
 ```
 
 **Against a Kind cluster — Option 2: obs-mcp running locally**:
