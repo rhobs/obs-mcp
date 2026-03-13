@@ -15,6 +15,7 @@ func TestGuardrails_IsSafeQuery(t *testing.T) {
 		DisallowExplicitNameLabel: true,
 		RequireLabelMatcher:       true,
 		DisallowBlanketRegex:      true,
+		RequireTSDBEndpoint:       true,
 		MaxMetricCardinality:      0, // Disabled - no TSDB needed
 		MaxLabelCardinality:       0, // Disabled - blanket regex always rejected
 	}
@@ -260,6 +261,7 @@ func TestGuardrails_MaxLabelCardinality(t *testing.T) {
 			RequireLabelMatcher:       false,
 			DisallowBlanketRegex:      true,
 			MaxLabelCardinality:       100, // Set threshold
+			RequireTSDBEndpoint:       true,
 		}
 		// With MaxLabelCardinality set but no client provided, blanket regex should be rejected
 		// because we can't verify the cardinality
@@ -277,6 +279,7 @@ func TestGuardrails_MaxLabelCardinality(t *testing.T) {
 			DisallowExplicitNameLabel: false,
 			RequireLabelMatcher:       false,
 			DisallowBlanketRegex:      true,
+			RequireTSDBEndpoint:       true,
 			MaxLabelCardinality:       0, // 0 means always disallow
 		}
 		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{pod=~".*"}`, nil)
@@ -432,6 +435,7 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 			DisallowExplicitNameLabel: false,
 			RequireLabelMatcher:       false,
 			DisallowBlanketRegex:      true,
+			RequireTSDBEndpoint:       true,
 			MaxLabelCardinality:       100, // Threshold
 		}
 
@@ -483,6 +487,7 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 			DisallowExplicitNameLabel: false,
 			RequireLabelMatcher:       false,
 			DisallowBlanketRegex:      true,
+			RequireTSDBEndpoint:       true,
 			MaxLabelCardinality:       100,
 		}
 
@@ -532,6 +537,7 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 			DisallowExplicitNameLabel: false,
 			RequireLabelMatcher:       false,
 			DisallowBlanketRegex:      true,
+			RequireTSDBEndpoint:       true,
 			MaxLabelCardinality:       100,
 		}
 
@@ -558,6 +564,7 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 			DisallowExplicitNameLabel: false,
 			RequireLabelMatcher:       false,
 			DisallowBlanketRegex:      true,
+			RequireTSDBEndpoint:       true,
 			MaxLabelCardinality:       100,
 		}
 
@@ -613,6 +620,7 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 			DisallowExplicitNameLabel: false,
 			RequireLabelMatcher:       false,
 			DisallowBlanketRegex:      true,
+			RequireTSDBEndpoint:       true,
 			MaxMetricCardinality:      10000,
 			MaxLabelCardinality:       100,
 		}
@@ -620,6 +628,113 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 		safe, err := g.IsSafeQuery(context.TODO(), `http_requests_total{pod=~".*"}`, mock)
 		if safe {
 			t.Error("expected query to be unsafe when metric cardinality is above threshold")
+		}
+		if err == nil {
+			t.Error("expected error explaining why query is unsafe")
+		}
+	})
+}
+
+func TestGuardrails_RequireTSDBEndpoint(t *testing.T) {
+	t.Run("ParseGuardrails recognizes require-tsdb-endpoint", func(t *testing.T) {
+		g, err := ParseGuardrails("require-tsdb-endpoint")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !g.RequireTSDBEndpoint {
+			t.Error("expected RequireTSDBEndpoint to be true")
+		}
+	})
+
+	t.Run("DefaultGuardrails does not enable RequireTSDBEndpoint", func(t *testing.T) {
+		g := DefaultGuardrails()
+		if g.RequireTSDBEndpoint {
+			t.Error("expected RequireTSDBEndpoint to be false in default guardrails")
+		}
+	})
+
+	t.Run("RequireTSDBEndpoint false skips TSDB calls for metric cardinality", func(t *testing.T) {
+		g := &Guardrails{
+			DisallowExplicitNameLabel: false,
+			RequireLabelMatcher:       false,
+			DisallowBlanketRegex:      false,
+			MaxMetricCardinality:      1000,
+			MaxLabelCardinality:       0,
+			RequireTSDBEndpoint:       false,
+		}
+
+		safe, err := g.IsSafeQuery(t.Context(), `http_requests_total{job="api"}`, nil)
+		if !safe {
+			t.Errorf("expected query to be safe when RequireTSDBEndpoint is false, got error: %v", err)
+		}
+	})
+
+	t.Run("RequireTSDBEndpoint false skips TSDB calls for label cardinality", func(t *testing.T) {
+		g := &Guardrails{
+			DisallowExplicitNameLabel: false,
+			RequireLabelMatcher:       false,
+			DisallowBlanketRegex:      true,
+			MaxMetricCardinality:      0,
+			MaxLabelCardinality:       100,
+			RequireTSDBEndpoint:       false,
+		}
+
+		safe, err := g.IsSafeQuery(t.Context(), `http_requests_total{pod=~".*"}`, nil)
+		if !safe {
+			t.Errorf("expected blanket regex query to be safe when RequireTSDBEndpoint is false, got error: %v", err)
+		}
+	})
+
+	t.Run("RequireTSDBEndpoint true requires TSDB client for metric cardinality", func(t *testing.T) {
+		g := &Guardrails{
+			DisallowExplicitNameLabel: false,
+			RequireLabelMatcher:       false,
+			DisallowBlanketRegex:      false,
+			MaxMetricCardinality:      1000,
+			MaxLabelCardinality:       0,
+			RequireTSDBEndpoint:       true,
+		}
+		safe, err := g.IsSafeQuery(t.Context(), `http_requests_total{job="api"}`, nil)
+		if safe {
+			t.Error("expected query to be unsafe when RequireTSDBEndpoint is true but no client provided")
+		}
+		if err == nil {
+			t.Error("expected error explaining why query is unsafe")
+		}
+	})
+
+	t.Run("RequireTSDBEndpoint true requires TSDB client for label cardinality", func(t *testing.T) {
+		g := &Guardrails{
+			DisallowExplicitNameLabel: false,
+			RequireLabelMatcher:       false,
+			DisallowBlanketRegex:      true,
+			MaxMetricCardinality:      0,
+			MaxLabelCardinality:       100,
+			RequireTSDBEndpoint:       true,
+		}
+
+		safe, err := g.IsSafeQuery(t.Context(), `http_requests_total{pod=~".*"}`, nil)
+		if safe {
+			t.Error("expected query to be unsafe when RequireTSDBEndpoint is true but no client provided")
+		}
+		if err == nil {
+			t.Error("expected error explaining why query is unsafe")
+		}
+	})
+
+	t.Run("RequireTSDBEndpoint false with MaxLabelCardinality 0 still disallows blanket regex", func(t *testing.T) {
+		g := &Guardrails{
+			DisallowExplicitNameLabel: false,
+			RequireLabelMatcher:       false,
+			DisallowBlanketRegex:      true,
+			MaxMetricCardinality:      0,
+			MaxLabelCardinality:       0,
+			RequireTSDBEndpoint:       false,
+		}
+
+		safe, err := g.IsSafeQuery(t.Context(), `http_requests_total{pod=~".*"}`, nil)
+		if safe {
+			t.Error("expected blanket regex query to be unsafe when MaxLabelCardinality is 0")
 		}
 		if err == nil {
 			t.Error("expected error explaining why query is unsafe")
