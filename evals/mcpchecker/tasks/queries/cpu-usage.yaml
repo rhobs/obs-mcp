@@ -4,14 +4,21 @@ metadata:
   name: "cpu-usage"
   difficulty: medium
   parallel: true
+  runs: 3
+  labels:
+    category: queries
+    toolType: instant-query
   description: |
     Tests if the agent can find the appropriate CPU usage metric and query it to
     determine which pods are consuming the most CPU resources.
 spec:
   verify:
     - llmJudge:
-        contains: "cpu"
-        reason: "Verify the output discusses CPU usage data"
+        contains: "container_cpu_usage_seconds_total"
+        reason: "Verify the agent queried the correct CPU metric"
+    - llmJudge:
+        contains: "pod"
+        reason: "Verify the response identifies specific pods"
   prompt:
     inline: |
       Which pods are using the most CPU?

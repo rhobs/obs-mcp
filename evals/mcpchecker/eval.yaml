@@ -33,7 +33,7 @@ config:
         minToolCalls: 1
         maxToolCalls: 5
 
-    # Label discovery
+    # Label exploration
     - path: tasks/labels/label-names.yaml
       assertions:
         toolsUsed:
@@ -41,8 +41,15 @@ config:
             tool: list_metrics
           - server: obs
             tool: get_label_names
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: get_label_names
         minToolCalls: 2
-        maxToolCalls: 10
+        maxToolCalls: 7
 
     - path: tasks/labels/label-values.yaml
       assertions:
@@ -50,9 +57,21 @@ config:
           - server: obs
             tool: list_metrics
           - server: obs
+            tool: get_label_names
+          - server: obs
             tool: get_label_values
-        minToolCalls: 2
-        maxToolCalls: 10
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: get_label_names
+          - type: tool
+            server: obs
+            name: get_label_values
+        minToolCalls: 3
+        maxToolCalls: 7
 
     - path: tasks/labels/get-series.yaml
       assertions:
@@ -61,8 +80,15 @@ config:
             tool: list_metrics
           - server: obs
             tool: get_series
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: get_series
         minToolCalls: 2
-        maxToolCalls: 10
+        maxToolCalls: 7
 
     # Instant queries
     - path: tasks/queries/pending-pods.yaml
@@ -72,8 +98,15 @@ config:
             tool: list_metrics
           - server: obs
             tool: execute_instant_query
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: execute_instant_query
         minToolCalls: 2
-        maxToolCalls: 10
+        maxToolCalls: 7
 
     - path: tasks/queries/cpu-usage.yaml
       assertions:
@@ -82,8 +115,15 @@ config:
             tool: list_metrics
           - server: obs
             tool: execute_instant_query
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: execute_instant_query
         minToolCalls: 2
-        maxToolCalls: 10
+        maxToolCalls: 7
 
     - path: tasks/queries/network-traffic.yaml
       assertions:
@@ -92,8 +132,15 @@ config:
             tool: list_metrics
           - server: obs
             tool: execute_instant_query
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: execute_instant_query
         minToolCalls: 2
-        maxToolCalls: 10
+        maxToolCalls: 7
 
     - path: tasks/queries/prometheus-head-series.yaml
       assertions:
@@ -102,8 +149,15 @@ config:
             tool: list_metrics
           - server: obs
             tool: execute_instant_query
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: execute_instant_query
         minToolCalls: 2
-        maxToolCalls: 10
+        maxToolCalls: 7
 
     - path: tasks/queries/prometheus-requests.yaml
       assertions:
@@ -112,8 +166,15 @@ config:
             tool: list_metrics
           - server: obs
             tool: execute_instant_query
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: execute_instant_query
         minToolCalls: 2
-        maxToolCalls: 10
+        maxToolCalls: 7
 
     - path: tasks/queries/prometheus-wal-size.yaml
       assertions:
@@ -122,8 +183,15 @@ config:
             tool: list_metrics
           - server: obs
             tool: execute_instant_query
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: execute_instant_query
         minToolCalls: 2
-        maxToolCalls: 10
+        maxToolCalls: 7
 
     # Range queries
     - path: tasks/queries/pods-created.yaml
@@ -133,8 +201,15 @@ config:
             tool: list_metrics
           - server: obs
             tool: execute_range_query
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: execute_range_query
         minToolCalls: 2
-        maxToolCalls: 10
+        maxToolCalls: 7
 
     - path: tasks/queries/crashlooping-pods.yaml
       assertions:
@@ -143,8 +218,15 @@ config:
             tool: list_metrics
           - server: obs
             tool: execute_range_query
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: execute_range_query
         minToolCalls: 2
-        maxToolCalls: 10
+        maxToolCalls: 7
 
     # Alertmanager
     - path: tasks/alerts/get-alerts.yaml
@@ -155,13 +237,16 @@ config:
         minToolCalls: 1
         maxToolCalls: 5
 
-    - path: tasks/alerts/get-active-alerts.yaml
+    - path: tasks/alerts/alert-investigation.yaml
       assertions:
         toolsUsed:
           - server: obs
             tool: get_alerts
-        minToolCalls: 1
-        maxToolCalls: 5
+        toolPattern:
+          - server: obs
+            toolPattern: "(list_metrics|execute_instant_query|execute_range_query)"
+        minToolCalls: 2
+        maxToolCalls: 15
 
     - path: tasks/alerts/get-silences.yaml
       assertions:
@@ -170,3 +255,27 @@ config:
             tool: get_silences
         minToolCalls: 1
         maxToolCalls: 5
+
+    # Multi-step reasoning (hard)
+    - path: tasks/queries/namespace-resource-usage.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: execute_instant_query
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: execute_instant_query
+        minToolCalls: 3
+        maxToolCalls: 15
+
+    # Ambiguous diagnostic (hard)
+    - path: tasks/queries/diagnose-cluster-health.yaml
+      assertions:
+        minToolCalls: 3
+        maxToolCalls: 20

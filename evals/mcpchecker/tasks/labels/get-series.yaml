@@ -4,6 +4,10 @@ metadata:
   name: "get-series-cardinality"
   difficulty: medium
   parallel: true
+  runs: 3
+  labels:
+    category: labels
+    toolType: exploration
   description: |
     Tests if the agent can use the get_series tool to check cardinality for a metric.
     The agent should first verify the metric exists via list_metrics, then use

@@ -4,6 +4,10 @@ metadata:
   name: "pods-created"
   difficulty: medium
   parallel: true
+  runs: 3
+  labels:
+    category: queries
+    toolType: range-query
   description: |
     Tests if the agent can use a range query to find recently created pods by
     discovering the kube_pod_created metric and querying it over a 5-minute window.
