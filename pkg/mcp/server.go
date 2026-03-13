@@ -19,12 +19,12 @@ import (
 
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
-	AuthMode            AuthMode
-	MetricsBackendURL   string
-	AlertmanagerURL     string
-	Insecure            bool
-	Guardrails          *prometheus.Guardrails
-	SummarizeRangeQuery bool
+	AuthMode               AuthMode
+	MetricsBackendURL      string
+	AlertmanagerURL        string
+	Insecure               bool
+	Guardrails             *prometheus.Guardrails
+	FullRangeQueryResponse bool
 }
 
 const (
