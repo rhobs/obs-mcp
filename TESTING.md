@@ -36,8 +36,10 @@ make run-openshift-pf-prometheus     # port-forwards prometheus-k8s-0:9090 + ale
 **kube-prometheus or any other backend** — set URLs explicitly:
 
 ```bash
-PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 make run
+PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 AUTH_MODE=header make run
 ```
+
+> **Note:** `AUTH_MODE=header` is required for Kind clusters because their kubeconfig uses client certificates instead of bearer tokens. The default `kubeconfig` auth mode will fail with a "kubeconfig doesn't contain a bearer token" error.
 
 Override other defaults as needed:
 
@@ -128,7 +130,7 @@ make test-e2e-setup              # create Kind cluster with kube-prometheus (ski
 make deploy-more-kube-prom-targets        # deploy kube-state-metrics, node-exporter, kubelet scrape configs
 kubectl port-forward -n monitoring svc/prometheus-k8s 9090:9090 &
 kubectl port-forward -n monitoring svc/alertmanager-main 9093:9093 &
-PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 make run
+PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 AUTH_MODE=header make run
 
 # In another terminal:
 export OPENAI_API_KEY="sk-..."

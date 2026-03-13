@@ -4,13 +4,17 @@ metadata:
   name: "get-silences"
   difficulty: easy
   parallel: true
+  runs: 2
+  labels:
+    category: alerts
+    toolType: alertmanager
   description: |
     Tests if the agent can discover and use the get_silences tool to retrieve
     active silences from Alertmanager.
 spec:
   verify:
     - llmJudge:
-        contains: "silence"
+        contains: "silences in Alertmanager"
         reason: "Verify the output discusses silences from Alertmanager"
   prompt:
     inline: |

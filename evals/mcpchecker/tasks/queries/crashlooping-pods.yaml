@@ -4,6 +4,10 @@ metadata:
   name: "crashlooping-pods"
   difficulty: medium
   parallel: true
+  runs: 3
+  labels:
+    category: queries
+    toolType: range-query
   description: |
     Tests if the agent can identify crashlooping pods by discovering and querying
     the kube_pod_container_status_restarts_total metric over a time range.
