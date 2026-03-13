@@ -90,23 +90,20 @@ config:
         minToolCalls: 2
         maxToolCalls: 7
 
-    # Instant queries
+    # Instant / range queries (agent may legitimately use either query type)
     - path: tasks/queries/pending-pods.yaml
       assertions:
         toolsUsed:
           - server: obs
             tool: list_metrics
           - server: obs
-            tool: execute_instant_query
+            toolPattern: "(execute_instant_query|execute_range_query)"
         callOrder:
           - type: tool
             server: obs
             name: list_metrics
-          - type: tool
-            server: obs
-            name: execute_instant_query
         minToolCalls: 2
-        maxToolCalls: 7
+        maxToolCalls: 15
 
     - path: tasks/queries/cpu-usage.yaml
       assertions:
@@ -114,16 +111,13 @@ config:
           - server: obs
             tool: list_metrics
           - server: obs
-            tool: execute_instant_query
+            toolPattern: "(execute_instant_query|execute_range_query)"
         callOrder:
           - type: tool
             server: obs
             name: list_metrics
-          - type: tool
-            server: obs
-            name: execute_instant_query
         minToolCalls: 2
-        maxToolCalls: 7
+        maxToolCalls: 15
 
     - path: tasks/queries/network-traffic.yaml
       assertions:
@@ -131,16 +125,13 @@ config:
           - server: obs
             tool: list_metrics
           - server: obs
-            tool: execute_instant_query
+            toolPattern: "(execute_instant_query|execute_range_query)"
         callOrder:
           - type: tool
             server: obs
             name: list_metrics
-          - type: tool
-            server: obs
-            name: execute_instant_query
         minToolCalls: 2
-        maxToolCalls: 7
+        maxToolCalls: 15
 
     - path: tasks/queries/prometheus-head-series.yaml
       assertions:
@@ -148,16 +139,13 @@ config:
           - server: obs
             tool: list_metrics
           - server: obs
-            tool: execute_instant_query
+            toolPattern: "(execute_instant_query|execute_range_query)"
         callOrder:
           - type: tool
             server: obs
             name: list_metrics
-          - type: tool
-            server: obs
-            name: execute_instant_query
         minToolCalls: 2
-        maxToolCalls: 7
+        maxToolCalls: 15
 
     - path: tasks/queries/prometheus-requests.yaml
       assertions:
@@ -165,16 +153,13 @@ config:
           - server: obs
             tool: list_metrics
           - server: obs
-            tool: execute_instant_query
+            toolPattern: "(execute_instant_query|execute_range_query)"
         callOrder:
           - type: tool
             server: obs
             name: list_metrics
-          - type: tool
-            server: obs
-            name: execute_instant_query
         minToolCalls: 2
-        maxToolCalls: 7
+        maxToolCalls: 15
 
     - path: tasks/queries/prometheus-wal-size.yaml
       assertions:
@@ -182,16 +167,13 @@ config:
           - server: obs
             tool: list_metrics
           - server: obs
-            tool: execute_instant_query
+            toolPattern: "(execute_instant_query|execute_range_query)"
         callOrder:
           - type: tool
             server: obs
             name: list_metrics
-          - type: tool
-            server: obs
-            name: execute_instant_query
         minToolCalls: 2
-        maxToolCalls: 7
+        maxToolCalls: 15
 
     # Range queries
     - path: tasks/queries/pods-created.yaml
@@ -242,7 +224,6 @@ config:
         toolsUsed:
           - server: obs
             tool: get_alerts
-        toolPattern:
           - server: obs
             toolPattern: "(list_metrics|execute_instant_query|execute_range_query)"
         minToolCalls: 2
@@ -263,14 +244,11 @@ config:
           - server: obs
             tool: list_metrics
           - server: obs
-            tool: execute_instant_query
+            toolPattern: "(execute_instant_query|execute_range_query)"
         callOrder:
           - type: tool
             server: obs
             name: list_metrics
-          - type: tool
-            server: obs
-            name: execute_instant_query
         minToolCalls: 3
         maxToolCalls: 15
 

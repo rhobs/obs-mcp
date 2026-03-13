@@ -7,7 +7,7 @@ metadata:
   runs: 3
   labels:
     category: queries
-    toolType: instant-query
+    toolType: query
   description: |
     Tests if the agent can identify pods stuck in pending state by first discovering
     the kube_pod_status_phase metric and then running an instant query to find

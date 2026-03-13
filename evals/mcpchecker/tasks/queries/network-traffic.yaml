@@ -7,7 +7,7 @@ metadata:
   runs: 3
   labels:
     category: queries
-    toolType: instant-query
+    toolType: query
   description: |
     Tests if the agent can discover network-related metrics and query them to find
     which pods are receiving the most network traffic.

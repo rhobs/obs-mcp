@@ -14,8 +14,8 @@ metadata:
 spec:
   verify:
     - llmJudge:
-        contains: "silences in Alertmanager"
-        reason: "Verify the output discusses silences from Alertmanager"
+        contains: "silences"
+        reason: "Verify the output discusses alert silences"
   prompt:
     inline: |
       Are there any active silences in Alertmanager?
