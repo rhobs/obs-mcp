@@ -4,6 +4,10 @@ metadata:
   name: "list-kube-metrics"
   difficulty: easy
   parallel: true
+  runs: 2
+  labels:
+    category: metrics
+    toolType: discovery
   description: |
     Tests if the agent can discover the list_metrics tool to find Kubernetes-related
     metrics. The agent should use the name_regex parameter to filter for kube metrics.

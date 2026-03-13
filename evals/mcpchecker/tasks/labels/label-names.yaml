@@ -4,6 +4,10 @@ metadata:
   name: "label-names"
   difficulty: easy
   parallel: true
+  runs: 2
+  labels:
+    category: labels
+    toolType: exploration
   description: |
     Tests if the agent follows the correct workflow: first calling list_metrics to
     verify kube_pod_info exists, then calling get_label_names to discover available

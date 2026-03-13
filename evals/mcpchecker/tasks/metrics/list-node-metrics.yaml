@@ -4,6 +4,10 @@ metadata:
   name: "list-node-metrics"
   difficulty: easy
   parallel: true
+  runs: 2
+  labels:
+    category: metrics
+    toolType: discovery
   description: |
     Tests if the agent can discover node-related metrics using the list_metrics tool
     with a regex filter for node metrics.
