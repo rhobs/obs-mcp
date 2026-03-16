@@ -24,7 +24,7 @@ func (t *Toolset) GetDescription() string {
 func (t *Toolset) GetTools(_ api.Openshift) []api.ServerTool {
 	return []api.ServerTool{
 		ListInstancesTool.ToServerTool(ToServerHandler(t.ListInstancesHandler)),
-		GetTraceByIdTool.ToServerTool(ToServerHandler(t.GetTraceByIdHandler)),
+		GetTraceByIDTool.ToServerTool(ToServerHandler(t.GetTraceByIDHandler)),
 		SearchTracesTool.ToServerTool(ToServerHandler(t.SearchTracesHandler)),
 		SearchTagsTool.ToServerTool(ToServerHandler(t.SearchTagsHandler)),
 		SearchTagValuesTool.ToServerTool(ToServerHandler(t.SearchTagValuesHandler)),

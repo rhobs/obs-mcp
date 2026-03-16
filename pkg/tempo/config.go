@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
@@ -11,10 +12,11 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-const TOOLSET_NAME = "obs-mcp-tempo"
+const ToolsetName = "obs-mcp-tempo"
+const httpClientTimeout = 30 * time.Second
 
 func init() {
-	serverconfig.RegisterToolsetConfig(TOOLSET_NAME, tempoToolsetParser)
+	serverconfig.RegisterToolsetConfig(ToolsetName, tempoToolsetParser)
 }
 
 type Config struct {
@@ -40,7 +42,7 @@ func tempoToolsetParser(_ context.Context, primitive toml.Primitive, md toml.Met
 }
 
 func getConfig(params api.ToolHandlerParams) *Config {
-	if cfg, ok := params.GetToolsetConfig(TOOLSET_NAME); ok {
+	if cfg, ok := params.GetToolsetConfig(ToolsetName); ok {
 		if tempoCfg, ok := cfg.(*Config); ok {
 			return tempoCfg
 		}
@@ -59,5 +61,6 @@ func getHTTPClient(restConfig *rest.Config) (*http.Client, error) {
 
 	return &http.Client{
 		Transport: rt,
+		Timeout:   httpClientTimeout,
 	}, nil
 }

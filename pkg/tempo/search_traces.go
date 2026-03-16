@@ -114,10 +114,10 @@ func (t *Toolset) SearchTracesHandler(params ToolParams) *resultutil.Result {
 		Spss:  spss,
 	}
 
-	trace, err := client.Search(params.context, opts)
+	results, err := client.Search(params.context, opts)
 	if err != nil {
 		return resultutil.NewErrorResult(err)
 	}
 
-	return resultutil.NewJSONSuccessResult(trace)
+	return resultutil.NewJSONSuccessResult(results)
 }

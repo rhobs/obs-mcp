@@ -8,7 +8,7 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
-var GetTraceByIdTool = tools.ToolDef{
+var GetTraceByIDTool = tools.ToolDef{
 	Name: "tempo_get_trace_by_id",
 	Description: `Retrieve a single distributed trace by its trace ID from Tempo.
 Returns the full trace with all its spans, including service names, operation names, durations, and attributes.
@@ -43,7 +43,7 @@ Narrows the time range to improve query performance.`,
 	OpenWorld:   true,
 }
 
-func (t *Toolset) GetTraceByIdHandler(params ToolParams) *resultutil.Result {
+func (t *Toolset) GetTraceByIDHandler(params ToolParams) *resultutil.Result {
 	client, err := t.getTempoClient(params)
 	if err != nil {
 		return resultutil.NewErrorResult(err)
