@@ -29,6 +29,8 @@ spec:
             - --insecure
             - --log-level
             - debug
+            - --toolsets
+            - prometheus,tempo
           env:
             - name: PROMETHEUS_URL
               valueFrom:
