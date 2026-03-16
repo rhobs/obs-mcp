@@ -1,11 +1,17 @@
 package tools
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"os"
+	"strings"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	promapi "github.com/prometheus/client_golang/api"
+	promcfg "github.com/prometheus/common/config"
 	"k8s.io/client-go/rest"
 
 	"github.com/rhobs/obs-mcp/pkg/alertmanager"
@@ -45,13 +51,11 @@ func getPromClient(params api.ToolHandlerParams) (prometheus.Loader, error) {
 		slog.Warn("Failed to parse guardrails configuration", "err", err)
 	}
 
-	// Create API config using the REST config from params
 	apiConfig, err := createAPIConfigFromRESTConfig(params, metricsBackendURL, cfg.Insecure)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API config: %w", err)
 	}
 
-	// Create Prometheus client
 	promClient, err := prometheus.NewPrometheusClient(apiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Prometheus client: %w", err)
@@ -63,26 +67,126 @@ func getPromClient(params api.ToolHandlerParams) (prometheus.Loader, error) {
 }
 
 // createAPIConfigFromRESTConfig creates a Prometheus API config from Kubernetes REST config.
+// It builds a fresh HTTP transport without the AccessControlRoundTripper to avoid
+// Kubernetes API validation on Prometheus endpoints.
 func createAPIConfigFromRESTConfig(params api.ToolHandlerParams, prometheusURL string, insecure bool) (promapi.Config, error) {
 	restConfig := params.RESTConfig()
 	if restConfig == nil {
 		return promapi.Config{}, fmt.Errorf("no REST config available")
 	}
 
-	// For routes/ingresses, we need to configure TLS appropriately
-	tlsConfig := rest.TLSClientConfig{Insecure: insecure}
-	restConfig.TLSClientConfig = tlsConfig
+	token := extractBearerToken(restConfig)
 
-	// Create HTTP client with Kubernetes authentication
-	rt, err := rest.TransportFor(restConfig)
-	if err != nil {
-		return promapi.Config{}, fmt.Errorf("failed to create transport from REST config: %w", err)
+	// Use the same pattern as createAPIConfigWithToken from obs-mcp/pkg/mcp/auth.go
+	return createAPIConfigWithToken(restConfig, prometheusURL, token, insecure)
+}
+
+// createAPIConfigWithToken creates a Prometheus API config with bearer token authentication.
+// This follows the pattern from obs-mcp/pkg/mcp/auth.go to avoid using rest.TransportFor()
+// which would inherit the AccessControlRoundTripper.
+func createAPIConfigWithToken(restConfig *rest.Config, prometheusURL, token string, insecure bool) (promapi.Config, error) {
+	apiConfig := promapi.Config{
+		Address: prometheusURL,
 	}
 
-	return promapi.Config{
-		Address:      prometheusURL,
-		RoundTripper: rt,
-	}, nil
+	useTLS := strings.HasPrefix(prometheusURL, "https://")
+	if useTLS {
+		defaultRt, ok := promapi.DefaultRoundTripper.(*http.Transport)
+		if !ok {
+			return promapi.Config{}, fmt.Errorf("unexpected RoundTripper type: %T, expected *http.Transport", promapi.DefaultRoundTripper)
+		}
+
+		if insecure {
+			defaultRt.TLSClientConfig = &tls.Config{
+				MinVersion:         tls.VersionTLS12,
+				InsecureSkipVerify: true,
+			}
+		} else {
+			// Build cert pool from REST config
+			certs, err := createCertPoolFromRESTConfig(restConfig)
+			if err != nil {
+				return promapi.Config{}, err
+			}
+			defaultRt.TLSClientConfig = &tls.Config{
+				MinVersion: tls.VersionTLS12,
+				RootCAs:    certs,
+			}
+		}
+
+		if token != "" {
+			apiConfig.RoundTripper = promcfg.NewAuthorizationCredentialsRoundTripper(
+				"Bearer", promcfg.NewInlineSecret(token), defaultRt)
+		} else {
+			apiConfig.RoundTripper = defaultRt
+		}
+	} else {
+		slog.Warn("Connecting to Prometheus without TLS")
+	}
+
+	return apiConfig, nil
+}
+
+// createCertPoolFromRESTConfig creates a cert pool from Kubernetes REST config.
+func createCertPoolFromRESTConfig(restConfig *rest.Config) (*x509.CertPool, error) {
+	var certPool *x509.CertPool
+
+	// Start with system cert pool if available
+	if systemPool, err := x509.SystemCertPool(); err == nil && systemPool != nil {
+		certPool = systemPool
+	} else {
+		certPool = x509.NewCertPool()
+	}
+
+	// Try to append cluster CA from REST config
+	var caLoaded bool
+
+	// First, try CAData
+	if len(restConfig.CAData) > 0 {
+		if ok := certPool.AppendCertsFromPEM(restConfig.CAData); ok {
+			caLoaded = true
+			slog.Debug("Loaded cluster CA from REST config CAData")
+		} else {
+			slog.Warn("Failed to parse CA certificates from REST config CAData")
+		}
+	}
+
+	// If CAData wasn't available, try CAFile
+	if !caLoaded && restConfig.CAFile != "" {
+		caPEM, err := os.ReadFile(restConfig.CAFile)
+		if err != nil {
+			slog.Warn("Failed to read CA file", "file", restConfig.CAFile, "error", err)
+		} else {
+			if ok := certPool.AppendCertsFromPEM(caPEM); ok {
+				slog.Debug("Loaded cluster CA from file", "file", restConfig.CAFile)
+			} else {
+				slog.Warn("Failed to parse CA certificates from file", "file", restConfig.CAFile)
+			}
+		}
+	}
+
+	return certPool, nil
+}
+
+// extractBearerToken extracts the bearer token from Kubernetes REST config.
+func extractBearerToken(restConfig *rest.Config) string {
+	if restConfig == nil {
+		return ""
+	}
+
+	if restConfig.BearerToken != "" {
+		return restConfig.BearerToken
+	}
+
+	if restConfig.BearerTokenFile != "" {
+		token, err := os.ReadFile(restConfig.BearerTokenFile)
+		if err != nil {
+			slog.Warn("Failed to read token file", "file", restConfig.BearerTokenFile, "error", err)
+			return ""
+		}
+		return strings.TrimSpace(string(token))
+	}
+
+	return ""
 }
 
 // getAlertmanagerClient creates an Alertmanager client using the toolset configuration.
@@ -99,20 +203,14 @@ func getAlertmanagerClient(params api.ToolHandlerParams) (alertmanager.Loader, e
 		return nil, fmt.Errorf("no REST config available")
 	}
 
-	tlsConfig := rest.TLSClientConfig{Insecure: cfg.Insecure}
-	restConfig.TLSClientConfig = tlsConfig
+	// Extract bearer token from REST config
+	token := extractBearerToken(restConfig)
 
-	rt, err := rest.TransportFor(restConfig)
+	apiConfig, err := createAPIConfigWithToken(restConfig, alertmanagerURL, token, cfg.Insecure)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transport from REST config: %w", err)
+		return nil, fmt.Errorf("failed to create API config: %w", err)
 	}
 
-	apiConfig := promapi.Config{
-		Address:      alertmanagerURL,
-		RoundTripper: rt,
-	}
-
-	// Create Alertmanager client
 	amClient, err := alertmanager.NewAlertmanagerClient(apiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Alertmanager client: %w", err)

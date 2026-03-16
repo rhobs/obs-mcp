@@ -56,10 +56,31 @@ When deploying in-cluster, you must configure:
 
 The metrics backend URL is determined in the following order:
 
-1. `PROMETHEUS_URL` environment variable (if set, always used)
-2. `--metrics-backend` flag route discovery (only in `kubeconfig` mode)
-3. Default: `http://localhost:9090`
+1. `PROMETHEUS_URL` environment variable (if set, always used regardless of auth mode)
+2. Route discovery via the OpenShift Route API (only in `kubeconfig` mode, respects `--metrics-backend`)
+3. Fatal error — `serviceaccount` and `header` modes require `PROMETHEUS_URL` to be set explicitly
 
 > [!NOTE]
 >
-> Auto-discovery only works in `kubeconfig` mode. For in-cluster deployments, you must set `PROMETHEUS_URL` explicitly.
+> Auto-discovery only works in `kubeconfig` mode. For `serviceaccount` and `header` modes, the server
+> will fail at startup if `PROMETHEUS_URL` is not set. The same applies to `ALERTMANAGER_URL`.
+
+### Guardrails and Thanos Compatibility
+
+obs-mcp includes query guardrails that prevent expensive or unsafe PromQL queries. Two guardrails rely on the `/api/v1/status/tsdb` endpoint:
+
+| Guardrail | What it checks |
+|-----------|----------------|
+| `max-metric-cardinality` | Rejects queries against metrics with more series than the configured limit |
+| `max-label-cardinality` (with `disallow-blanket-regex`) | Rejects blanket regex matchers (`=~".+"`) on high-cardinality labels |
+
+**Thanos compatibility:**
+
+- **Thanos v0.40.0+** (Oct 2025): The Query component exposes `/api/v1/status/tsdb` ([#8484](https://github.com/thanos-io/thanos/pull/8484)), so all guardrails work.
+- **Thanos < v0.40.0**: The TSDB status endpoint is not available on the Query component. Use `--guardrails=none` or disable only the cardinality guardrails while keeping the others enabled:
+
+  ```shell
+  --guardrails=disallow-explicit-name-label,require-label-matcher,disallow-blanket-regex --guardrails.max-label-cardinality=0
+  ```
+
+- **Prometheus**: All guardrails work with any supported Prometheus version.

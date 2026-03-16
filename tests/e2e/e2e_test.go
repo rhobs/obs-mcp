@@ -1,60 +1,15 @@
-//go:build e2e
+//go:build e2e && !openshift
 
 package e2e
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
-
-var (
-	testConfig *TestConfig
-	mcpClient  *MCPClient
-)
-
-func TestMain(m *testing.M) {
-	// Set up signal handler for graceful shutdown on Ctrl+C
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		<-sigCh
-		fmt.Println("\nReceived interrupt signal, cleaning up...")
-		cancel()
-		if testConfig != nil {
-			testConfig.Cleanup()
-		}
-		os.Exit(130) // Standard exit code for SIGINT
-	}()
-
-	testConfig = NewTestConfig()
-	if err := testConfig.Setup(ctx); err != nil {
-		fmt.Printf("Failed to setup test environment: %v\n", err)
-		os.Exit(1)
-	}
-
-	mcpClient = NewMCPClient(testConfig.MCPURL)
-
-	// Run tests
-	code := m.Run()
-
-	// Cleanup
-	testConfig.Cleanup()
-
-	os.Exit(code)
-}
 
 func TestHealthEndpoint(t *testing.T) {
 	resp, err := http.Get(testConfig.MCPURL + "/health")
@@ -68,27 +23,22 @@ func TestHealthEndpoint(t *testing.T) {
 	}
 }
 
-func TestListMetricsReturnsKnownMetrics(t *testing.T) {
-	resp, err := mcpClient.CallTool(t, 2, "list_metrics", map[string]any{
-		"name_regex": ".*",
+// TestBackendNotLocalhost verifies that obs-mcp is connected to a real metrics
+// backend and not falling back to http://localhost:9090. A successful list_metrics
+// call returning known prometheus metrics is proof of correct URL configuration.
+func TestBackendNotLocalhost(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 1, "list_metrics", map[string]any{
+		"name_regex": "prometheus_build_info",
 	})
 	if err != nil {
 		t.Fatalf("Failed to call list_metrics: %v", err)
 	}
-
 	if resp.Error != nil {
-		t.Fatalf("MCP error: %s", resp.Error.Message)
+		t.Fatalf("MCP error: %s -- is PROMETHEUS_URL set correctly in the deployment?", resp.Error.Message)
 	}
-
-	// Verify known metrics from kube-prometheus are present
 	resultJSON, _ := json.Marshal(resp.Result)
-	resultStr := string(resultJSON)
-
-	expectedMetrics := []string{"up", "prometheus_build_info"}
-	for _, metric := range expectedMetrics {
-		if !strings.Contains(resultStr, metric) {
-			t.Errorf("Expected metric %q not found in results", metric)
-		}
+	if !strings.Contains(string(resultJSON), "prometheus_build_info") {
+		t.Error("prometheus_build_info not found -- server may be pointing at localhost:9090 instead of the configured backend")
 	}
 }
 
@@ -104,7 +54,7 @@ func TestListMetricsReturnsKnownMetricsWithMatcher(t *testing.T) {
 		t.Fatalf("MCP error: %s", resp.Error.Message)
 	}
 
-	// Verify known metrics from kube-prometheus are present
+	// Verify known metrics from prometheus are present
 	resultJSON, _ := json.Marshal(resp.Result)
 	resultStr := string(resultJSON)
 
@@ -117,11 +67,12 @@ func TestListMetricsReturnsKnownMetricsWithMatcher(t *testing.T) {
 }
 
 func TestExecuteRangeQuery(t *testing.T) {
+	skipIfThanosLacksTSDB(t)
+
 	resp, err := mcpClient.CallTool(t, 3, "execute_range_query", map[string]any{
-		"query":    `up{job="prometheus"}`,
+		"query":    `up{job=~"prometheus.*"}`,
 		"step":     "1m",
 		"duration": "5m",
-		"end":      "NOW",
 	})
 	if err != nil {
 		t.Fatalf("Failed to call execute_range_query: %v", err)
@@ -129,6 +80,13 @@ func TestExecuteRangeQuery(t *testing.T) {
 
 	if resp.Error != nil {
 		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Errorf("execute_range_query returned an error result: %s", resultJSON)
+	}
+	if resp.Result == nil {
+		t.Error("Expected non-nil result")
 	}
 
 	t.Logf("execute_range_query returned successfully")
@@ -222,8 +180,10 @@ func TestGuardrailsBlockDangerousQuery(t *testing.T) {
 }
 
 func TestExecuteInstantQuery(t *testing.T) {
+	skipIfThanosLacksTSDB(t)
+
 	resp, err := mcpClient.CallTool(t, 8, "execute_instant_query", map[string]any{
-		"query": `up{job="prometheus"}`,
+		"query": `up{job=~"prometheus.*"}`,
 		"time":  "NOW",
 	})
 	if err != nil {
@@ -233,9 +193,12 @@ func TestExecuteInstantQuery(t *testing.T) {
 	if resp.Error != nil {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
-
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Errorf("execute_instant_query returned an error result: %s", resultJSON)
+	}
 	if resp.Result == nil {
-		t.Error("Expected result, got nil")
+		t.Error("Expected non-nil result")
 	}
 
 	t.Logf("execute_instant_query returned successfully")
@@ -407,7 +370,10 @@ func TestGetAlerts(t *testing.T) {
 	if resp.Error != nil {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
-
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Errorf("get_alerts returned an error result: %s", resultJSON)
+	}
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
 	}
@@ -426,7 +392,10 @@ func TestGetAlertsWithActiveFilter(t *testing.T) {
 	if resp.Error != nil {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
-
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Errorf("get_alerts (active filter) returned an error result: %s", resultJSON)
+	}
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
 	}
@@ -445,12 +414,16 @@ func TestGetAlertsWithFilter(t *testing.T) {
 	if resp.Error != nil {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
-
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Errorf("get_alerts (Watchdog filter) returned an error result: %s", resultJSON)
+		return
+	}
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
 	}
 
-	// Verify Watchdog alert structure (kube-prometheus always has Watchdog firing)
+	// Verify Watchdog alert structure (prometheus always has Watchdog firing)
 	resultJSON, _ := json.Marshal(resp.Result)
 	resultStr := string(resultJSON)
 
@@ -470,7 +443,11 @@ func TestGetSilences(t *testing.T) {
 	if resp.Error != nil {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
-
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Errorf("get_silences returned an error result: %s", resultJSON)
+		return
+	}
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
 	}
@@ -497,12 +474,189 @@ func TestGetSilencesWithFilter(t *testing.T) {
 	if resp.Error != nil {
 		t.Errorf("MCP error: %s", resp.Error.Message)
 	}
-
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Errorf("get_silences (filter) returned an error result: %s", resultJSON)
+	}
 	if resp.Result == nil {
 		t.Error("Expected result, got nil")
 	}
 
 	t.Logf("get_silences with filter returned successfully")
+}
+
+func TestInstantQueryMissingRequiredParam(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 23, "execute_instant_query", map[string]any{
+		// Missing "query" parameter
+		"time": "NOW",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call execute_instant_query: %v", err)
+	}
+	if resp.Result != nil {
+		if isError, ok := resp.Result["isError"].(bool); ok && isError {
+			t.Log("Correctly returned error for missing query parameter")
+		} else {
+			t.Error("Expected error for missing required parameter")
+		}
+	}
+}
+
+func TestRangeQueryWithExplicitStartEnd(t *testing.T) {
+	skipIfThanosLacksTSDB(t)
+
+	resp, err := mcpClient.CallTool(t, 24, "execute_range_query", map[string]any{
+		"query": `up{job=~"prometheus.*"}`,
+		"step":  "1m",
+		"start": "NOW-5m",
+		"end":   "NOW",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call execute_range_query: %v", err)
+	}
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Errorf("execute_range_query (explicit start/end) returned an error result: %s", resultJSON)
+	}
+	if resp.Result == nil {
+		t.Error("Expected non-nil result")
+	}
+	t.Logf("execute_range_query (explicit start/end) returned successfully")
+}
+
+func TestGetLabelNamesWithTimeRange(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 25, "get_label_names", map[string]any{
+		"metric": "up",
+		"start":  "NOW-1h",
+		"end":    "NOW",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call get_label_names: %v", err)
+	}
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+	if resp.Result == nil {
+		t.Error("Expected non-nil result")
+	}
+	resultJSON, _ := json.Marshal(resp.Result)
+	if !strings.Contains(string(resultJSON), "job") {
+		t.Errorf("Expected label 'job' not found in results")
+	}
+	t.Logf("get_label_names (time range) returned successfully")
+}
+
+func TestGetLabelValuesWithTimeRange(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 26, "get_label_values", map[string]any{
+		"label":  "job",
+		"metric": "up",
+		"start":  "NOW-1h",
+		"end":    "NOW",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call get_label_values: %v", err)
+	}
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+	if resp.Result == nil {
+		t.Error("Expected non-nil result")
+	}
+	resultJSON, _ := json.Marshal(resp.Result)
+	if !strings.Contains(string(resultJSON), "prometheus") {
+		t.Errorf("Expected 'prometheus' job value not found in results")
+	}
+	t.Logf("get_label_values (time range) returned successfully")
+}
+
+func TestGetSeriesWithTimeRange(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 27, "get_series", map[string]any{
+		"matches": `up{job="prometheus"}`,
+		"start":   "NOW-1h",
+		"end":     "NOW",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call get_series: %v", err)
+	}
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+	if resp.Result == nil {
+		t.Error("Expected non-nil result")
+	}
+	resultJSON, _ := json.Marshal(resp.Result)
+	if !strings.Contains(string(resultJSON), "cardinality") {
+		t.Errorf("Expected 'cardinality' field not found in results")
+	}
+	t.Logf("get_series (time range) returned successfully")
+}
+
+func TestGetAlertsWithBooleanFilters(t *testing.T) {
+	tests := []struct {
+		name string
+		args map[string]any
+	}{
+		{"silenced", map[string]any{"silenced": true}},
+		{"inhibited", map[string]any{"inhibited": true}},
+		{"unprocessed", map[string]any{"unprocessed": true}},
+	}
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := mcpClient.CallTool(t, 28+i, "get_alerts", tt.args)
+			if err != nil {
+				t.Fatalf("Failed to call get_alerts: %v", err)
+			}
+			if resp.Error != nil {
+				t.Errorf("MCP error: %s", resp.Error.Message)
+			}
+			if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+				resultJSON, _ := json.Marshal(resp.Result)
+				t.Errorf("get_alerts (%s) returned an error result: %s", tt.name, resultJSON)
+			}
+			if resp.Result == nil {
+				t.Error("Expected non-nil result")
+			}
+		})
+	}
+}
+
+func TestGetAlertsWithReceiver(t *testing.T) {
+	// Query by a receiver name unlikely to exist; should return empty alerts, not an error.
+	resp, err := mcpClient.CallTool(t, 31, "get_alerts", map[string]any{
+		"receiver": "nonexistent-receiver-xyz",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call get_alerts with receiver: %v", err)
+	}
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Errorf("get_alerts (receiver) returned an error result: %s", resultJSON)
+	}
+	t.Log("get_alerts (receiver param) handled correctly")
+}
+
+func TestGetSilencesEmptyFilter(t *testing.T) {
+	// Filter for a silence that doesn't exist — should return empty list, not error.
+	resp, err := mcpClient.CallTool(t, 32, "get_silences", map[string]any{
+		"filter": "alertname=NonExistentSilence12345",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call get_silences: %v", err)
+	}
+	if resp.Error != nil {
+		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Errorf("get_silences (empty filter) returned an error result: %s", resultJSON)
+	}
+	t.Log("get_silences (non-matching filter) handled correctly")
 }
 
 func TestGetAlertsEmptyFilter(t *testing.T) {
@@ -516,6 +670,10 @@ func TestGetAlertsEmptyFilter(t *testing.T) {
 
 	if resp.Error != nil {
 		t.Errorf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Errorf("get_alerts (empty filter) returned an error result: %s", resultJSON)
 	}
 
 	// Should succeed but may return empty alerts array

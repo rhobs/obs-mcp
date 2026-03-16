@@ -3,9 +3,13 @@ package alertmanager
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
+	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/prometheus/alertmanager/api/v2/client"
 	"github.com/prometheus/alertmanager/api/v2/client/alert"
 	"github.com/prometheus/alertmanager/api/v2/client/silence"
@@ -28,7 +32,6 @@ type RealLoader struct {
 var _ Loader = (*RealLoader)(nil)
 
 func NewAlertmanagerClient(apiConfig api.Config) (*RealLoader, error) {
-	// Parse the URL to extract scheme and host
 	parsedURL, err := url.Parse(apiConfig.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse Alertmanager URL: %w", err)
@@ -48,7 +51,13 @@ func NewAlertmanagerClient(apiConfig api.Config) (*RealLoader, error) {
 		WithHost(host).
 		WithSchemes([]string{scheme})
 
-	c := client.NewHTTPClientWithConfig(nil, cfg)
+	rt := apiConfig.RoundTripper
+	if rt == nil {
+		rt = http.DefaultTransport
+	}
+	httpClient := &http.Client{Transport: rt}
+	transport := httptransport.NewWithClient(cfg.Host, cfg.BasePath, cfg.Schemes, httpClient)
+	c := client.New(transport, nil)
 
 	return &RealLoader{
 		client: c,
@@ -77,10 +86,16 @@ func (a *RealLoader) GetAlerts(ctx context.Context, active, silenced, inhibited,
 		params = params.WithReceiver(&receiver)
 	}
 
+	start := time.Now()
 	resp, err := a.client.Alert.GetAlerts(params)
+	duration := time.Since(start)
 	if err != nil {
+		slog.Error("Backend call failed", "backend", "alertmanager", "operation", "alerts",
+			"duration_ms", duration.Milliseconds(), "error", err)
 		return nil, fmt.Errorf("error fetching alerts: %w", err)
 	}
+	slog.Debug("Backend call completed", "backend", "alertmanager", "operation", "alerts",
+		"duration_ms", duration.Milliseconds(), "result_count", len(resp.Payload))
 
 	return resp.Payload, nil
 }
@@ -92,10 +107,16 @@ func (a *RealLoader) GetSilences(ctx context.Context, filter []string) (models.G
 		params = params.WithFilter(filter)
 	}
 
+	start := time.Now()
 	resp, err := a.client.Silence.GetSilences(params)
+	duration := time.Since(start)
 	if err != nil {
+		slog.Error("Backend call failed", "backend", "alertmanager", "operation", "silences",
+			"duration_ms", duration.Milliseconds(), "error", err)
 		return nil, fmt.Errorf("error fetching silences: %w", err)
 	}
+	slog.Debug("Backend call completed", "backend", "alertmanager", "operation", "silences",
+		"duration_ms", duration.Milliseconds(), "result_count", len(resp.Payload))
 
 	return resp.Payload, nil
 }

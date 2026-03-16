@@ -2,7 +2,10 @@ package prometheus
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/api"
@@ -30,6 +33,7 @@ type Loader interface {
 type RealLoader struct {
 	client     v1.API
 	guardrails *Guardrails
+	backend    string
 }
 
 var _ Loader = (*RealLoader)(nil)
@@ -40,10 +44,16 @@ func NewPrometheusClient(apiConfig api.Config) (*RealLoader, error) {
 		return nil, fmt.Errorf("error creating prometheus client: %w", err)
 	}
 
+	backend := "prometheus"
+	if strings.Contains(strings.ToLower(apiConfig.Address), "thanos") {
+		backend = "thanos"
+	}
+
 	v1api := v1.NewAPI(client)
 	return &RealLoader{
 		client:     v1api,
 		guardrails: DefaultGuardrails(),
+		backend:    backend,
 	}, nil
 }
 
@@ -62,10 +72,16 @@ func (p *RealLoader) ListMetrics(ctx context.Context, nameRegex string) ([]strin
 		matches = []string{matcher}
 	}
 
+	start := time.Now()
 	labelValues, _, err := p.client.LabelValues(ctx, "__name__", matches, time.Now().Add(-ListMetricsTimeRange), time.Now())
+	duration := time.Since(start)
 	if err != nil {
+		slog.Error("Backend call failed", "backend", p.backend, "operation", "list_metrics",
+			"duration_ms", duration.Milliseconds(), "error", err)
 		return nil, fmt.Errorf("error fetching metric names: %w", err)
 	}
+	slog.Debug("Backend call completed", "backend", p.backend, "operation", "list_metrics",
+		"duration_ms", duration.Milliseconds(), "result_count", len(labelValues))
 
 	metrics := make([]string, len(labelValues))
 	for i, value := range labelValues {
@@ -112,12 +128,19 @@ func (p *RealLoader) ValidateMetricsExist(ctx context.Context, query string) err
 // the query passes any configured guardrails.
 func (p *RealLoader) validateQuery(ctx context.Context, query string) error {
 	if err := p.ValidateMetricsExist(ctx, query); err != nil {
+		slog.Warn("Query validation rejected", "reason", "metric-not-found", "query", query, "error", err)
 		return fmt.Errorf("metric validation failed: %w", err)
 	}
 
 	if p.guardrails != nil {
 		isSafe, err := p.guardrails.IsSafeQuery(ctx, query, p.client)
 		if err != nil {
+			guardrail := "unknown"
+			var gv *GuardrailViolation
+			if errors.As(err, &gv) {
+				guardrail = gv.Guardrail
+			}
+			slog.Warn("Guardrail rejected query", "guardrail", guardrail, "query", query, "error", err)
 			return fmt.Errorf("query validation failed: %w", err)
 		}
 		if !isSafe {
@@ -128,21 +151,27 @@ func (p *RealLoader) validateQuery(ctx context.Context, query string) error {
 	return nil
 }
 
-func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+func (p *RealLoader) ExecuteRangeQuery(ctx context.Context, query string, queryStart, queryEnd time.Time, step time.Duration) (map[string]any, error) {
 	if err := p.validateQuery(ctx, query); err != nil {
 		return nil, err
 	}
 
 	r := v1.Range{
-		Start: start,
-		End:   end,
+		Start: queryStart,
+		End:   queryEnd,
 		Step:  step,
 	}
 
+	start := time.Now()
 	result, warnings, err := p.client.QueryRange(ctx, query, r, v1.WithTimeout(DefaultQueryTimeout))
+	duration := time.Since(start)
 	if err != nil {
+		slog.Error("Backend call failed", "backend", p.backend, "operation", "range_query",
+			"duration_ms", duration.Milliseconds(), "query", query, "error", err)
 		return nil, fmt.Errorf("error executing range query: %w", err)
 	}
+	slog.Debug("Backend call completed", "backend", p.backend, "operation", "range_query",
+		"duration_ms", duration.Milliseconds(), "query", query)
 
 	response := map[string]any{
 		"resultType": result.Type().String(),
@@ -161,10 +190,16 @@ func (p *RealLoader) ExecuteInstantQuery(ctx context.Context, query string, ts t
 		return nil, err
 	}
 
+	start := time.Now()
 	result, warnings, err := p.client.Query(ctx, query, ts)
+	duration := time.Since(start)
 	if err != nil {
+		slog.Error("Backend call failed", "backend", p.backend, "operation", "instant_query",
+			"duration_ms", duration.Milliseconds(), "query", query, "error", err)
 		return nil, fmt.Errorf("error executing instant query: %w", err)
 	}
+	slog.Debug("Backend call completed", "backend", p.backend, "operation", "instant_query",
+		"duration_ms", duration.Milliseconds(), "query", query)
 
 	response := map[string]any{
 		"resultType": result.Type().String(),
@@ -184,10 +219,16 @@ func (p *RealLoader) GetLabelNames(ctx context.Context, metricName string, start
 		matches = []string{metricName}
 	}
 
+	apiStart := time.Now()
 	labelNames, _, err := p.client.LabelNames(ctx, matches, start, end)
+	duration := time.Since(apiStart)
 	if err != nil {
+		slog.Error("Backend call failed", "backend", p.backend, "operation", "label_names",
+			"duration_ms", duration.Milliseconds(), "error", err)
 		return nil, fmt.Errorf("error fetching label names: %w", err)
 	}
+	slog.Debug("Backend call completed", "backend", p.backend, "operation", "label_names",
+		"duration_ms", duration.Milliseconds(), "result_count", len(labelNames))
 
 	labels := make([]string, len(labelNames))
 	copy(labels, labelNames)
@@ -200,10 +241,16 @@ func (p *RealLoader) GetLabelValues(ctx context.Context, label, metricName strin
 		matches = []string{metricName}
 	}
 
+	apiStart := time.Now()
 	labelValues, _, err := p.client.LabelValues(ctx, label, matches, start, end)
+	duration := time.Since(apiStart)
 	if err != nil {
+		slog.Error("Backend call failed", "backend", p.backend, "operation", "label_values",
+			"duration_ms", duration.Milliseconds(), "label", label, "error", err)
 		return nil, fmt.Errorf("error fetching label values: %w", err)
 	}
+	slog.Debug("Backend call completed", "backend", p.backend, "operation", "label_values",
+		"duration_ms", duration.Milliseconds(), "label", label, "result_count", len(labelValues))
 
 	values := make([]string, len(labelValues))
 	for i, value := range labelValues {
@@ -213,10 +260,16 @@ func (p *RealLoader) GetLabelValues(ctx context.Context, label, metricName strin
 }
 
 func (p *RealLoader) GetSeries(ctx context.Context, matches []string, start, end time.Time) ([]map[string]string, error) {
+	apiStart := time.Now()
 	seriesList, _, err := p.client.Series(ctx, matches, start, end)
+	duration := time.Since(apiStart)
 	if err != nil {
+		slog.Error("Backend call failed", "backend", p.backend, "operation", "series",
+			"duration_ms", duration.Milliseconds(), "error", err)
 		return nil, fmt.Errorf("error fetching series: %w", err)
 	}
+	slog.Debug("Backend call completed", "backend", p.backend, "operation", "series",
+		"duration_ms", duration.Milliseconds(), "result_count", len(seriesList))
 
 	result := make([]map[string]string, len(seriesList))
 	for i, series := range seriesList {

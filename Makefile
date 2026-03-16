@@ -1,5 +1,7 @@
 # Makefile for obs-mcp server
 
+.DEFAULT_GOAL := run
+
 CONTAINER_CLI ?= docker
 IMAGE ?= ghcr.io/rhobs/obs-mcp
 TAG ?= $(shell git rev-parse --short HEAD)
@@ -12,7 +14,7 @@ TOOLS_BIN_DIR := $(ROOT_DIR)/tmp/bin
 help: ## Show this help message
 	@echo "obs-mcp - Available commands:"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: check-tools
 check-tools: ## Check if required tools are installed
@@ -79,6 +81,45 @@ check-tools-doc: generate-tools-doc ## Check if TOOLS.md is up to date
 		exit 1; \
 	}
 
+# Run targets - for local testing
+LISTEN_ADDR ?= :9100
+LOG_LEVEL ?= debug
+AUTH_MODE ?= kubeconfig
+
+.PHONY: run
+run: build ## Run obs-mcp in HTTP mode (use LOG_LEVEL=debug to see backend call timings)
+	@echo "Tip: Override backend URLs with PROMETHEUS_URL=https://... ALERTMANAGER_URL=https://... make run"
+	@echo "Note: AUTH_MODE=serviceaccount or header requires PROMETHEUS_URL and ALERTMANAGER_URL to be set"
+	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --insecure --log-level $(LOG_LEVEL)
+
+.PHONY: run-prometheus
+run-prometheus: build ## Run obs-mcp with Prometheus as the metrics backend
+	@echo "Tip: Override backend URL with PROMETHEUS_URL=https://... make run-prometheus"
+	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --metrics-backend prometheus --insecure --log-level $(LOG_LEVEL)
+
+
+.PHONY: pf-alertmanager
+pf-alertmanager: ## Port-forward alertmanager-main-0:9093 in background (prerequisite for pf targets)
+	@oc port-forward -n openshift-monitoring pod/alertmanager-main-0 9093:9093 &
+	@sleep 2
+
+.PHONY: run-openshift-pf-prometheus
+run-openshift-pf-prometheus: build pf-alertmanager ## Port-forward prometheus-k8s-0:9090 + alertmanager-main-0:9093 and start obs-mcp with header auth (requires oc login)
+	@echo "Port-forwarding prometheus-k8s-0:9090..."
+	@oc port-forward -n openshift-monitoring pod/prometheus-k8s-0 9090:9090 & \
+		PF_PID=$$!; \
+		sleep 2; \
+		trap "kill $$PF_PID 2>/dev/null" EXIT; \
+		PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 \
+		./obs-mcp --listen $(LISTEN_ADDR) --auth-mode header --log-level $(LOG_LEVEL)
+
+
+.PHONY: run-no-guardrails
+run-no-guardrails: build ## Run obs-mcp in HTTP mode with guardrails disabled
+	@echo "Tip: Override backend URLs with PROMETHEUS_URL=https://... ALERTMANAGER_URL=https://... make run-no-guardrails"
+	@echo "Note: AUTH_MODE=serviceaccount or header requires PROMETHEUS_URL and ALERTMANAGER_URL to be set"
+	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --insecure --log-level $(LOG_LEVEL) --guardrails none
+
 # E2E Testing
 KIND_CLUSTER_NAME ?= obs-mcp-e2e
 
@@ -117,9 +158,17 @@ test-e2e-teardown: ## Teardown E2E test cluster
 .PHONY: test-e2e-full
 test-e2e-full: test-e2e-setup test-e2e-deploy test-e2e test-e2e-teardown ## Run full E2E test cycle (setup, test, teardown)
 
-# OpenShift E2E Testing (for OpenShift CI - image is built by CI)
+# OpenShift E2E Testing
+# In CI, deploy-obs-mcp step calls test-e2e-openshift-deploy, then the step registry runs test-e2e && test-e2e-openshift.
+# CI config:      https://github.com/openshift/release/blob/main/ci-operator/config/rhobs/obs-mcp/rhobs-obs-mcp-main.yaml
+# Step registry:  https://github.com/openshift/release/blob/main/ci-operator/step-registry/rhobs/obs-mcp-e2e-tests/rhobs-obs-mcp-e2e-tests-commands.sh
 .PHONY: test-e2e-openshift-deploy
 test-e2e-openshift-deploy: ## Deploy obs-mcp to OpenShift (uses IMAGE env var from CI)
 	oc apply -f manifests/openshift_e2e/
 	oc set image deployment/obs-mcp -n obs-mcp obs-mcp=$(IMAGE)
 	oc -n obs-mcp rollout status deployment/obs-mcp --timeout=3m
+
+.PHONY: test-e2e-openshift
+test-e2e-openshift: ## Run OpenShift route discovery E2E tests (requires oc login)
+	go test -mod=mod -v -tags=e2e,openshift -timeout=5m ./tests/e2e/...
+
