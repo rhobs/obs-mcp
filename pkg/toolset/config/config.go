@@ -65,7 +65,7 @@ func (c *Config) Validate() error {
 }
 
 // GetGuardrails returns the parsed guardrails configuration with cardinality limits applied.
-func (c *Config) GetGuardrails() (prometheus.Guardrails, error) {
+func (c *Config) GetGuardrails() (*prometheus.Guardrails, error) {
 	guardrailsStr := c.Guardrails
 	if guardrailsStr == "" {
 		guardrailsStr = "all" // default
