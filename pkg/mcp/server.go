@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -24,6 +25,7 @@ import (
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
 	AuthMode               AuthMode
+	Toolsets                []string
 	MetricsBackendURL      string
 	AlertmanagerURL        string
 	Insecure               bool
@@ -65,50 +67,54 @@ func NewMCPServer(opts ObsMCPOptions) (*server.MCPServer, error) {
 }
 
 func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
-	// Create tool definitions
-	listMetricsTool := CreateListMetricsTool()
-	executeInstantQueryTool := CreateExecuteInstantQueryTool()
-	executeRangeQueryTool := CreateExecuteRangeQueryTool()
-	getLabelNamesTool := CreateGetLabelNamesTool()
-	getLabelValuesTool := CreateGetLabelValuesTool()
-	getSeriesTool := CreateGetSeriesTool()
-	getAlertsTool := CreateGetAlertsTool()
-	getSilencesTool := CreateGetSilencesTool()
+	if slices.Contains(opts.Toolsets, "prometheus") {
+		// Create tool definitions
+		listMetricsTool := CreateListMetricsTool()
+		executeInstantQueryTool := CreateExecuteInstantQueryTool()
+		executeRangeQueryTool := CreateExecuteRangeQueryTool()
+		getLabelNamesTool := CreateGetLabelNamesTool()
+		getLabelValuesTool := CreateGetLabelValuesTool()
+		getSeriesTool := CreateGetSeriesTool()
+		getAlertsTool := CreateGetAlertsTool()
+		getSilencesTool := CreateGetSilencesTool()
 
-	// Create handlers
-	listMetricsHandler := ListMetricsHandler(opts)
-	executeInstantQueryHandler := ExecuteInstantQueryHandler(opts)
-	executeRangeQueryHandler := ExecuteRangeQueryHandler(opts)
-	getLabelNamesHandler := GetLabelNamesHandler(opts)
-	getLabelValuesHandler := GetLabelValuesHandler(opts)
-	getSeriesHandler := GetSeriesHandler(opts)
-	getAlertsHandler := GetAlertsHandler(opts)
-	getSilencesHandler := GetSilencesHandler(opts)
+		// Create handlers
+		listMetricsHandler := ListMetricsHandler(opts)
+		executeInstantQueryHandler := ExecuteInstantQueryHandler(opts)
+		executeRangeQueryHandler := ExecuteRangeQueryHandler(opts)
+		getLabelNamesHandler := GetLabelNamesHandler(opts)
+		getLabelValuesHandler := GetLabelValuesHandler(opts)
+		getSeriesHandler := GetSeriesHandler(opts)
+		getAlertsHandler := GetAlertsHandler(opts)
+		getSilencesHandler := GetSilencesHandler(opts)
 
-	// Add tools to server
-	mcpServer.AddTool(listMetricsTool, listMetricsHandler)
-	mcpServer.AddTool(executeInstantQueryTool, executeInstantQueryHandler)
-	mcpServer.AddTool(executeRangeQueryTool, executeRangeQueryHandler)
-	mcpServer.AddTool(getLabelNamesTool, getLabelNamesHandler)
-	mcpServer.AddTool(getLabelValuesTool, getLabelValuesHandler)
-	mcpServer.AddTool(getSeriesTool, getSeriesHandler)
-	mcpServer.AddTool(getAlertsTool, getAlertsHandler)
-	mcpServer.AddTool(getSilencesTool, getSilencesHandler)
-
-	tempoToolset := &tempo.Toolset{}
-	restConfig, err := k8s.GetClientConfig()
-	if err != nil {
-		return err
+		// Add tools to server
+		mcpServer.AddTool(listMetricsTool, listMetricsHandler)
+		mcpServer.AddTool(executeInstantQueryTool, executeInstantQueryHandler)
+		mcpServer.AddTool(executeRangeQueryTool, executeRangeQueryHandler)
+		mcpServer.AddTool(getLabelNamesTool, getLabelNamesHandler)
+		mcpServer.AddTool(getLabelValuesTool, getLabelValuesHandler)
+		mcpServer.AddTool(getSeriesTool, getSeriesHandler)
+		mcpServer.AddTool(getAlertsTool, getAlertsHandler)
+		mcpServer.AddTool(getSilencesTool, getSilencesHandler)
 	}
-	dynamicClient, err := dynamic.NewForConfig(restConfig)
-	if err != nil {
-		return err
+
+	if slices.Contains(opts.Toolsets, "tempo") {
+		tempoToolset := &tempo.Toolset{}
+		restConfig, err := k8s.GetClientConfig()
+		if err != nil {
+			return err
+		}
+		dynamicClient, err := dynamic.NewForConfig(restConfig)
+		if err != nil {
+			return err
+		}
+		mcpServer.AddTool(tempo.ListInstancesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.ListInstancesHandler))
+		mcpServer.AddTool(tempo.GetTraceByIDTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.GetTraceByIDHandler))
+		mcpServer.AddTool(tempo.SearchTracesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.SearchTracesHandler))
+		mcpServer.AddTool(tempo.SearchTagsTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.SearchTagsHandler))
+		mcpServer.AddTool(tempo.SearchTagValuesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.SearchTagValuesHandler))
 	}
-	mcpServer.AddTool(tempo.ListInstancesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.ListInstancesHandler))
-	mcpServer.AddTool(tempo.GetTraceByIDTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.GetTraceByIDHandler))
-	mcpServer.AddTool(tempo.SearchTracesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.SearchTracesHandler))
-	mcpServer.AddTool(tempo.SearchTagsTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.SearchTagsHandler))
-	mcpServer.AddTool(tempo.SearchTagValuesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.SearchTagValuesHandler))
 
 	return nil
 }

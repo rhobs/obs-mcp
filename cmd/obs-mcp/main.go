@@ -33,6 +33,7 @@ func main() {
 	var guardrails = flag.String("guardrails", "all", "Guardrails configuration: 'all' (default), 'none', or comma-separated list of guardrails to enable (disallow-explicit-name-label, require-label-matcher, disallow-blanket-regex)")
 	var maxMetricCardinality = flag.Uint64("guardrails.max-metric-cardinality", 20000, "Maximum allowed series count per metric (0 = disabled)")
 	var maxLabelCardinality = flag.Uint64("guardrails.max-label-cardinality", 500, "Maximum allowed label value count for blanket regex (0 = always disallow blanket regex). Only takes effect if disallow-blanket-regex is enabled.")
+	var toolsets = flag.String("toolsets", "prometheus", "Comma-separated list of enabled toolsets: prometheus, tempo")
 	var fullRangeQueryResponse = flag.Bool("full-range-query-response", false, "Return full data points for range queries")
 	flag.Parse()
 
@@ -85,6 +86,7 @@ func main() {
 	// Create MCP options
 	opts := mcp.ObsMCPOptions{
 		AuthMode:               parsedAuthMode,
+		Toolsets:               strings.Split(*toolsets, ","),
 		MetricsBackendURL:      metricsBackendURL,
 		AlertmanagerURL:        alertmanagerURL,
 		Insecure:               *insecure,
@@ -100,6 +102,7 @@ func main() {
 
 	slog.Info("Starting server",
 		"auth_mode", opts.AuthMode,
+		"toolsets", opts.Toolsets,
 		"metrics_backend_url", opts.MetricsBackendURL,
 		"metrics_backend_url_source", metricsURLSource,
 		"alertmanager_url", opts.AlertmanagerURL,
