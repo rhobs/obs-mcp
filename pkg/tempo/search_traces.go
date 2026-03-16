@@ -20,12 +20,33 @@ Use this tool to find traces matching specific criteria such as service name, HT
 		{
 			Name: "query",
 			Type: tools.ParamTypeString,
-			Description: `A TraceQL query expression. Examples:
-all traces: {}
-by service: { resource.service.name="frontend" }
-by status: { span.http.response.status_code=500 }
-by duration: { duration>1s }
-combined conditions: { resource.service.name="frontend" && span.http.response.status_code>=400 }`,
+			Description: `A TraceQL query expression. Format:
+query: "{ <filters joined by &&> }"
+
+Filters:
+- service name:     resource.service.name="<value>" (string, use quotes)
+- HTTP status code: span.http.response.status_code=<code> (number, no quotes)
+- duration:         duration><value like 100ms, 2s, 5m> (no quotes)
+- error status:     status=error (keyword, NO quotes — do NOT write status="error")
+
+IMPORTANT: status values (error, ok, unset) are keywords, NOT strings. Write status=error, NEVER status="error".
+
+Operators: =, !=, >, <, >=, <=
+
+Common attributes:
+- resource.service.name (service name)
+- span.http.response.status_code (HTTP response code)
+- span.http.request.method (HTTP method like GET, POST)
+- span.url.full (request URL)
+- duration (trace duration, e.g. 100ms, 2s)
+- status (trace status: ok, error, unset)
+
+IMPORTANT: Always wrap filters in curly braces { }.
+Do NOT use SQL, PromQL, or Lucene syntax.
+Do NOT omit the "resource." or "span." prefix from attribute names
+
+If unsure which attributes to filter on, start with {} to return all traces, then use tempo_search_tags to discover available attributes.
+`,
 			Required: true,
 		},
 		{
