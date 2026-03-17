@@ -279,7 +279,7 @@
 
   turns:
     - turn_id: "turn-1"
-      query: "Find traces where the shop-backend service took more than 500ms"
+      query: "Find traces where the shop-backend service took more than 500ms. Use instance tempo1."
       expected_tool_calls:
         - - tool_name: mcp_list_tools
             arguments:
