@@ -31,6 +31,8 @@ type Guardrails struct {
 	// MaxLabelCardinality sets the maximum allowed label value count for blanket regex
 	// (0 = always disallow regex matcher provided DisallowBlanketRegex is true)
 	MaxLabelCardinality Guardrail
+	// tsdbAvailable is flag saying whether TSDB is available or not
+	tsdbAvailable bool
 }
 
 // GuardrailViolation is returned when a query violates a specific guardrail rule.
@@ -45,16 +47,14 @@ func (e *GuardrailViolation) Error() string {
 }
 
 type Guardrail struct {
-	Name                string
-	RequireTSDBEndpoint bool
-	Value               any
+	Name  string
+	Value any
 }
 
-func NewGuardrail(name string, value any, requireTSDBEndpoint bool) Guardrail {
+func NewGuardrail(name string, value any) Guardrail {
 	return Guardrail{
-		Name:                name,
-		Value:               value,
-		RequireTSDBEndpoint: requireTSDBEndpoint,
+		Name:  name,
+		Value: value,
 	}
 }
 
@@ -106,18 +106,22 @@ func (g *Guardrails) IsBlanketRegexDisallowed() bool {
 	return dbr
 }
 
-func (g *Guardrails) RequireTSDB() bool {
-	return g.DisallowBlanketRegex.RequireTSDBEndpoint || g.MaxLabelCardinality.RequireTSDBEndpoint || g.MaxMetricCardinality.RequireTSDBEndpoint
+func (g *Guardrails) IsTSDBAvailable() bool {
+	return g.tsdbAvailable
 }
 
-func DefaultGuardrails() *Guardrails {
-	return &Guardrails{
-		DisallowExplicitNameLabel: NewGuardrail(GuardrailDisallowExplicitNameLabel, true, false),
-		RequireLabelMatcher:       NewGuardrail(GuardrailRequireLabelMatcher, true, false),
-		DisallowBlanketRegex:      NewGuardrail(GuardrailDisallowBlanketRegex, true, true),
-		MaxMetricCardinality:      NewGuardrail(GuardrailMaxMetricCardinality, uint64(20000), true),
-		MaxLabelCardinality:       NewGuardrail(GuardrailMaxLabelCardinality, uint64(500), true),
+func DefaultGuardrails(tsdbAvailable bool) *Guardrails {
+	defaultGuardrails := &Guardrails{
+		DisallowExplicitNameLabel: NewGuardrail(GuardrailDisallowExplicitNameLabel, true),
+		RequireLabelMatcher:       NewGuardrail(GuardrailRequireLabelMatcher, true),
 	}
+	if tsdbAvailable {
+		defaultGuardrails.DisallowBlanketRegex = NewGuardrail(GuardrailDisallowBlanketRegex, true)
+		defaultGuardrails.MaxMetricCardinality = NewGuardrail(GuardrailMaxMetricCardinality, uint64(20000))
+		defaultGuardrails.MaxLabelCardinality = NewGuardrail(GuardrailMaxLabelCardinality, uint64(500))
+
+	}
+	return defaultGuardrails
 }
 
 func ParseGuardrails(value string) (*Guardrails, error) {
@@ -127,7 +131,7 @@ func ParseGuardrails(value string) (*Guardrails, error) {
 	case "none":
 		return nil, nil
 	case "all", "":
-		return DefaultGuardrails(), nil
+		return DefaultGuardrails(false), nil
 	}
 
 	g := &Guardrails{}
@@ -140,11 +144,11 @@ func ParseGuardrails(value string) (*Guardrails, error) {
 
 		switch name {
 		case GuardrailDisallowExplicitNameLabel:
-			g.DisallowExplicitNameLabel = NewGuardrail(GuardrailDisallowExplicitNameLabel, true, false)
+			g.DisallowExplicitNameLabel = NewGuardrail(GuardrailDisallowExplicitNameLabel, true)
 		case GuardrailRequireLabelMatcher:
-			g.RequireLabelMatcher = NewGuardrail(GuardrailRequireLabelMatcher, true, false)
+			g.RequireLabelMatcher = NewGuardrail(GuardrailRequireLabelMatcher, true)
 		case GuardrailDisallowBlanketRegex:
-			g.DisallowBlanketRegex = NewGuardrail(GuardrailDisallowBlanketRegex, true, true)
+			g.DisallowBlanketRegex = NewGuardrail(GuardrailDisallowBlanketRegex, true)
 		default:
 			return nil, fmt.Errorf("unknown guardrail: %q (valid options: %s, %s, %s)",
 				name, GuardrailDisallowExplicitNameLabel, GuardrailRequireLabelMatcher,
@@ -172,8 +176,7 @@ func (g Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.API
 	maxMetricCardinality := g.GetMaxMetricCardinality()
 	maxLabelCardinality := g.GetMaxLabelCardinality()
 
-	requiresTSDB := g.RequireTSDB()
-	needsTSDB := requiresTSDB && (maxLabelCardinality > 0 && disallowBlanketRegex) || maxMetricCardinality > 0
+	needsTSDB := g.IsTSDBAvailable() && (maxLabelCardinality > 0 && disallowBlanketRegex) || maxMetricCardinality > 0
 
 	if needsTSDB && (client == nil || ctx == nil) {
 		return false, fmt.Errorf("cannot verify cardinality without TSDB client")
@@ -231,7 +234,7 @@ func (g Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.API
 	}
 
 	// Check metric cardinality
-	if maxMetricCardinality > 0 && requiresTSDB {
+	if maxMetricCardinality > 0 && g.IsTSDBAvailable() {
 		metricNames, err := ExtractMetricNames(query)
 		if err != nil {
 			return false, fmt.Errorf("failed to extract metric names: %w", err)
@@ -280,7 +283,7 @@ func (g Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.API
 				}
 			}
 
-			if requiresTSDB {
+			if g.IsTSDBAvailable() {
 				// Check TSDB label cardinality for blanket regex
 				tsdbResult, err := client.TSDB(ctx)
 				if err != nil {
