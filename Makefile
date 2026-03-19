@@ -155,6 +155,41 @@ test-e2e-teardown: ## Teardown E2E test cluster
 	chmod +x hack/e2e/teardown-cluster.sh
 	CLUSTER_NAME=$(KIND_CLUSTER_NAME) ./hack/e2e/teardown-cluster.sh
 
+.PHONY: deploy-kube-state-metrics
+deploy-kube-state-metrics: ## Deploy kube-state-metrics from kube-prometheus (for mcpchecker evals)
+	@if [ ! -d "tmp/kube-prometheus" ]; then \
+		echo "Error: tmp/kube-prometheus not found. Run 'make test-e2e-setup' first."; exit 1; \
+	fi
+	@echo "==> Installing kube-state-metrics..."
+	@for f in tmp/kube-prometheus/manifests/kubeStateMetrics-*.yaml; do \
+		kubectl apply -f "$$f"; \
+	done
+	kubectl -n monitoring rollout status deployment/kube-state-metrics --timeout=3m
+
+.PHONY: deploy-node-exporter
+deploy-node-exporter: ## Deploy node-exporter from kube-prometheus (for mcpchecker evals)
+	@if [ ! -d "tmp/kube-prometheus" ]; then \
+		echo "Error: tmp/kube-prometheus not found. Run 'make test-e2e-setup' first."; exit 1; \
+	fi
+	@echo "==> Installing node-exporter..."
+	@for f in tmp/kube-prometheus/manifests/nodeExporter-*.yaml; do \
+		kubectl apply -f "$$f"; \
+	done
+	kubectl -n monitoring rollout status daemonset/node-exporter --timeout=3m
+
+.PHONY: deploy-kubelet-servicemonitors
+deploy-kubelet-servicemonitors: ## Deploy kubelet/cAdvisor scrape configs from kube-prometheus (for container_* metrics)
+	@if [ ! -d "tmp/kube-prometheus" ]; then \
+		echo "Error: tmp/kube-prometheus not found. Run 'make test-e2e-setup' first."; exit 1; \
+	fi
+	@echo "==> Installing kubelet/cAdvisor ServiceMonitors..."
+	@for f in tmp/kube-prometheus/manifests/kubernetesControlPlane-*.yaml; do \
+		kubectl apply -f "$$f"; \
+	done
+
+.PHONY: deploy-more-kube-prom-targets
+deploy-more-kube-prom-targets: deploy-kube-state-metrics deploy-node-exporter deploy-kubelet-servicemonitors ## Deploy additional kube-prometheus scrape targets (kube-state-metrics, node-exporter, kubelet)
+
 .PHONY: test-e2e-full
 test-e2e-full: test-e2e-setup test-e2e-deploy test-e2e test-e2e-teardown ## Run full E2E test cycle (setup, test, teardown)
 
