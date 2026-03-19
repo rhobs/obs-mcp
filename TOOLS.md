@@ -38,7 +38,7 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 - PREREQUISITE: You MUST call list_metrics first to verify the metric exists
 - WHEN TO USE: - Current state questions: "What is the current error rate?" - Point-in-time snapshots: "How many pods are running?" - Latest values: "Which pods are in Pending state?"
-- The 'query' parameter MUST use metric names that were returned by list_metrics.
+- The 'query' parameter MUST use metric names that were returned by list_metrics. Use aggregation functions (topk, sum by, avg by) to answer in a single query instead of querying individual entities.
 
 **Parameters:**
 
@@ -66,7 +66,7 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 - PREREQUISITE: You MUST call list_metrics first to verify the metric exists
 - WHEN TO USE: - Trends over time: "What was CPU usage over the last hour?" - Rate calculations: "How many requests per second?" - Historical analysis: "Were there any restarts in the last 5 minutes?"
 - TIME PARAMETERS: - 'duration': Look back from now (e.g., "5m", "1h", "24h") - 'step': Data point resolution (e.g., "1m" for 1-hour duration, "5m" for 24-hour duration)
-- The 'query' parameter MUST use metric names that were returned by list_metrics.
+- The 'query' parameter MUST use metric names that were returned by list_metrics. Use aggregation functions (topk, sum by, rate, increase) to answer in a single query instead of querying individual entities.
 
 **Parameters:**
 
