@@ -16,6 +16,7 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/mcp"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
+	"github.com/rhobs/obs-mcp/pkg/tempo"
 )
 
 const (
@@ -26,6 +27,7 @@ const (
 func main() {
 	// Parse command line flags
 	var listen = flag.String("listen", "", "Listen address for HTTP mode (e.g., :9100, 127.0.0.1:8080)")
+	var toolsets = flag.String("toolsets", "prometheus", "Comma-separated list of enabled toolsets: prometheus, tempo")
 	var authMode = flag.String("auth-mode", "", "Authentication mode: kubeconfig, serviceaccount, or header")
 	var insecure = flag.Bool("insecure", false, "Skip TLS certificate verification")
 	var logLevel = flag.String("log-level", "info", "Log level: debug, info, warn, error")
@@ -34,6 +36,7 @@ func main() {
 	var maxMetricCardinality = flag.Uint64("guardrails.max-metric-cardinality", 20000, "Maximum allowed series count per metric (0 = disabled)")
 	var maxLabelCardinality = flag.Uint64("guardrails.max-label-cardinality", 500, "Maximum allowed label value count for blanket regex (0 = always disallow blanket regex). Only takes effect if disallow-blanket-regex is enabled.")
 	var fullRangeQueryResponse = flag.Bool("full-range-query-response", false, "Return full data points for range queries")
+	var tempoUseRoute = flag.Bool("tempo.use-route", false, "Use Route instead of internal service DNS when connecting to Tempo API")
 	flag.Parse()
 
 	// Configure slog with specified log level
@@ -84,12 +87,16 @@ func main() {
 
 	// Create MCP options
 	opts := mcp.ObsMCPOptions{
+		Toolsets:               strings.Split(*toolsets, ","),
 		AuthMode:               parsedAuthMode,
 		MetricsBackendURL:      metricsBackendURL,
 		AlertmanagerURL:        alertmanagerURL,
 		Insecure:               *insecure,
 		Guardrails:             parsedGuardrails,
 		FullRangeQueryResponse: *fullRangeQueryResponse,
+		Tempo: &tempo.Config{
+			UseRoute: *tempoUseRoute,
+		},
 	}
 
 	// Create MCP server
@@ -99,6 +106,7 @@ func main() {
 	}
 
 	slog.Info("Starting server",
+		"toolsets", opts.Toolsets,
 		"auth_mode", opts.AuthMode,
 		"metrics_backend_url", opts.MetricsBackendURL,
 		"metrics_backend_url_source", metricsURLSource,

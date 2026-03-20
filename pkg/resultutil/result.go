@@ -36,6 +36,24 @@ func NewSuccessResult(data any) *Result {
 	}
 }
 
+// NewJSONSuccessResult creates a successful result from a JSON string.
+// The JSON string is unmarshaled into a Go value for structured content,
+// while the original string is preserved for text fallback.
+func NewJSONSuccessResult(data string) *Result {
+	var structured any
+	err := json.Unmarshal([]byte(data), &structured)
+	if err != nil {
+		return &Result{
+			Error: fmt.Errorf("failed to unmarshal JSON result: %w", err),
+		}
+	}
+
+	return &Result{
+		Data:     structured,
+		JSONText: data,
+	}
+}
+
 // NewErrorResult creates an error result with the given error.
 func NewErrorResult(err error) *Result {
 	return &Result{

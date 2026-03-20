@@ -3,9 +3,8 @@ package tools
 import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/google/jsonschema-go/jsonschema"
-	"k8s.io/utils/ptr"
-
 	"github.com/mark3labs/mcp-go/mcp"
+	"k8s.io/utils/ptr"
 )
 
 // ParamDef defines a tool parameter
@@ -23,6 +22,7 @@ type ParamType string
 const (
 	ParamTypeString  ParamType = "string"
 	ParamTypeBoolean ParamType = "boolean"
+	ParamTypeNumber  ParamType = "number"
 )
 
 // ToolDef defines a tool that can be converted to different formats (MCP, Toolset, etc.)
@@ -59,6 +59,13 @@ func (d ToolDef) ToMCPTool() mcp.Tool {
 				boolOpts = append(boolOpts, mcp.Required())
 			}
 			opts = append(opts, mcp.WithBoolean(param.Name, boolOpts...))
+
+		case ParamTypeNumber:
+			numOpts := []mcp.PropertyOption{mcp.Description(param.Description)}
+			if param.Required {
+				numOpts = append(numOpts, mcp.Required())
+			}
+			opts = append(opts, mcp.WithNumber(param.Name, numOpts...))
 		}
 	}
 
@@ -92,6 +99,8 @@ func (d ToolDef) ToServerTool(handler func(api.ToolHandlerParams) (*api.ToolCall
 			}
 		case ParamTypeBoolean:
 			schema.Type = "boolean"
+		case ParamTypeNumber:
+			schema.Type = "number"
 		}
 
 		properties[param.Name] = schema
