@@ -24,13 +24,14 @@ import (
 
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
-	AuthMode               AuthMode
 	Toolsets               []string
+	AuthMode               AuthMode
 	MetricsBackendURL      string
 	AlertmanagerURL        string
 	Insecure               bool
 	Guardrails             *prometheus.Guardrails
 	FullRangeQueryResponse bool
+	Tempo                  *tempo.Config
 }
 
 const (
@@ -109,11 +110,11 @@ func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
 		if err != nil {
 			return err
 		}
-		mcpServer.AddTool(tempo.ListInstancesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.ListInstancesHandler))
-		mcpServer.AddTool(tempo.GetTraceByIDTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.GetTraceByIDHandler))
-		mcpServer.AddTool(tempo.SearchTracesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.SearchTracesHandler))
-		mcpServer.AddTool(tempo.SearchTagsTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.SearchTagsHandler))
-		mcpServer.AddTool(tempo.SearchTagValuesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, tempoToolset.SearchTagValuesHandler))
+		mcpServer.AddTool(tempo.ListInstancesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.ListInstancesHandler))
+		mcpServer.AddTool(tempo.GetTraceByIDTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.GetTraceByIDHandler))
+		mcpServer.AddTool(tempo.SearchTracesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTracesHandler))
+		mcpServer.AddTool(tempo.SearchTagsTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTagsHandler))
+		mcpServer.AddTool(tempo.SearchTagValuesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTagValuesHandler))
 	}
 
 	return nil

@@ -115,14 +115,14 @@ type ToolParams struct {
 	config        *Config
 }
 
-func ToMCPHandler(restConfig *rest.Config, dynamicClient dynamic.Interface, handler func(params ToolParams) *resultutil.Result) server.ToolHandlerFunc {
+func ToMCPHandler(restConfig *rest.Config, dynamicClient dynamic.Interface, config *Config, handler func(params ToolParams) *resultutil.Result) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		result := handler(ToolParams{
 			context:       ctx,
 			arguments:     request.GetArguments(),
 			dynamicClient: dynamicClient,
 			restConfig:    restConfig,
-			config:        DefaultConfig,
+			config:        config,
 		})
 		return result.ToMCPResult()
 	}
