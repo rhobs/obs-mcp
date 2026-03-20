@@ -4,8 +4,6 @@ metadata:
   name: tempo1
   namespace: obs-mcp-tracing
 spec:
-  images:
-    tempo: grafana/tempo:2.10.0
   storage:
     secret:
       name: minio
@@ -60,8 +58,6 @@ metadata:
   name: tempo2
   namespace: obs-mcp-tracing
 spec:
-  images:
-    tempo: grafana/tempo:2.10.0
   storage:
     secret:
       name: minio
