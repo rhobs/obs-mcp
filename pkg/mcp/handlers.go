@@ -59,6 +59,11 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.Call
 	})
 }
 
+// ShowTimeseriesHandler handles the show_timeseries tool.
+func ShowTimeseriesHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return createPrometheusToolHandler(opts, tools.BuildShowTimeseriesInput, tools.ShowTimeseriesHandler)
+}
+
 // ExecuteInstantQueryHandler handles the execution of Prometheus instant queries.
 func ExecuteInstantQueryHandler(opts ObsMCPOptions) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return createPrometheusToolHandler(opts, tools.BuildInstantQueryInput, tools.ExecuteInstantQueryHandler)
