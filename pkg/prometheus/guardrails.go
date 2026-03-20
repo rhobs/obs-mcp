@@ -119,7 +119,6 @@ func DefaultGuardrails(tsdbAvailable bool) *Guardrails {
 		defaultGuardrails.DisallowBlanketRegex = NewGuardrail(GuardrailDisallowBlanketRegex, true)
 		defaultGuardrails.MaxMetricCardinality = NewGuardrail(GuardrailMaxMetricCardinality, uint64(20000))
 		defaultGuardrails.MaxLabelCardinality = NewGuardrail(GuardrailMaxLabelCardinality, uint64(500))
-
 	}
 	return defaultGuardrails
 }
