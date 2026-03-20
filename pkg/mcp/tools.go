@@ -32,6 +32,11 @@ func CreateExecuteRangeQueryTool() mcp.Tool {
 	return *tools.ExecuteRangeQuery.ToMCPTool()
 }
 
+func CreateShowTimeseriesTool() mcp.Tool {
+	// For UI purposes only, no additional data to be sent to the LLM context.
+	return *tools.ShowTimeseries.ToMCPTool()
+}
+
 func CreateGetLabelNamesTool() mcp.Tool {
 	return *tools.GetLabelNames.ToMCPTool()
 }

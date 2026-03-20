@@ -92,6 +92,33 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 ---
 
+## `show_timeseries`
+
+> Display the results as an interactive timeseries chart.
+
+**Usage Tips:**
+
+- This tool works like execute_range_query but renders the results as a visual chart in the UI clients. Use it when the user wants to see a graph or visualization of time-series data and to use visuals to provide the answer. Use the show_timeseries as the last tool call after all the other Prometheus tool calls where finalized.
+- TIME PARAMETERS: - 'duration': Look back from now (e.g., "5m", "1h", "24h") - 'step': Data point resolution (e.g., "1m" for 1-hour duration, "5m" for 24-hour duration) - 'title': A descriptive chart title (e.g., "API Error Rate Over Last Hour") - 'description': An explanation of the chart's meaning or context (e.g., "Shows the rate of HTTP 5xx errors per second, broken down by pod")
+- The 'query' parameter MUST be a range query and must use metric names that were returned by list_metrics.
+
+**Parameters:**
+
+| Parameter     | Type     | Required | Description                                                                                                                                                        |
+| :------------ | :------- | :------: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `query`       | `string` | ✅        | PromQL query string using metric names verified via list_metrics                                                                                                   |
+| `step`        | `string` | ✅        | Query resolution step width (e.g., '15s', '1m', '1h'). Choose based on time range: shorter ranges use smaller steps.                                               |
+| `description` | `string` |          | Explanation of the chart's meaning or context (e.g., 'Shows the rate of HTTP 5xx errors per second, broken down by pod'). Displayed below the title when provided. |
+| `duration`    | `string` |          | Duration to look back from now (e.g., '1h', '30m', '1d', '2w') (optional)                                                                                          |
+| `end`         | `string` |          | End time as RFC3339 or Unix timestamp (optional). Use `NOW` for current time.                                                                                      |
+| `start`       | `string` |          | Start time as RFC3339 or Unix timestamp (optional)                                                                                                                 |
+| `title`       | `string` |          | Human-readable chart title describing what the query shows (e.g., 'API Error Rate Over Last Hour'). Displayed above the chart when provided.                       |
+
+> [!NOTE]
+> Parameters with patterns must match: `^\d+[smhdwy]$`
+
+---
+
 ## `get_label_names`
 
 > Get all label names (dimensions) available for filtering a metric.
