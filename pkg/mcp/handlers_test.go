@@ -573,6 +573,39 @@ func TestExecuteRangeQueryHandler_RelativeTime(t *testing.T) {
 	}
 }
 
+func TestShowTimeseriesHandler(t *testing.T) {
+	queryCalled := false
+	mockClient := &MockedLoader{
+		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+			queryCalled = true
+			if query != "up{job=\"api\"}" {
+				t.Errorf("expected query 'up{job=\"api\"}', got %q", query)
+			}
+			return map[string]any{"resultType": "matrix", "result": []any{}}, nil
+		},
+	}
+
+	ctx := withMockClient(context.Background(), mockClient)
+	handler := ShowTimeseriesHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{
+		"query": "up{job=\"api\"}",
+		"step":  "1m",
+		"start": "2024-01-01T00:00:00Z",
+		"end":   "2024-01-01T01:00:00Z",
+	})
+
+	result, err := handler(ctx, req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %v", getErrorMessage(t, result))
+	}
+	if !queryCalled {
+		t.Fatal("expected range query to be executed")
+	}
+}
+
 func TestExecuteInstantQueryHandler_RelativeTime(t *testing.T) {
 	tests := []struct {
 		name       string

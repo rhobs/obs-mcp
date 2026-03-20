@@ -13,6 +13,7 @@ func AllTools() []mcp.Tool {
 		CreateListMetricsTool(),
 		CreateExecuteInstantQueryTool(),
 		CreateExecuteRangeQueryTool(),
+		CreateShowTimeseriesTool(),
 		CreateGetLabelNamesTool(),
 		CreateGetLabelValuesTool(),
 		CreateGetSeriesTool(),
@@ -40,6 +41,11 @@ func CreateExecuteRangeQueryTool() mcp.Tool {
 	tool := tools.ExecuteRangeQuery.ToMCPTool()
 	mcp.WithOutputSchema[tools.RangeQueryOutput]()(&tool)
 	return tool
+}
+
+func CreateShowTimeseriesTool() mcp.Tool {
+	// For UI purposes only, no additional data to be sent to the LLM context.
+	return tools.ShowTimeseries.ToMCPTool()
 }
 
 func CreateGetLabelNamesTool() mcp.Tool {

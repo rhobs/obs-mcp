@@ -27,14 +27,15 @@ const (
 
 // ToolDef defines a tool that can be converted to different formats (MCP, Toolset, etc.)
 type ToolDef struct {
-	Name        string
-	Description string
-	Title       string
-	Params      []ParamDef
-	ReadOnly    bool
-	Destructive bool
-	Idempotent  bool
-	OpenWorld   bool
+	Name             string
+	Description      string
+	Title            string
+	Params           []ParamDef
+	ReadOnly         bool
+	Destructive      bool
+	Idempotent       bool
+	OpenWorld        bool
+	AdditionalFields map[string]any
 }
 
 // ToMCPTool converts a ToolDef to an mcp.Tool
@@ -63,6 +64,12 @@ func (d ToolDef) ToMCPTool() mcp.Tool {
 	}
 
 	tool := mcp.NewTool(d.Name, opts...)
+
+	if d.AdditionalFields != nil {
+		tool.Meta = &mcp.Meta{
+			AdditionalFields: d.AdditionalFields,
+		}
+	}
 
 	// Workaround for tools with no parameters
 	// See https://github.com/containers/kubernetes-mcp-server/pull/341/files
@@ -110,19 +117,27 @@ func (d ToolDef) ToServerTool(handler func(api.ToolHandlerParams) (*api.ToolCall
 		inputSchema.Required = required
 	}
 
-	return api.ServerTool{
-		Tool: api.Tool{
-			Name:        d.Name,
-			Description: d.Description,
-			InputSchema: inputSchema,
-			Annotations: api.ToolAnnotations{
-				Title:           d.Title,
-				ReadOnlyHint:    ptr.To(d.ReadOnly),
-				DestructiveHint: ptr.To(d.Destructive),
-				IdempotentHint:  ptr.To(d.Idempotent),
-				OpenWorldHint:   ptr.To(d.OpenWorld),
-			},
+	tool := api.Tool{
+		Name:        d.Name,
+		Description: d.Description,
+		InputSchema: inputSchema,
+		Annotations: api.ToolAnnotations{
+			Title:           d.Title,
+			ReadOnlyHint:    ptr.To(d.ReadOnly),
+			DestructiveHint: ptr.To(d.Destructive),
+			IdempotentHint:  ptr.To(d.Idempotent),
+			OpenWorldHint:   ptr.To(d.OpenWorld),
 		},
+	}
+
+	if d.AdditionalFields != nil {
+		tool.Meta = map[string]any{
+			"AdditionalFields": d.AdditionalFields,
+		}
+	}
+
+	return api.ServerTool{
+		Tool:    tool,
 		Handler: handler,
 		// TODO(saswatamcode): Modify this selectively on ACM setups.
 		ClusterAware: ptr.To(false),
