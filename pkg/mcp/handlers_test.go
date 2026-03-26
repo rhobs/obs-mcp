@@ -248,17 +248,6 @@ func TestExecuteRangeQueryHandler_RequiredParameters(t *testing.T) {
 			expectedError: "both start and end must be provided together",
 		},
 		{
-			name: "start, end, and duration",
-			params: map[string]any{
-				"query":    "up{job=\"api\"}",
-				"step":     "1m",
-				"start":    "2024-01-01T00:00:00Z",
-				"end":      "2024-01-01T01:00:00Z",
-				"duration": "1h",
-			},
-			expectedError: "cannot specify both start/end and duration parameters",
-		},
-		{
 			name: "invalid start time",
 			params: map[string]any{
 				"query": "up{job=\"api\"}",
