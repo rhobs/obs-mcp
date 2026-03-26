@@ -75,10 +75,26 @@ func authFromRequest(ctx context.Context, r *http.Request) context.Context {
 	return context.WithValue(ctx, AuthHeaderKey, token)
 }
 
+var sensitiveHeaders = map[string]bool{
+	"Authorization": true,
+	"Cookie":        true,
+	"Set-Cookie":    true,
+}
+
+func redactHeaders(h http.Header) http.Header {
+	redacted := h.Clone()
+	for name := range redacted {
+		if sensitiveHeaders[http.CanonicalHeaderKey(name)] {
+			redacted.Set(name, "[REDACTED]")
+		}
+	}
+	return redacted
+}
+
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slog.Info("Incoming request", "method", r.Method, "path", r.URL.Path, "remote_addr", r.RemoteAddr)
-		slog.Debug("Request headers", "headers", r.Header)
+		slog.Debug("Request headers", "headers", redactHeaders(r.Header))
 		if r.ContentLength > 0 {
 			slog.Info("Request content length", "content_length", r.ContentLength)
 		}
@@ -86,7 +102,14 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string) error {
+func authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := authFromRequest(r.Context(), r)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string, authMode AuthMode) error {
 	mux := http.NewServeMux()
 
 	httpServer := &http.Server{
@@ -98,11 +121,16 @@ func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string) error 
 		Stateless: true,
 	}
 
-	streamableHandler := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
+	var mcpHandler http.Handler = mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
 		return mcpServer
 	}, opts)
-	mux.Handle(mcpEndpoint, streamableHandler)
-	mux.Handle("/", streamableHandler)
+
+	if authMode == AuthModeHeader {
+		mcpHandler = authMiddleware(mcpHandler)
+	}
+
+	mux.Handle(mcpEndpoint, mcpHandler)
+	mux.Handle("/", mcpHandler)
 
 	mux.HandleFunc(healthEndpoint, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

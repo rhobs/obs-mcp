@@ -111,7 +111,7 @@ func main() {
 	if *listen != "" {
 		// HTTP mode
 		ctx := context.Background()
-		if err := mcpserver.Serve(ctx, mcpServer, *listen); err != nil {
+		if err := mcpserver.Serve(ctx, mcpServer, *listen, parsedAuthMode); err != nil {
 			log.Fatalf("HTTP server failed: %v", err)
 		}
 	} else {
