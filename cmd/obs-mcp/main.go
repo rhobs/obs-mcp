@@ -18,13 +18,18 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
+var (
+	version = "dev"
+	commit  = "unknown"
+)
+
 const (
 	defaultPrometheusURL   = "http://localhost:9090"
 	defaultAlertmanagerURL = "http://localhost:9093"
 )
 
 func main() {
-	// Parse command line flags
+	var showVersion = flag.Bool("version", false, "Print version and exit")
 	var listen = flag.String("listen", "", "Listen address for HTTP mode (e.g., :9100, 127.0.0.1:8080)")
 	var authMode = flag.String("auth-mode", "", "Authentication mode: kubeconfig, serviceaccount, or header")
 	var insecure = flag.Bool("insecure", false, "Skip TLS certificate verification")
@@ -35,6 +40,11 @@ func main() {
 	var maxLabelCardinality = flag.Uint64("guardrails.max-label-cardinality", 500, "Maximum allowed label value count for blanket regex (0 = always disallow blanket regex). Only takes effect if disallow-blanket-regex is enabled.")
 	var fullRangeQueryResponse = flag.Bool("full-range-query-response", false, "Return full data points for range queries")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("obs-mcp %s (commit: %s)\n", version, commit)
+		os.Exit(0)
+	}
 
 	// Configure slog with specified log level
 	configureLogging(*logLevel)

@@ -38,6 +38,14 @@ test-unit: ## Run obs-mcp unit tests
 clean: ## Clean obs-mcp build artifacts
 	go clean && rm -f obs-mcp
 
+.PHONY: tag
+tag: ## Create a release tag (usage: make tag VERSION=0.1.0)
+ifndef VERSION
+	$(error VERSION is required. Usage: make tag VERSION=0.1.0)
+endif
+	git tag -s "v$(VERSION)" -m "v$(VERSION)"
+	@echo "Tag v$(VERSION) created."
+
 .PHONY: container
 container: build-linux ## Build obs-mcp container image
 	$(CONTAINER_CLI) build --load -f Containerfile -t $(IMAGE):$(TAG) .

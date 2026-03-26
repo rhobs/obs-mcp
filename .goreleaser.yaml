@@ -1,0 +1,55 @@
+version: 2
+
+project_name: obs-mcp
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/obs-mcp
+    binary: obs-mcp
+    env:
+      - CGO_ENABLED=0
+    tags:
+      - strictfipsruntime
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version=v{{.Version}}
+      - -X main.commit={{.ShortCommit}}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+
+signs:
+  - cmd: cosign
+    signature: "${artifact}.bundle"
+    args:
+      - sign-blob
+      - --yes
+      - --bundle=${signature}
+      - ${artifact}
+    artifacts: archive
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: github-native
+
+release:
+  github:
+    owner: rhobs
+    name: obs-mcp
+  draft: false
+  prerelease: auto
