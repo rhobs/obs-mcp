@@ -169,6 +169,62 @@ curl -X POST http://localhost:9100/mcp \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"execute_range_query","arguments":{"query":"up{job=\"prometheus\"}","step":"1m","end":"NOW","duration":"1h"}}}' | jq
 ```
 
+### Testing with MCP Inspector
+
+Use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to visually test and debug obs-mcp tools.
+
+#### Using container compose
+
+##### Kind
+
+1. Set up a Kind cluster with Prometheus and Alertmanager (if not already running):
+
+   ```bash
+   make test-e2e-setup
+   ```
+
+2. Port-forward Prometheus and Alertmanager from your Kind cluster:
+
+   ```bash
+   kubectl port-forward -n monitoring pod/prometheus-k8s-0 9090:9090 &
+   ```
+
+   ```bash
+   kubectl port-forward -n monitoring pod/alertmanager-main-0 9093:9093 &
+   ```
+
+##### OpenShift
+
+1. Port-forward Prometheus and Alertmanager from your OpenShift cluster:
+
+   ```bash
+   oc port-forward -n openshift-monitoring pod/prometheus-k8s-0 9090:9090 &
+   ```
+
+   ```bash
+   oc port-forward -n openshift-monitoring pod/alertmanager-main-0 9093:9093 &
+   ```
+
+2. Start obs-mcp and the Inspector (builds the obs-mcp container and starts both services via compose):
+
+   ```bash
+   make inspect
+   ```
+
+   This uses Docker by default. For podman, use:
+
+   ```bash
+   CONTAINER_CLI=podman make inspect
+   ```
+
+3. Open the Inspector URL from the logs (includes the auth token):
+
+   ```text
+   http://localhost:6274/?MCP_PROXY_AUTH_TOKEN=<token>
+   ```
+
+4. Connect using **Streamable HTTP** transport to `http://obs-mcp:8080/mcp`
+
 ## Documentation
 
 | Document | Description |
