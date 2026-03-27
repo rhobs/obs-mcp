@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--metrics-backend` flag for controlling route discovery ([#11](https://github.com/rhobs/obs-mcp/pull/11))
 - Structured `slog` logging with `--log-level` flag
 - Kubernetes deployment manifests with RBAC
-- GoReleaser-based release pipeline with cosign artifact signing
+- GoReleaser-based release pipeline with cosign artifact signing ([#54](https://github.com/rhobs/obs-mcp/pull/54))
 - MCP Inspector compose setup for local testing with Docker and Podman ([#56](https://github.com/rhobs/obs-mcp/pull/56))
 
 ### Fixed
