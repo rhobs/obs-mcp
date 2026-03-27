@@ -173,7 +173,7 @@ curl -X POST http://localhost:9100/mcp \
 
 Use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to visually test and debug obs-mcp tools.
 
-#### Using podman compose
+#### Using container compose
 
 ##### Kind
 
@@ -205,10 +205,16 @@ Use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to vi
    oc port-forward -n openshift-monitoring pod/alertmanager-main-0 9093:9093 &
    ```
 
-2. Start obs-mcp and the Inspector (builds the obs-mcp container and starts both services via podman compose):
+2. Start obs-mcp and the Inspector (builds the obs-mcp container and starts both services via compose):
 
    ```bash
    make inspect
+   ```
+
+   This uses Docker by default. For podman, use:
+
+   ```bash
+   CONTAINER_CLI=podman make inspect
    ```
 
 3. Open the Inspector URL from the logs (includes the auth token):

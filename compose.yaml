@@ -4,8 +4,8 @@ services:
       context: .
       dockerfile: Containerfile
     environment:
-      - PROMETHEUS_URL=http://host.containers.internal:9090
-      - ALERTMANAGER_URL=http://host.containers.internal:9093
+      - PROMETHEUS_URL=http://${CONTAINER_HOST_GATEWAY:-host.docker.internal}:9090
+      - ALERTMANAGER_URL=http://${CONTAINER_HOST_GATEWAY:-host.docker.internal}:9093
     ports:
       - "9100:8080"
 

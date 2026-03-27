@@ -114,8 +114,9 @@ run-openshift-pf-prometheus: build pf-alertmanager ## Port-forward prometheus-k8
 		./obs-mcp --listen $(LISTEN_ADDR) --auth-mode header --log-level $(LOG_LEVEL)
 
 .PHONY: inspect
-inspect: ## Start obs-mcp + MCP Inspector via podman compose (port-forward Prometheus/Alertmanager first)
-	podman compose -f podman-compose.yaml up --build
+inspect: COMPOSE_HOST_GATEWAY = $(if $(filter podman,$(CONTAINER_CLI)),host.containers.internal,host.docker.internal)
+inspect: ## Start obs-mcp + MCP Inspector via compose (port-forward Prometheus/Alertmanager first)
+	CONTAINER_HOST_GATEWAY=$(COMPOSE_HOST_GATEWAY) $(CONTAINER_CLI) compose -f compose.yaml up --build
 
 .PHONY: run-no-guardrails
 run-no-guardrails: build ## Run obs-mcp in HTTP mode with guardrails disabled
