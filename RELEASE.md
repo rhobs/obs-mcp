@@ -13,26 +13,51 @@ This document describes how to create a new release of obs-mcp.
 
 ```bash
 git checkout main
-git pull <remote> main
+git pull <remote> main --rebase
 ```
 
 Replace `<remote>` with the name of your upstream remote (e.g., `origin`). Verify with `git remote -v`.
 
-### 2. Verify tests pass
+### 2. Update CHANGELOG.md
+
+Add a new section following the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format:
+
+```markdown
+## [X.Y.Z]
+
+### Added
+- New feature description
+
+### Changed
+- Change description
+
+### Fixed
+- Bug fix description
+```
+
+Commit the changelog:
+
+```bash
+git add CHANGELOG.md
+git commit -m "docs: update changelog for vX.Y.Z"
+git push <remote> main
+```
+
+### 3. Verify tests pass
 
 ```bash
 make test-unit
 make lint
 ```
 
-### 3. Set the release version
+### 4. Set the release version
 
 ```bash
 export VERSION=0.1.0
 export TAG="v${VERSION}"
 ```
 
-### 4. Create a signed tag
+### 5. Create a signed tag
 
 ```bash
 make tag VERSION=${VERSION}
@@ -40,7 +65,7 @@ make tag VERSION=${VERSION}
 
 This creates a GPG-signed tag `${TAG}` locally.
 
-### 5. Push the tag
+### 6. Push the tag
 
 Verify the remote points to the correct repository:
 
@@ -58,10 +83,10 @@ Pushing the tag triggers the [release workflow](.github/workflows/release.yaml),
 
 - Runs unit tests
 - Builds cross-platform binaries (linux/darwin, amd64/arm64) via [GoReleaser](.goreleaser.yaml)
-- Signs release archives with [cosign](https://docs.sigstore.dev/cosign/overview/) (keyless)
+- Signs release archives with [cosign](https://docs.sigstore.dev/quickstart/quickstart-ci/) (keyless)
 - Creates a GitHub release with the binaries, checksums, and auto-generated changelog
 
-### 6. Verify the release
+### 7. Verify the release
 
 - Check the [Actions tab](../../actions/workflows/release.yaml) for the workflow run
 - Confirm the release appears under [Releases](../../releases) with the expected assets:
@@ -82,19 +107,61 @@ A release can also be triggered manually from the GitHub Actions UI:
 
 ## Pre-releases
 
-Tags with pre-release suffixes (e.g., `v0.1.0-rc.1`) are automatically marked as pre-releases on GitHub.
+Pre-releases use the format `vX.Y.Z-rc.N` where N is the release candidate number.
+
+### Steps
+
+1. Update `CHANGELOG.md` with the changes for the target version (or use the `[Unreleased]` section)
+
+2. Create and push the pre-release tag:
+
+   ```bash
+   export VERSION=0.1.0-rc.1
+   export TAG="v${VERSION}"
+   make tag VERSION=${VERSION}
+   git push <remote> ${TAG}
+   ```
+
+Pre-releases are marked as "pre-release" on GitHub and won't be considered the "latest" release. Use them to:
+
+- Test release artifacts before a stable release
+- Get feedback from early adopters
+- Verify the release process
 
 ## Verifying release signatures
 
-Users can verify downloaded archives using cosign:
+All release artifacts are signed using [cosign](https://github.com/sigstore/cosign) with keyless signing (via GitHub OIDC). Signatures and certificates are stored in bundle files for simplified verification.
 
 ```bash
+# Download artifacts
+wget https://github.com/rhobs/obs-mcp/releases/download/v<version>/obs-mcp_<version>_<os>_<arch>.tar.gz
+wget https://github.com/rhobs/obs-mcp/releases/download/v<version>/obs-mcp_<version>_<os>_<arch>.tar.gz.bundle
+
+# Verify using bundle
 cosign verify-blob \
   --bundle obs-mcp_<version>_<os>_<arch>.tar.gz.bundle \
+  --certificate-identity-regexp 'https://github.com/rhobs/obs-mcp' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp "github.com/rhobs/obs-mcp" \
   obs-mcp_<version>_<os>_<arch>.tar.gz
 ```
+
+The bundle file contains both the signature and certificate, making verification simpler compared to the older separate `.sig` and `.pem` files.
+
+## Versioning guidelines
+
+Follow [Semantic Versioning](https://semver.org/):
+
+- **MAJOR** (X.0.0): Incompatible API changes
+- **MINOR** (x.Y.0): New functionality, backwards compatible
+- **PATCH** (x.y.Z): Bug fixes, backwards compatible
+
+### Examples
+
+- `v0.1.0` - Initial release
+- `v0.2.0` - Added new tools or features
+- `v0.2.1` - Bug fixes
+- `v1.0.0` - First stable release
+- `v1.0.0-rc.1` - Release candidate for v1.0.0
 
 ## Local testing
 
