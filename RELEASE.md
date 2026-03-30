@@ -9,18 +9,22 @@ This document describes how to create a new release of obs-mcp.
 
 ## Steps
 
-### 1. Ensure main is up to date
+### 1. Update CHANGELOG.md
+
+Ensure main is up to date:
 
 ```bash
 git checkout main
 git pull <remote> main --rebase
 ```
 
-Replace `<remote>` with the name of your upstream remote (e.g., `origin`). Verify with `git remote -v`.
+Replace `<remote>` with the name of your upstream remote. Verify with `git remote -v`.
 
-### 2. Update CHANGELOG.md
+Create a branch, add a new section following the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format:
 
-Add a new section following the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format:
+```bash
+git checkout -b release-vX.Y.Z
+```
 
 ```markdown
 ## [X.Y.Z]
@@ -35,45 +39,48 @@ Add a new section following the [Keep a Changelog](https://keepachangelog.com/en
 - Bug fix description
 ```
 
-Commit the changelog:
+Commit and push to your fork:
 
 ```bash
 git add CHANGELOG.md
 git commit -m "docs: update changelog for vX.Y.Z"
-git push <remote> main
+git push <fork> release-vX.Y.Z
 ```
 
-### 3. Verify tests pass
+Open a PR from your fork to upstream `main` and merge.
+
+### 2. Create and push the tag
+
+Pull the merged changelog into main:
+
+```bash
+git checkout main
+git pull <remote> main --rebase
+```
+
+Verify tests pass:
 
 ```bash
 make test-unit
 make lint
 ```
 
-### 4. Set the release version
+Set the version and create a signed tag:
 
 ```bash
 export VERSION=0.1.0
 export TAG="v${VERSION}"
-```
-
-### 5. Create a signed tag
-
-```bash
 make tag VERSION=${VERSION}
 ```
 
-This creates a GPG-signed tag `${TAG}` locally.
-
-### 6. Push the tag
-
-Verify the remote points to the correct repository:
+Verify the tag:
 
 ```bash
-git remote -v
+git verify-tag ${TAG}
+git log --oneline -5  # confirm the tag points to the expected commit
 ```
 
-Then push (replace `<remote>` with your remote name):
+Push the tag:
 
 ```bash
 git push <remote> ${TAG}
@@ -86,7 +93,7 @@ Pushing the tag triggers the [release workflow](.github/workflows/release.yaml),
 - Signs release archives with [cosign](https://docs.sigstore.dev/quickstart/quickstart-ci/) (keyless)
 - Creates a GitHub release with the binaries, checksums, and auto-generated changelog
 
-### 7. Verify the release
+### 3. Verify the release
 
 - Check the [Actions tab](../../actions/workflows/release.yaml) for the workflow run
 - Confirm the release appears under [Releases](../../releases) with the expected assets:
@@ -107,20 +114,16 @@ A release can also be triggered manually from the GitHub Actions UI:
 
 ## Pre-releases
 
-Pre-releases use the format `vX.Y.Z-rc.N` where N is the release candidate number.
+Pre-releases follow the same process as stable releases but use the tag format `vX.Y.Z-rc.N`. No changelog PR is needed at release time keep the `[Unreleased]` section updated as changes land in main, and it will be promoted to a versioned section during the stable release.
 
-### Steps
-
-1. Update `CHANGELOG.md` with the changes for the target version (or use the `[Unreleased]` section)
-
-2. Create and push the pre-release tag:
-
-   ```bash
-   export VERSION=0.1.0-rc.1
-   export TAG="v${VERSION}"
-   make tag VERSION=${VERSION}
-   git push <remote> ${TAG}
-   ```
+```bash
+git checkout main
+git pull <remote> main --rebase
+export VERSION=0.1.0-rc.1
+export TAG="v${VERSION}"
+make tag VERSION=${VERSION}
+git push <remote> ${TAG}
+```
 
 Pre-releases are marked as "pre-release" on GitHub and won't be considered the "latest" release. Use them to:
 
