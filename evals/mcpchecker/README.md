@@ -15,7 +15,7 @@ mcpchecker uses two separate LLM roles:
 - **Agent** — the LLM that interacts with obs-mcp: discovers tools, makes tool calls, and reasons about responses. This is the model being evaluated.
 - **Judge** — a separate LLM that evaluates the agent's output against the expected criteria defined in each task.
 
-Both are configured as `builtin.llm-agent` with `openai:gpt-4o-mini` by default and share the same API key.
+Both are configured as `builtin.llm-agent` with `openai:gpt-5-nano` by default and share the same API key.
 
 ### OpenAI (default)
 
@@ -114,7 +114,7 @@ mcpchecker diff baseline-out.json current-out.json
 
 ## Using a Different Agent
 
-By default, the evals use `builtin.llm-agent` with `openai:gpt-4o-mini`. To use a different provider or model, edit the `agent` and `llmJudge.ref` sections in `eval.yaml`. The multi-provider `llm-agent` supports `provider:model-id` format:
+By default, the evals use `builtin.llm-agent` with `openai:gpt-5-nano`. To use a different provider or model, edit the `agent` and `llmJudge.ref` sections in `eval.yaml`. The multi-provider `llm-agent` supports `provider:model-id` format:
 
 ```yaml
 # eval.yaml
