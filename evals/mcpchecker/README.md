@@ -4,7 +4,7 @@ Evaluations for obs-mcp using [mcpchecker](https://github.com/mcpchecker/mcpchec
 
 ## Pre-requisites
 
-- [mcpchecker](https://github.com/mcpchecker/mcpchecker#installation) installed (nightly or v0.0.11+)
+- [mcpchecker](https://github.com/mcpchecker/mcpchecker#install) installed (v0.0.14+)
 - A Kubernetes cluster with Prometheus and Alertmanager running
 - obs-mcp server deployed and accessible (see [Testing Guide — MCPChecker Evals](../../TESTING.md#mcpchecker-evals))
 
@@ -15,29 +15,19 @@ mcpchecker uses two separate LLM roles:
 - **Agent** — the LLM that interacts with obs-mcp: discovers tools, makes tool calls, and reasons about responses. This is the model being evaluated.
 - **Judge** — a separate LLM that evaluates the agent's output against the expected criteria defined in each task.
 
-Both can use the same provider and API key, or different ones.
+Both are configured as `builtin.llm-agent` with `openai:gpt-4o-mini` by default and share the same API key.
 
-### Agent (required)
-
-**OpenAI** (default agent — `builtin.llm-agent` with `openai:gpt-4o-mini`):
+### OpenAI (default)
 
 ```bash
 export OPENAI_API_KEY="sk-..."
 ```
 
-For other providers, see [Using a Different Agent](#using-a-different-agent).
+This single key is used for both the agent and the LLM judge.
 
-### LLM Judge (required)
+### Other providers
 
-All tasks use LLM judge verification to semantically check agent responses. These must be set:
-
-```bash
-export JUDGE_BASE_URL="https://api.openai.com/v1"   # OpenAI-compatible API endpoint
-export JUDGE_API_KEY="sk-..."                         # API key for the judge model
-export JUDGE_MODEL_NAME="gpt-4o-mini"                 # Model to use as judge
-```
-
-> **Tip:** If both agent and judge use OpenAI, `JUDGE_API_KEY` and `OPENAI_API_KEY` can be the same key.
+For Anthropic, Gemini, or custom endpoints, see [Using a Different Agent](#using-a-different-agent). Update the `agent` and `llmJudge.ref` sections in `eval.yaml` accordingly.
 
 ## Quick Start
 
@@ -54,10 +44,7 @@ Or if running elsewhere, update `mcp-config.yaml` with the correct URL.
 ### 2. Set environment variables
 
 ```bash
-export OPENAI_API_KEY="sk-..."                       # for the default openai:gpt-4o-mini agent
-export JUDGE_BASE_URL="https://api.openai.com/v1"
-export JUDGE_API_KEY="sk-..."
-export JUDGE_MODEL_NAME="gpt-4o-mini"   # Model to use as judge
+export OPENAI_API_KEY="sk-..."   # used by both agent and LLM judge
 ```
 
 ### 3. Run the evals
@@ -71,6 +58,12 @@ Run tasks in parallel (recommended — all tasks are marked `parallel: true`):
 
 ```bash
 mcpchecker check eval.yaml --parallel 4
+```
+
+Override the MCP config file (e.g., to point at a different obs-mcp instance):
+
+```bash
+mcpchecker check eval.yaml --mcp-config-file /path/to/other-mcp-config.yaml
 ```
 
 Tasks with `runs` configured will automatically execute multiple times for consistency testing. To override the run count for all tasks:
@@ -121,15 +114,36 @@ mcpchecker diff baseline-out.json current-out.json
 
 ## Using a Different Agent
 
-By default, the evals use `builtin.llm-agent` with `openai:gpt-4o-mini`. To use a different provider or model, edit the `agent` section in `eval.yaml`. The multi-provider `llm-agent` supports `provider:model-id` format:
+By default, the evals use `builtin.llm-agent` with `openai:gpt-4o-mini`. To use a different provider or model, edit the `agent` and `llmJudge.ref` sections in `eval.yaml`. The multi-provider `llm-agent` supports `provider:model-id` format:
 
 ```yaml
-agent:
-  type: "builtin.llm-agent"
-  model: "anthropic:claude-3-haiku-20240307"
+# eval.yaml
+config:
+  agent:
+    type: "builtin.llm-agent"
+    model: "anthropic:claude-3-haiku-20240307"
+  llmJudge:
+    ref:
+      type: builtin.llm-agent
+      model: "anthropic:claude-3-haiku-20240307"
 ```
 
-See the [mcpchecker agent documentation](https://github.com/mcpchecker/mcpchecker#agents) for available agent types and configuration options.
+Supported providers: `openai`, `anthropic`, `gemini`, `google` (Vertex AI). Set the corresponding environment variable:
+
+```bash
+# Anthropic
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# Gemini
+export GEMINI_API_KEY="..."
+
+# Gemini via Vertex AI
+export GEMINI_USE_VERTEX=1
+export GOOGLE_CLOUD_PROJECT="your-project"
+export GOOGLE_CLOUD_LOCATION="us-central1"
+```
+
+See the [mcpchecker agent docs](https://github.com/mcpchecker/mcpchecker/blob/main/docs/how-to/configure-agents.md) for all agent types and configuration options.
 
 ## Coverage
 
@@ -158,7 +172,8 @@ All tasks include `labels` for filtering with `labelSelector`:
 > **Note:** Areas for future improvement:
 >
 > - **Error handling** — agent recovery from invalid queries or missing metrics
-> - **Guardrail behavior** — agent response when dangerous queries are blocked
+> - **Guardrail behavior** — agent response when dangerous queries are blocked (use [`toolsNotUsed`](https://github.com/mcpchecker/mcpchecker/blob/main/docs/how-to/use-assertions.md#forbidden-tools) to enforce)
+> - **Redundancy checks** — use [`noDuplicateCalls`](https://github.com/mcpchecker/mcpchecker/blob/main/docs/how-to/use-assertions.md#no-duplicate-calls) for simple tasks
 > - **Parameter coverage** — testing less-used params like `silenced`, `inhibited`, `receiver`, `filter`, time ranges
 
 ## Task Structure
