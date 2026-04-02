@@ -40,6 +40,10 @@ func ShowTimeseriesHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[tools.ShowTime
 		if err != nil {
 			return nil, struct{}{}, err
 		}
+		// We return empty result to not overwhelm the LLM context. The purpose
+		// of the tool is to validate the query. The visualization is taking the
+		// required data from the tool inputs. An UI-only tool could be introduced
+		// to load the data for the visualization, if needed (MCP-apps case).
 		return nil, struct{}{}, nil
 	}
 }
