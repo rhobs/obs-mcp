@@ -38,6 +38,14 @@ test-unit: ## Run obs-mcp unit tests
 clean: ## Clean obs-mcp build artifacts
 	go clean && rm -f obs-mcp
 
+.PHONY: tag
+tag: ## Create a release tag (usage: make tag VERSION=0.1.0)
+ifndef VERSION
+	$(error VERSION is required. Usage: make tag VERSION=0.1.0)
+endif
+	git tag -s "v$(VERSION)" -m "v$(VERSION)"
+	@echo "Tag v$(VERSION) created."
+
 .PHONY: container
 container: build-linux ## Build obs-mcp container image
 	$(CONTAINER_CLI) build --load -f Containerfile -t $(IMAGE):$(TAG) .
@@ -113,6 +121,10 @@ run-openshift-pf-prometheus: build pf-alertmanager ## Port-forward prometheus-k8
 		PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 \
 		./obs-mcp --listen $(LISTEN_ADDR) --auth-mode header --log-level $(LOG_LEVEL)
 
+.PHONY: inspect
+inspect: COMPOSE_HOST_GATEWAY = $(if $(filter podman,$(CONTAINER_CLI)),host.containers.internal,host.docker.internal)
+inspect: ## Start obs-mcp + MCP Inspector via compose (port-forward Prometheus/Alertmanager first)
+	CONTAINER_HOST_GATEWAY=$(COMPOSE_HOST_GATEWAY) $(CONTAINER_CLI) compose -f compose.yaml up --build
 
 .PHONY: run-no-guardrails
 run-no-guardrails: build ## Run obs-mcp in HTTP mode with guardrails disabled

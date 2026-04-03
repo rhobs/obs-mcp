@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 	"time"
 
@@ -68,6 +69,12 @@ func (p *RealLoader) ListMetrics(ctx context.Context, nameRegex string) ([]strin
 
 	// For blanket regex patterns like ".*", use empty matcher to get all metrics to not get 4xx.
 	if nameRegex != ".*" && nameRegex != ".+" && nameRegex != "" {
+		if _, err := regexp.Compile(nameRegex); err != nil {
+			return nil, fmt.Errorf("invalid name_regex %q: %w", nameRegex, err)
+		}
+		if strings.ContainsAny(nameRegex, `"}`) {
+			return nil, fmt.Errorf("invalid name_regex %q: contains disallowed characters", nameRegex)
+		}
 		matcher := fmt.Sprintf("{__name__=~\"%s\"}", nameRegex) //nolint:gocritic
 		matches = []string{matcher}
 	}

@@ -51,6 +51,18 @@ func NewMCPClient(baseURL string) *MCPClient {
 	}
 }
 
+// parseSSEResponse extracts JSON data from Server-Sent Events response
+func parseSSEResponse(body []byte) ([]byte, error) {
+	lines := bytes.Split(body, []byte("\n"))
+	for _, line := range lines {
+		line = bytes.TrimSpace(line)
+		if bytes.HasPrefix(line, []byte("data: ")) {
+			return bytes.TrimPrefix(line, []byte("data: ")), nil
+		}
+	}
+	return nil, fmt.Errorf("no data field found in SSE response")
+}
+
 // SendRequest sends an MCP request and returns the response
 func (c *MCPClient) SendRequest(t *testing.T, req MCPRequest) (*MCPResponse, error) {
 	t.Helper()
@@ -65,7 +77,7 @@ func (c *MCPClient) SendRequest(t *testing.T, req MCPRequest) (*MCPResponse, err
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Accept", "text/event-stream")
+	httpReq.Header.Set("Accept", "application/json, text/event-stream")
 
 	resp, err := c.client.Do(httpReq)
 	if err != nil {
@@ -83,9 +95,15 @@ func (c *MCPClient) SendRequest(t *testing.T, req MCPRequest) (*MCPResponse, err
 		return nil, fmt.Errorf("unexpected HTTP status %d: %s", resp.StatusCode, string(respBody))
 	}
 
+	// Parse SSE response to extract JSON data
+	jsonData, err := parseSSEResponse(respBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse SSE response: %w (status: %d, body: %s)", err, resp.StatusCode, string(respBody))
+	}
+
 	var mcpResp MCPResponse
-	if err := json.Unmarshal(respBody, &mcpResp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w (status: %d, body: %s)", err, resp.StatusCode, string(respBody))
+	if err := json.Unmarshal(jsonData, &mcpResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JSON from SSE: %w (status: %d, json: %s)", err, resp.StatusCode, jsonData)
 	}
 
 	return &mcpResp, nil
@@ -131,7 +149,7 @@ func (c *MCPClient) callToolRaw(id int, toolName string, args map[string]any) (m
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Accept", "text/event-stream")
+	httpReq.Header.Set("Accept", "application/json, text/event-stream")
 
 	resp, err := c.client.Do(httpReq)
 	if err != nil {
@@ -144,9 +162,15 @@ func (c *MCPClient) callToolRaw(id int, toolName string, args map[string]any) (m
 		return nil, err
 	}
 
+	// Parse SSE response to extract JSON data
+	jsonData, err := parseSSEResponse(respBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse SSE response: %w", err)
+	}
+
 	var mcpResp MCPResponse
-	if err := json.Unmarshal(respBody, &mcpResp); err != nil {
-		return nil, err
+	if err := json.Unmarshal(jsonData, &mcpResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JSON from SSE: %w", err)
 	}
 
 	return mcpResp.Result, nil

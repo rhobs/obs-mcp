@@ -49,11 +49,11 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Output Schema:**
 
-| Field        | Type       | Description                                     |
-| :----------- | :--------- | :---------------------------------------------- |
-| `result`     | `object[]` | The query results as an array of instant values |
-| `resultType` | `string`   | The type of result returned (e.g. vector        |
-| `warnings`   | `string[]` | Any warnings generated during query execution   |
+| Field        | Type       | Description                                               |
+| :----------- | :--------- | :-------------------------------------------------------- |
+| `result`     | `object[]` | The query results as an array of instant values           |
+| `resultType` | `string`   | The type of result returned (e.g. vector, scalar, string) |
+| `warnings`   | `string[]` | Any warnings generated during query execution             |
 
 ---
 
@@ -163,10 +163,10 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Output Schema:**
 
-| Field         | Type       | Description                                  |
-| :------------ | :--------- | :------------------------------------------- |
-| `cardinality` | `integer`  | Total number of series matching the selector |
-| `series`      | `object[]` | List of time series matching the selector    |
+| Field         | Type       | Description                                                                              |
+| :------------ | :--------- | :--------------------------------------------------------------------------------------- |
+| `cardinality` | `integer`  | Total number of series matching the selector                                             |
+| `series`      | `object[]` | List of time series matching the selector, each series is a map of label names to values |
 
 ---
 

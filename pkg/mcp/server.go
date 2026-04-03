@@ -12,8 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"k8s.io/client-go/dynamic"
 
 	"github.com/rhobs/obs-mcp/pkg/k8s"
@@ -42,23 +41,17 @@ const (
 	defaultShutdownTimeout = 10 * time.Second
 )
 
-func NewMCPServer(opts ObsMCPOptions) (*server.MCPServer, error) {
-	hooks := &server.Hooks{}
-	hooks.AddBeforeCallTool(func(ctx context.Context, id any, message *mcp.CallToolRequest) {
-		slog.Debug("MCP tool call", "tool", message.Params.Name, "arguments", message.Params.Arguments)
-	})
-	hooks.AddAfterCallTool(func(ctx context.Context, id any, message *mcp.CallToolRequest, result *mcp.CallToolResult) {
-		slog.Debug("MCP tool result", "tool", message.Params.Name, "isError", result.IsError, "content", result.Content)
-	})
+func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
+	impl := &mcp.Implementation{
+		Name:    serverName,
+		Version: serverVersion,
+	}
 
-	mcpServer := server.NewMCPServer(
-		serverName,
-		serverVersion,
-		server.WithLogging(),
-		server.WithHooks(hooks),
-		server.WithToolCapabilities(true),
-		server.WithInstructions(tools.ServerPrompt),
-	)
+	serverOpts := &mcp.ServerOptions{
+		Instructions: tools.ServerPrompt,
+	}
+
+	mcpServer := mcp.NewServer(impl, serverOpts)
 
 	if err := SetupTools(mcpServer, opts); err != nil {
 		return nil, err
@@ -67,37 +60,16 @@ func NewMCPServer(opts ObsMCPOptions) (*server.MCPServer, error) {
 	return mcpServer, nil
 }
 
-func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
+func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	if slices.Contains(opts.Toolsets, "prometheus") {
-		// Create tool definitions
-		listMetricsTool := CreateListMetricsTool()
-		executeInstantQueryTool := CreateExecuteInstantQueryTool()
-		executeRangeQueryTool := CreateExecuteRangeQueryTool()
-		getLabelNamesTool := CreateGetLabelNamesTool()
-		getLabelValuesTool := CreateGetLabelValuesTool()
-		getSeriesTool := CreateGetSeriesTool()
-		getAlertsTool := CreateGetAlertsTool()
-		getSilencesTool := CreateGetSilencesTool()
-
-		// Create handlers
-		listMetricsHandler := ListMetricsHandler(opts)
-		executeInstantQueryHandler := ExecuteInstantQueryHandler(opts)
-		executeRangeQueryHandler := ExecuteRangeQueryHandler(opts)
-		getLabelNamesHandler := GetLabelNamesHandler(opts)
-		getLabelValuesHandler := GetLabelValuesHandler(opts)
-		getSeriesHandler := GetSeriesHandler(opts)
-		getAlertsHandler := GetAlertsHandler(opts)
-		getSilencesHandler := GetSilencesHandler(opts)
-
-		// Add tools to server
-		mcpServer.AddTool(listMetricsTool, listMetricsHandler)
-		mcpServer.AddTool(executeInstantQueryTool, executeInstantQueryHandler)
-		mcpServer.AddTool(executeRangeQueryTool, executeRangeQueryHandler)
-		mcpServer.AddTool(getLabelNamesTool, getLabelNamesHandler)
-		mcpServer.AddTool(getLabelValuesTool, getLabelValuesHandler)
-		mcpServer.AddTool(getSeriesTool, getSeriesHandler)
-		mcpServer.AddTool(getAlertsTool, getAlertsHandler)
-		mcpServer.AddTool(getSilencesTool, getSilencesHandler)
+		mcp.AddTool(mcpServer, tools.ListMetrics.ToMCPTool(), ListMetricsHandler(opts))
+		mcp.AddTool(mcpServer, tools.ExecuteInstantQuery.ToMCPTool(), ExecuteInstantQueryHandler(opts))
+		mcp.AddTool(mcpServer, tools.ExecuteRangeQuery.ToMCPTool(), ExecuteRangeQueryHandler(opts))
+		mcp.AddTool(mcpServer, tools.GetLabelNames.ToMCPTool(), GetLabelNamesHandler(opts))
+		mcp.AddTool(mcpServer, tools.GetLabelValues.ToMCPTool(), GetLabelValuesHandler(opts))
+		mcp.AddTool(mcpServer, tools.GetSeries.ToMCPTool(), GetSeriesHandler(opts))
+		mcp.AddTool(mcpServer, tools.GetAlerts.ToMCPTool(), GetAlertsHandler(opts))
+		mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(), GetSilencesHandler(opts))
 	}
 
 	if slices.Contains(opts.Toolsets, "tempo") {
@@ -116,7 +88,6 @@ func SetupTools(mcpServer *server.MCPServer, opts ObsMCPOptions) error {
 		mcpServer.AddTool(tempo.SearchTagsTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTagsHandler))
 		mcpServer.AddTool(tempo.SearchTagValuesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTagValuesHandler))
 	}
-
 	return nil
 }
 
@@ -140,7 +111,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func Serve(ctx context.Context, mcpServer *server.MCPServer, listenAddr string) error {
+func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string) error {
 	mux := http.NewServeMux()
 
 	httpServer := &http.Server{
@@ -148,14 +119,15 @@ func Serve(ctx context.Context, mcpServer *server.MCPServer, listenAddr string) 
 		Handler: loggingMiddleware(mux),
 	}
 
-	streamableHTTPServer := server.NewStreamableHTTPServer(mcpServer,
-		server.WithStreamableHTTPServer(httpServer),
-		server.WithStateLess(true),
-		server.WithHTTPContextFunc(authFromRequest),
-	)
-	mux.Handle(mcpEndpoint, streamableHTTPServer)
+	opts := &mcp.StreamableHTTPOptions{
+		Stateless: true,
+	}
 
-	mux.Handle("/", streamableHTTPServer)
+	streamableHandler := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
+		return mcpServer
+	}, opts)
+	mux.Handle(mcpEndpoint, streamableHandler)
+	mux.Handle("/", streamableHandler)
 
 	mux.HandleFunc(healthEndpoint, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

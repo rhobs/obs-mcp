@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -90,4 +91,41 @@ func TestValidateMetricsExist(t *testing.T) {
 			t.Errorf("expected no error for query with no metrics, got: %v", err)
 		}
 	})
+}
+
+func TestListMetrics_RejectsInvalidRegex(t *testing.T) {
+	mock := &mockPrometheusAPI{
+		availableMetrics: []string{"up"},
+	}
+	loader := &RealLoader{client: mock}
+
+	tests := []struct {
+		name      string
+		regex     string
+		wantErr   bool
+		errSubstr string
+	}{
+		{name: "valid regex", regex: "http_requests_.*", wantErr: false},
+		{name: "blanket .*", regex: ".*", wantErr: false},
+		{name: "blanket .+", regex: ".+", wantErr: false},
+		{name: "invalid regex", regex: "[invalid", wantErr: true, errSubstr: "invalid name_regex"},
+		{name: "quote injection", regex: `foo"}, other="val`, wantErr: true, errSubstr: "disallowed characters"},
+		{name: "brace injection", regex: `foo}`, wantErr: true, errSubstr: "disallowed characters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := loader.ListMetrics(context.TODO(), tt.regex)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error for regex %q, got nil", tt.regex)
+				}
+				if !strings.Contains(err.Error(), tt.errSubstr) {
+					t.Errorf("expected error containing %q, got: %v", tt.errSubstr, err)
+				}
+			} else if err != nil {
+				t.Errorf("unexpected error for regex %q: %v", tt.regex, err)
+			}
+		})
+	}
 }

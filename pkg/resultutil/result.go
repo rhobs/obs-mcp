@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // Result represents a common tool execution result that can be converted
@@ -65,11 +65,18 @@ func NewErrorResult(err error) *Result {
 // Returns (result, nil) following the MCP pattern where errors
 // are encoded in the result, not the error return value.
 func (r *Result) ToMCPResult() (*mcp.CallToolResult, error) {
+	callToolRes := &mcp.CallToolResult{}
 	if r.Error != nil {
+		callToolRes.SetError(r.Error)
 		//nolint:nilerr // MCP pattern encodes errors in result, not error return
-		return mcp.NewToolResultError(r.Error.Error()), nil
+		return callToolRes, nil
 	}
-	return mcp.NewToolResultStructured(r.Data, r.JSONText), nil
+	callToolRes.Content = []mcp.Content{
+		&mcp.ToolResultContent{
+			StructuredContent: r.Data, Content: []mcp.Content{&mcp.TextContent{Text: r.JSONText}},
+		},
+	}
+	return callToolRes, nil
 }
 
 // ToToolsetResult converts the Result to a Toolset ToolCallResult.
@@ -86,4 +93,18 @@ func (r *Result) ToToolsetResult() (*api.ToolCallResult, error) {
 // IsError returns true if the result represents an error.
 func (r *Result) IsError() bool {
 	return r.Error != nil
+}
+
+// Unwrap returns the typed data and error.
+// If the result contains an error, it returns zero value of T and the error.
+// If successful, it returns the data cast to type T and nil error.
+func Unwrap[T any](r *Result) (T, error) {
+	var zero T
+	if r.Error != nil {
+		return zero, r.Error
+	}
+	if data, ok := r.Data.(T); ok {
+		return data, nil
+	}
+	return zero, fmt.Errorf("failed to cast result data to type %T", zero)
 }

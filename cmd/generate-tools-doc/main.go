@@ -1,12 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
 
-	mcplib "github.com/mark3labs/mcp-go/mcp"
+	mcplib "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/rhobs/obs-mcp/pkg/mcp"
 )
@@ -32,6 +33,126 @@ type fieldInfo struct {
 	Required    bool
 	Description string
 	Pattern     string
+}
+
+// Schema represents a JSON schema with properties and required fields
+type Schema struct {
+	Properties map[string]Property `json:"properties,omitempty"`
+	Required   []string            `json:"required,omitempty"`
+}
+
+// Property represents a JSON schema property
+type Property struct {
+	Type        any       `json:"type,omitempty"` // can be string or []string
+	Description string    `json:"description,omitempty"`
+	Pattern     string    `json:"pattern,omitempty"`
+	Items       *Property `json:"items,omitempty"`
+}
+
+// parseSchema converts the value of any type (interface{}, any) to Schema using JSON marshaling
+// and unmarshaling. The reason is that the `Tool` type (https://pkg.go.dev/github.com/modelcontextprotocol/go-sdk/mcp#Tool)
+// defines outputSchema and inputSchema as values of any type.
+func parseSchema(schemaInterface any) (*Schema, error) {
+	if schemaInterface == nil {
+		return &Schema{}, nil
+	}
+
+	data, err := json.Marshal(schemaInterface)
+	if err != nil {
+		return nil, err
+	}
+
+	var schema Schema
+	if err := json.Unmarshal(data, &schema); err != nil {
+		return nil, err
+	}
+
+	return &schema, nil
+}
+
+// getTypeString extracts type string from Property.Type
+func (p *Property) getTypeString() string {
+	switch t := p.Type.(type) {
+	case string:
+		return t
+	case []any:
+		// Handle nullable types like ["null", "string"]
+		for _, typ := range t {
+			if typeStr, ok := typ.(string); ok && typeStr != "null" {
+				return typeStr
+			}
+		}
+	}
+	return ""
+}
+
+// getDisplayType returns the display type for the property
+func (p *Property) getDisplayType() string {
+	baseType := p.getTypeString()
+	if baseType == "array" && p.Items != nil {
+		itemType := p.Items.getTypeString()
+		if itemType != "" {
+			return itemType + "[]"
+		}
+		// For object arrays, just return "object[]"
+		return "object[]"
+	}
+	return baseType
+}
+
+// extractFieldsFromSchema converts a Schema to []fieldInfo
+func extractFieldsFromSchema(schema *Schema, sortByRequired bool) []fieldInfo {
+	if schema == nil || len(schema.Properties) == 0 {
+		return nil
+	}
+
+	requiredSet := make(map[string]bool)
+	for _, r := range schema.Required {
+		requiredSet[r] = true
+	}
+
+	var fields []fieldInfo
+	for name, prop := range schema.Properties {
+		field := fieldInfo{
+			Name:        name,
+			Type:        prop.getDisplayType(),
+			Required:    requiredSet[name],
+			Description: prop.Description,
+			Pattern:     prop.Pattern,
+		}
+		fields = append(fields, field)
+	}
+
+	if sortByRequired {
+		sort.Slice(fields, func(i, j int) bool {
+			if fields[i].Required != fields[j].Required {
+				return fields[i].Required
+			}
+			return fields[i].Name < fields[j].Name
+		})
+	} else {
+		sort.Slice(fields, func(i, j int) bool {
+			return fields[i].Name < fields[j].Name
+		})
+	}
+
+	return fields
+}
+
+func extractParams(tool *mcplib.Tool) []fieldInfo {
+	schema, err := parseSchema(tool.InputSchema)
+	if err != nil {
+		return nil
+	}
+	return extractFieldsFromSchema(schema, true) // sort by required
+}
+
+func extractOutputSchema(tool *mcplib.Tool) []fieldInfo {
+	schema, err := parseSchema(tool.OutputSchema)
+	if err != nil {
+		return nil
+	}
+	return extractFieldsFromSchema(schema, false) // sort by name only
 }
 
 // formatTable generates a formatted markdown table with aligned columns
@@ -92,86 +213,6 @@ func formatTable(headers, alignments []string, rows [][]string) string {
 	}
 
 	return sb.String()
-}
-
-func extractParams(tool *mcplib.Tool) []fieldInfo {
-	requiredSet := make(map[string]bool)
-	for _, r := range tool.InputSchema.Required {
-		requiredSet[r] = true
-	}
-
-	var params []fieldInfo
-	for name, prop := range tool.InputSchema.Properties {
-		p := fieldInfo{
-			Name:     name,
-			Required: requiredSet[name],
-		}
-		if propMap, ok := prop.(map[string]any); ok {
-			if t, ok := propMap["type"].(string); ok {
-				p.Type = t
-			}
-			if d, ok := propMap["description"].(string); ok {
-				p.Description = d
-			}
-			if pat, ok := propMap["pattern"].(string); ok {
-				p.Pattern = pat
-			}
-		}
-		params = append(params, p)
-	}
-
-	sort.Slice(params, func(i, j int) bool {
-		if params[i].Required != params[j].Required {
-			return params[i].Required
-		}
-		return params[i].Name < params[j].Name
-	})
-
-	return params
-}
-
-func extractOutputSchema(tool *mcplib.Tool) []fieldInfo {
-	var fields []fieldInfo
-
-	if len(tool.OutputSchema.Properties) == 0 {
-		return fields
-	}
-
-	requiredSet := make(map[string]bool)
-	for _, r := range tool.OutputSchema.Required {
-		requiredSet[r] = true
-	}
-
-	for name, prop := range tool.OutputSchema.Properties {
-		f := fieldInfo{
-			Name:     name,
-			Required: requiredSet[name],
-		}
-		if propMap, ok := prop.(map[string]any); ok {
-			if t, ok := propMap["type"].(string); ok {
-				f.Type = t
-			}
-			if f.Type == "array" {
-				if items, ok := propMap["items"].(map[string]any); ok {
-					if itemType, ok := items["type"].(string); ok {
-						f.Type = itemType + "[]"
-					} else if _, ok := items["properties"]; ok {
-						f.Type = "object[]"
-					}
-				}
-			}
-			if d, ok := propMap["description"].(string); ok {
-				f.Description = d
-			}
-		}
-		fields = append(fields, f)
-	}
-
-	sort.Slice(fields, func(i, j int) bool {
-		return fields[i].Name < fields[j].Name
-	})
-
-	return fields
 }
 
 func generateMarkdown(tools []mcplib.Tool, filename string) error {
