@@ -1,12 +1,9 @@
 package tempo
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/rhobs/obs-mcp/pkg/tempo/discovery"
 )
 
 func TestListInstancesHandler_Success(t *testing.T) {
@@ -16,17 +13,12 @@ func TestListInstancesHandler_Success(t *testing.T) {
 	)
 
 	toolset := &Toolset{}
-	result := toolset.ListInstancesHandler(ToolParams{
+	output, err := toolset.ListInstancesHandler(ToolParams{
 		context:       t.Context(),
 		dynamicClient: fakeClient,
 		config:        &Config{UseRoute: false},
 	})
-	require.False(t, result.IsError(), "unexpected error: %v", result.Error)
-
-	var output struct {
-		Instances []discovery.TempoInstance `json:"instances"`
-	}
-	require.NoError(t, json.Unmarshal([]byte(result.JSONText), &output))
+	require.NoError(t, err)
 	require.Len(t, output.Instances, 2)
 
 	inst := output.Instances[0]

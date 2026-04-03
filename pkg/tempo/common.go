@@ -2,18 +2,17 @@ package tempo
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
-	"github.com/rhobs/obs-mcp/pkg/resultutil"
 	tempoclient "github.com/rhobs/obs-mcp/pkg/tempo/client"
 	"github.com/rhobs/obs-mcp/pkg/tempo/discovery"
 	"github.com/rhobs/obs-mcp/pkg/tools"
@@ -115,29 +114,37 @@ type ToolParams struct {
 	config        *Config
 }
 
-func ToMCPHandler(restConfig *rest.Config, dynamicClient dynamic.Interface, config *Config, handler func(params ToolParams) *resultutil.Result) server.ToolHandlerFunc {
-	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		result := handler(ToolParams{
+func ToMCPHandler[T any](restConfig *rest.Config, dynamicClient dynamic.Interface, config *Config, handler func(params ToolParams) (T, error)) mcp.ToolHandlerFor[map[string]any, T] {
+	return func(ctx context.Context, request *mcp.CallToolRequest, args map[string]any) (*mcp.CallToolResult, T, error) {
+		output, err := handler(ToolParams{
 			context:       ctx,
-			arguments:     request.GetArguments(),
+			arguments:     args,
 			dynamicClient: dynamicClient,
 			restConfig:    restConfig,
 			config:        config,
 		})
-		return result.ToMCPResult()
+		return nil, output, err
 	}
 }
 
-func ToServerHandler(handler func(params ToolParams) *resultutil.Result) api.ToolHandlerFunc {
+func ToServerHandler[T any](handler func(params ToolParams) (T, error)) api.ToolHandlerFunc {
 	return func(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
 		config := getConfig(params)
-		result := handler(ToolParams{
+		output, err := handler(ToolParams{
 			context:       params.Context,
 			arguments:     params.GetArguments(),
 			dynamicClient: params.DynamicClient(),
 			restConfig:    params.RESTConfig(),
 			config:        config,
 		})
-		return result.ToToolsetResult()
+		if err != nil {
+			return api.NewToolCallResult("", err), nil
+		}
+
+		jsonBytes, err := json.Marshal(output)
+		if err != nil {
+			return nil, err
+		}
+		return api.NewToolCallResult(string(jsonBytes), nil), nil
 	}
 }

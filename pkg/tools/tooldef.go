@@ -66,6 +66,8 @@ func (d ToolDef[T]) ToMCPTool() *mcp.Tool {
 			}
 		case ParamTypeBoolean:
 			property["type"] = "boolean"
+		case ParamTypeNumber:
+			property["type"] = "number"
 		}
 
 		properties[param.Name] = property

@@ -21,9 +21,16 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
+type Toolset string
+
+const (
+	ToolsetPrometheus Toolset = "prometheus"
+	ToolsetTempo      Toolset = "tempo"
+)
+
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
-	Toolsets               []string
+	Toolsets               []Toolset
 	AuthMode               AuthMode
 	MetricsBackendURL      string
 	AlertmanagerURL        string
@@ -61,7 +68,7 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 }
 
 func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
-	if slices.Contains(opts.Toolsets, "prometheus") {
+	if slices.Contains(opts.Toolsets, ToolsetPrometheus) {
 		mcp.AddTool(mcpServer, tools.ListMetrics.ToMCPTool(), ListMetricsHandler(opts))
 		mcp.AddTool(mcpServer, tools.ExecuteInstantQuery.ToMCPTool(), ExecuteInstantQueryHandler(opts))
 		mcp.AddTool(mcpServer, tools.ExecuteRangeQuery.ToMCPTool(), ExecuteRangeQueryHandler(opts))
@@ -72,7 +79,7 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(), GetSilencesHandler(opts))
 	}
 
-	if slices.Contains(opts.Toolsets, "tempo") {
+	if slices.Contains(opts.Toolsets, ToolsetTempo) {
 		tempoToolset := &tempo.Toolset{}
 		restConfig, err := k8s.GetClientConfig()
 		if err != nil {
@@ -82,11 +89,11 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		if err != nil {
 			return err
 		}
-		mcpServer.AddTool(tempo.ListInstancesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.ListInstancesHandler))
-		mcpServer.AddTool(tempo.GetTraceByIDTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.GetTraceByIDHandler))
-		mcpServer.AddTool(tempo.SearchTracesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTracesHandler))
-		mcpServer.AddTool(tempo.SearchTagsTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTagsHandler))
-		mcpServer.AddTool(tempo.SearchTagValuesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTagValuesHandler))
+		mcp.AddTool(mcpServer, tempo.ListInstancesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.ListInstancesHandler))
+		mcp.AddTool(mcpServer, tempo.GetTraceByIDTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.GetTraceByIDHandler))
+		mcp.AddTool(mcpServer, tempo.SearchTracesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTracesHandler))
+		mcp.AddTool(mcpServer, tempo.SearchTagsTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTagsHandler))
+		mcp.AddTool(mcpServer, tempo.SearchTagValuesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTagValuesHandler))
 	}
 	return nil
 }

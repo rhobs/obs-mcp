@@ -1,14 +1,19 @@
 package tempo
 
 import (
+	"encoding/json"
 	"fmt"
 
-	"github.com/rhobs/obs-mcp/pkg/resultutil"
 	tempoclient "github.com/rhobs/obs-mcp/pkg/tempo/client"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
-var SearchTagValuesTool = tools.ToolDef{
+// SearchTagValuesOutput defines the output schema for the tempo_search_tag_values tool.
+type SearchTagValuesOutput struct {
+	TagValues any `json:"tagValues" jsonschema:"Known values for the specified tag, keyed by type"`
+}
+
+var SearchTagValuesTool = tools.ToolDef[SearchTagValuesOutput]{
 	Name: "tempo_search_tag_values",
 	Description: `List the known values for a specific tag (attribute key) in Tempo.
 Use this tool to discover what values exist for a given tag, e.g. to find all service names (values of "resource.service.name") or all HTTP methods (values of "span.http.request.method").
@@ -58,27 +63,27 @@ e.g. '{ resource.service.name="payment-service" }' to only show tag values from 
 	OpenWorld:   true,
 }
 
-func (t *Toolset) SearchTagValuesHandler(params ToolParams) *resultutil.Result {
+func (t *Toolset) SearchTagValuesHandler(params ToolParams) (SearchTagValuesOutput, error) {
 	client, err := t.getTempoClient(params)
 	if err != nil {
-		return resultutil.NewErrorResult(err)
+		return SearchTagValuesOutput{}, err
 	}
 
 	args := params.arguments
 
 	tag := tools.GetString(args, "tag", "")
 	if tag == "" {
-		return resultutil.NewErrorResult(fmt.Errorf("tag parameter must not be empty"))
+		return SearchTagValuesOutput{}, fmt.Errorf("tag parameter must not be empty")
 	}
 
 	start, err := parseDate(tools.GetString(args, "start", ""))
 	if err != nil {
-		return resultutil.NewErrorResult(fmt.Errorf("invalid start time: %v", err))
+		return SearchTagValuesOutput{}, fmt.Errorf("invalid start time: %v", err)
 	}
 
 	end, err := parseDate(tools.GetString(args, "end", ""))
 	if err != nil {
-		return resultutil.NewErrorResult(fmt.Errorf("invalid end time: %v", err))
+		return SearchTagValuesOutput{}, fmt.Errorf("invalid end time: %v", err)
 	}
 
 	query := tools.GetString(args, "query", "")
@@ -95,8 +100,12 @@ func (t *Toolset) SearchTagValuesHandler(params ToolParams) *resultutil.Result {
 
 	result, err := client.SearchTagValuesV2(params.context, tag, opts)
 	if err != nil {
-		return resultutil.NewErrorResult(err)
+		return SearchTagValuesOutput{}, err
 	}
 
-	return resultutil.NewJSONSuccessResult(result)
+	var output SearchTagValuesOutput
+	if err := json.Unmarshal([]byte(result), &output); err != nil {
+		return SearchTagValuesOutput{}, fmt.Errorf("failed to unmarshal tag values: %w", err)
+	}
+	return output, nil
 }

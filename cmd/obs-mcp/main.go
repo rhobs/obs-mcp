@@ -97,7 +97,7 @@ func main() {
 
 	// Create MCP options
 	opts := mcpserver.ObsMCPOptions{
-		Toolsets:               strings.Split(*toolsets, ","),
+		Toolsets:               parseToolsets(*toolsets),
 		AuthMode:               parsedAuthMode,
 		MetricsBackendURL:      metricsBackendURL,
 		AlertmanagerURL:        alertmanagerURL,
@@ -139,6 +139,15 @@ func main() {
 			log.Fatalf("Server failed: %v", err)
 		}
 	}
+}
+
+func parseToolsets(toolsets string) []mcpserver.Toolset {
+	parts := strings.Split(toolsets, ",")
+	result := make([]mcpserver.Toolset, len(parts))
+	for i, p := range parts {
+		result[i] = mcpserver.Toolset(p)
+	}
+	return result
 }
 
 func parseMetricsBackend(backend string) (k8s.MetricsBackend, error) {

@@ -1,14 +1,19 @@
 package tempo
 
 import (
+	"encoding/json"
 	"fmt"
 
-	"github.com/rhobs/obs-mcp/pkg/resultutil"
 	tempoclient "github.com/rhobs/obs-mcp/pkg/tempo/client"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
-var GetTraceByIDTool = tools.ToolDef{
+// GetTraceByIDOutput defines the output schema for the tempo_get_trace_by_id tool.
+type GetTraceByIDOutput struct {
+	Trace any `json:"trace" jsonschema:"The trace data with services, scopes and spans"`
+}
+
+var GetTraceByIDTool = tools.ToolDef[GetTraceByIDOutput]{
 	Name: "tempo_get_trace_by_id",
 	Description: `Retrieve a single distributed trace by its trace ID from Tempo.
 Returns the full trace with all its spans, including service names, operation names, durations, and attributes.
@@ -43,27 +48,27 @@ Narrows the time range to improve query performance.`,
 	OpenWorld:   true,
 }
 
-func (t *Toolset) GetTraceByIDHandler(params ToolParams) *resultutil.Result {
+func (t *Toolset) GetTraceByIDHandler(params ToolParams) (GetTraceByIDOutput, error) {
 	client, err := t.getTempoClient(params)
 	if err != nil {
-		return resultutil.NewErrorResult(err)
+		return GetTraceByIDOutput{}, err
 	}
 
 	args := params.arguments
 
 	traceid := tools.GetString(args, "traceid", "")
 	if traceid == "" {
-		return resultutil.NewErrorResult(fmt.Errorf("traceid parameter must not be empty"))
+		return GetTraceByIDOutput{}, fmt.Errorf("traceid parameter must not be empty")
 	}
 
 	start, err := parseDate(tools.GetString(args, "start", ""))
 	if err != nil {
-		return resultutil.NewErrorResult(fmt.Errorf("invalid start time: %v", err))
+		return GetTraceByIDOutput{}, fmt.Errorf("invalid start time: %v", err)
 	}
 
 	end, err := parseDate(tools.GetString(args, "end", ""))
 	if err != nil {
-		return resultutil.NewErrorResult(fmt.Errorf("invalid end time: %v", err))
+		return GetTraceByIDOutput{}, fmt.Errorf("invalid end time: %v", err)
 	}
 
 	opts := tempoclient.QueryV2Options{
@@ -73,8 +78,12 @@ func (t *Toolset) GetTraceByIDHandler(params ToolParams) *resultutil.Result {
 
 	trace, err := client.QueryV2(params.context, traceid, opts)
 	if err != nil {
-		return resultutil.NewErrorResult(err)
+		return GetTraceByIDOutput{}, err
 	}
 
-	return resultutil.NewJSONSuccessResult(trace)
+	var output GetTraceByIDOutput
+	if err := json.Unmarshal([]byte(trace), &output); err != nil {
+		return GetTraceByIDOutput{}, fmt.Errorf("failed to unmarshal trace: %w", err)
+	}
+	return output, nil
 }

@@ -1,14 +1,20 @@
 package tempo
 
 import (
+	"encoding/json"
 	"fmt"
 
-	"github.com/rhobs/obs-mcp/pkg/resultutil"
 	tempoclient "github.com/rhobs/obs-mcp/pkg/tempo/client"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
-var SearchTracesTool = tools.ToolDef{
+// SearchTracesOutput defines the output schema for the tempo_search_traces tool.
+type SearchTracesOutput struct {
+	Traces  []any `json:"traces" jsonschema:"List of matching traces with metadata"`
+	Metrics any   `json:"metrics,omitempty" jsonschema:"Query performance metrics"`
+}
+
+var SearchTracesTool = tools.ToolDef[SearchTracesOutput]{
 	Name: "tempo_search_traces",
 	Description: `Search for distributed traces in Tempo using TraceQL.
 Use this tool to find traces matching specific criteria such as service name, HTTP status code, duration, or other span or resource attributes.`,
@@ -80,27 +86,27 @@ Both start and end should be provided to search the full time range; if omitted,
 	OpenWorld:   true,
 }
 
-func (t *Toolset) SearchTracesHandler(params ToolParams) *resultutil.Result {
+func (t *Toolset) SearchTracesHandler(params ToolParams) (SearchTracesOutput, error) {
 	client, err := t.getTempoClient(params)
 	if err != nil {
-		return resultutil.NewErrorResult(err)
+		return SearchTracesOutput{}, err
 	}
 
 	args := params.arguments
 
 	query := tools.GetString(args, "query", "")
 	if query == "" {
-		return resultutil.NewErrorResult(fmt.Errorf("query parameter must not be empty"))
+		return SearchTracesOutput{}, fmt.Errorf("query parameter must not be empty")
 	}
 
 	start, err := parseDate(tools.GetString(args, "start", ""))
 	if err != nil {
-		return resultutil.NewErrorResult(fmt.Errorf("invalid start time: %v", err))
+		return SearchTracesOutput{}, fmt.Errorf("invalid start time: %v", err)
 	}
 
 	end, err := parseDate(tools.GetString(args, "end", ""))
 	if err != nil {
-		return resultutil.NewErrorResult(fmt.Errorf("invalid end time: %v", err))
+		return SearchTracesOutput{}, fmt.Errorf("invalid end time: %v", err)
 	}
 
 	limit := tools.GetInt(args, "limit", 0)
@@ -116,8 +122,12 @@ func (t *Toolset) SearchTracesHandler(params ToolParams) *resultutil.Result {
 
 	results, err := client.Search(params.context, opts)
 	if err != nil {
-		return resultutil.NewErrorResult(err)
+		return SearchTracesOutput{}, err
 	}
 
-	return resultutil.NewJSONSuccessResult(results)
+	var output SearchTracesOutput
+	if err := json.Unmarshal([]byte(results), &output); err != nil {
+		return SearchTracesOutput{}, fmt.Errorf("failed to unmarshal search results: %w", err)
+	}
+	return output, nil
 }

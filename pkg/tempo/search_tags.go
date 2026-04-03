@@ -1,14 +1,19 @@
 package tempo
 
 import (
+	"encoding/json"
 	"fmt"
 
-	"github.com/rhobs/obs-mcp/pkg/resultutil"
 	tempoclient "github.com/rhobs/obs-mcp/pkg/tempo/client"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
-var SearchTagsTool = tools.ToolDef{
+// SearchTagsOutput defines the output schema for the tempo_search_tags tool.
+type SearchTagsOutput struct {
+	Scopes []any `json:"scopes" jsonschema:"List of tag scopes with their tag names"`
+}
+
+var SearchTagsTool = tools.ToolDef[SearchTagsOutput]{
 	Name: "tempo_search_tags",
 	Description: `List available tag names (attribute keys) in Tempo, grouped by scope.
 Use this tool to discover which attributes are available for building TraceQL queries with tempo_search_traces.
@@ -61,22 +66,22 @@ e.g. '{ resource.service.name="payment-service" }' to only show tags present in 
 	OpenWorld:   true,
 }
 
-func (t *Toolset) SearchTagsHandler(params ToolParams) *resultutil.Result {
+func (t *Toolset) SearchTagsHandler(params ToolParams) (SearchTagsOutput, error) {
 	client, err := t.getTempoClient(params)
 	if err != nil {
-		return resultutil.NewErrorResult(err)
+		return SearchTagsOutput{}, err
 	}
 
 	args := params.arguments
 
 	start, err := parseDate(tools.GetString(args, "start", ""))
 	if err != nil {
-		return resultutil.NewErrorResult(fmt.Errorf("invalid start time: %v", err))
+		return SearchTagsOutput{}, fmt.Errorf("invalid start time: %v", err)
 	}
 
 	end, err := parseDate(tools.GetString(args, "end", ""))
 	if err != nil {
-		return resultutil.NewErrorResult(fmt.Errorf("invalid end time: %v", err))
+		return SearchTagsOutput{}, fmt.Errorf("invalid end time: %v", err)
 	}
 
 	scope := tools.GetString(args, "scope", "")
@@ -95,8 +100,12 @@ func (t *Toolset) SearchTagsHandler(params ToolParams) *resultutil.Result {
 
 	result, err := client.SearchTagsV2(params.context, opts)
 	if err != nil {
-		return resultutil.NewErrorResult(err)
+		return SearchTagsOutput{}, err
 	}
 
-	return resultutil.NewJSONSuccessResult(result)
+	var output SearchTagsOutput
+	if err := json.Unmarshal([]byte(result), &output); err != nil {
+		return SearchTagsOutput{}, fmt.Errorf("failed to unmarshal search tags: %w", err)
+	}
+	return output, nil
 }
