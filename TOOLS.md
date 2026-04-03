@@ -222,3 +222,157 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 | :--------- | :--------- | :--------------------------------- |
 | `silences` | `object[]` | List of silences from Alertmanager |
 
+---
+
+## `tempo_list_instances`
+
+> List all Tempo instances available in the Kubernetes cluster.
+Call this tool first to discover available Tempo instances before using other Tempo tools,
+as the returned namespace, name, and tenant values are required parameters for all other Tempo tools.
+Always print the output of this tool in a table.
+
+|                |      |
+| :------------- | :--- |
+| **Parameters** | None |
+
+**Output Schema:**
+
+| Field       | Type       | Description                       |
+| :---------- | :--------- | :-------------------------------- |
+| `instances` | `object[]` | List of available Tempo instances |
+
+---
+
+## `tempo_get_trace_by_id`
+
+> Retrieve a single distributed trace by its trace ID from Tempo.
+Returns the full trace with all its spans, including service names, operation names, durations, and attributes.
+Use this tool when you already have a specific trace ID, e.g. from search results or logs.
+
+**Parameters:**
+
+| Parameter        | Type     | Required | Description                                                                                                                                           |
+| :--------------- | :------- | :------: | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tempoName`      | `string` | ✅        | The name of the Tempo instance to query. Use tempo_list_instances to discover available instance names.                                               |
+| `tempoNamespace` | `string` | ✅        | The Kubernetes namespace where the Tempo instance is deployed. Use tempo_list_instances to discover available namespaces.                             |
+| `traceid`        | `string` | ✅        | The trace ID to retrieve, e.g. "26dad4a0e2b0dd9a440dd5ff203a24a4".                                                                                    |
+| `end`            | `string` |          | Optional end of the time range in RFC 3339 format, e.g. "2025-01-02T00:00:00Z".
+Narrows the time range to improve query performance.                  |
+| `start`          | `string` |          | Optional start of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".
+Narrows the time range to improve query performance.                |
+| `tenant`         | `string` |          | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance. |
+
+**Output Schema:**
+
+| Field   | Type | Description                                    |
+| :------ | :--- | :--------------------------------------------- |
+| `trace` | ``   | The trace data with services, scopes and spans |
+
+---
+
+## `tempo_search_traces`
+
+> Search for distributed traces in Tempo using TraceQL.
+Use this tool to find traces matching specific criteria such as service name, HTTP status code, duration, or other span or resource attributes.
+
+**Parameters:**
+
+| Parameter        | Type     | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| :--------------- | :------- | :------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `query`          | `string` | ✅        | A TraceQL query expression. Format:
+query: "{ <filters joined by &&> }"
+
+Filters:
+- service name:     resource.service.name="<value>" (string, use quotes)
+- HTTP status code: span.http.response.status_code=<code> (number, no quotes)
+- duration:         duration><value like 100ms, 2s, 5m> (no quotes)
+- error status:     status=error (keyword, NO quotes — do NOT write status="error")
+
+IMPORTANT: status values (error, ok, unset) are keywords, NOT strings. Write status=error, NEVER status="error".
+
+Operators: =, !=, >, <, >=, <=
+
+Common attributes:
+- resource.service.name (service name)
+- span.http.response.status_code (HTTP response code)
+- span.http.request.method (HTTP method like GET, POST)
+- span.url.full (request URL)
+- duration (trace duration, e.g. 100ms, 2s)
+- status (trace status: ok, error, unset)
+
+IMPORTANT: Always wrap filters in curly braces { }.
+Do NOT use SQL, PromQL, or Lucene syntax.
+Do NOT omit the "resource." or "span." prefix from attribute names
+
+If unsure which attributes to filter on, start with {} to return all traces, then use tempo_search_tags to discover available attributes.
+   |
+| `tempoName`      | `string` | ✅        | The name of the Tempo instance to query. Use tempo_list_instances to discover available instance names.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `tempoNamespace` | `string` | ✅        | The Kubernetes namespace where the Tempo instance is deployed. Use tempo_list_instances to discover available namespaces.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `end`            | `string` |          | End of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".
+Use "NOW" for current time.
+Both start and end should be provided to search the full time range; if omitted, only a small window of recent data is searched.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `limit`          | `number` |          | Maximum number of traces to return. Defaults to the server-side limit if not specified.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `spss`           | `number` |          | Maximum number of matching spans to return per trace.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `start`          | `string` |          | Start of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".
+Use "NOW" for current time.
+Both start and end should be provided to search the full time range; if omitted, only a small window of recent data is searched.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `tenant`         | `string` |          | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+
+---
+
+## `tempo_search_tags`
+
+> List available tag names (attribute keys) in Tempo, grouped by scope.
+Use this tool to discover which attributes are available for building TraceQL queries with tempo_search_traces.
+For example, this tool may reveal tag names like "service.name" (in the "resource" scope) or "http.response.status_code" (in the "span" scope).
+To use these in TraceQL queries, prefix them with their scope, e.g. "resource.service.name" or "span.http.response.status_code".
+
+**Parameters:**
+
+| Parameter        | Type     | Required | Description                                                                                                                                                                                                                                                                     |
+| :--------------- | :------- | :------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tempoName`      | `string` | ✅        | The name of the Tempo instance to query. Use tempo_list_instances to discover available instance names.                                                                                                                                                                         |
+| `tempoNamespace` | `string` | ✅        | The Kubernetes namespace where the Tempo instance is deployed. Use tempo_list_instances to discover available namespaces.                                                                                                                                                       |
+| `end`            | `string` |          | Optional end of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing tags.                                                                                                                                       |
+| `limit`          | `number` |          | Maximum number of tag names to return per scope.                                                                                                                                                                                                                                |
+| `maxStaleValues` | `number` |          | Maximum number of consecutive blocks without new tag names before the search stops early. Higher values are more thorough but slower.                                                                                                                                           |
+| `query`          | `string` |          | Optional TraceQL query to filter which traces are considered when listing tags,
+e.g. '{ resource.service.name="payment-service" }' to only show tags present in traces from the 'payment-service' service.                                                                      |
+| `scope`          | `string` |          | Filter tags to a specific scope. One of:
+"resource" (service-level attributes like service.name),
+"span" (individual span attributes like http.response.status_code),
+"intrinsic" (built-in fields like duration, status, name).
+If omitted, tags from all scopes are returned. |
+| `start`          | `string` |          | Optional start of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing tags.                                                                                                                                     |
+| `tenant`         | `string` |          | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance.                                                                                                                           |
+
+---
+
+## `tempo_search_tag_values`
+
+> List the known values for a specific tag (attribute key) in Tempo.
+Use this tool to discover what values exist for a given tag, e.g. to find all service names (values of "resource.service.name") or all HTTP methods (values of "span.http.request.method").
+This is useful for building accurate TraceQL queries with tempo_search_traces.
+
+**Parameters:**
+
+| Parameter        | Type     | Required | Description                                                                                                                                                                                          |
+| :--------------- | :------- | :------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tag`            | `string` | ✅        | The fully qualified tag name to get values for, including its scope prefix, e.g. "resource.service.name" or "span.http.response.status_code".
+Use tempo_search_tags to discover available tag names. |
+| `tempoName`      | `string` | ✅        | The name of the Tempo instance to query. Use tempo_list_instances to discover available instance names.                                                                                              |
+| `tempoNamespace` | `string` | ✅        | The Kubernetes namespace where the Tempo instance is deployed. Use tempo_list_instances to discover available namespaces.                                                                            |
+| `end`            | `string` |          | Optional end of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing values.                                                          |
+| `limit`          | `number` |          | Maximum number of tag values to return.                                                                                                                                                              |
+| `maxStaleValues` | `number` |          | Maximum number of consecutive blocks without new values before the search stops early. Higher values are more thorough but slower.                                                                   |
+| `query`          | `string` |          | Optional TraceQL query to filter which traces are considered when listing values,
+e.g. '{ resource.service.name="payment-service" }' to only show tag values from the 'payment-service' service.     |
+| `start`          | `string` |          | Optional start of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing values.                                                        |
+| `tenant`         | `string` |          | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance.                                                |
+
+**Output Schema:**
+
+| Field       | Type | Description                                       |
+| :---------- | :--- | :------------------------------------------------ |
+| `tagValues` | ``   | Known values for the specified tag, keyed by type |
+

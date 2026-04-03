@@ -31,6 +31,7 @@ type ParamType string
 const (
 	ParamTypeString  ParamType = "string"
 	ParamTypeBoolean ParamType = "boolean"
+	ParamTypeNumber  ParamType = "number"
 )
 
 // ToolDef defines a tool that can be converted to different formats (MCP, Toolset, etc.)
@@ -65,6 +66,8 @@ func (d ToolDef[T]) ToMCPTool() *mcp.Tool {
 			}
 		case ParamTypeBoolean:
 			property["type"] = "boolean"
+		case ParamTypeNumber:
+			property["type"] = "number"
 		}
 
 		properties[param.Name] = property
@@ -127,6 +130,8 @@ func (d ToolDef[T]) ToServerTool(handler func(api.ToolHandlerParams) (*api.ToolC
 			}
 		case ParamTypeBoolean:
 			schema.Type = "boolean"
+		case ParamTypeNumber:
+			schema.Type = "number"
 		}
 
 		properties[param.Name] = schema
