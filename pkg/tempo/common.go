@@ -148,3 +148,13 @@ func ToServerHandler[T any](handler func(params ToolParams) (T, error)) api.Tool
 		return api.NewToolCallResult(string(jsonBytes), nil), nil
 	}
 }
+
+func AllTools() []tools.ToolDefInterface {
+	return []tools.ToolDefInterface{
+		ListInstancesTool,
+		GetTraceByIDTool,
+		SearchTracesTool,
+		SearchTagsTool,
+		SearchTagValuesTool,
+	}
+}

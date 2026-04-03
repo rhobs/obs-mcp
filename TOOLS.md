@@ -235,6 +235,12 @@ Always print the output of this tool in a table.
 | :------------- | :--- |
 | **Parameters** | None |
 
+**Output Schema:**
+
+| Field       | Type       | Description                       |
+| :---------- | :--------- | :-------------------------------- |
+| `instances` | `object[]` | List of available Tempo instances |
+
 ---
 
 ## `tempo_get_trace_by_id`
@@ -255,6 +261,12 @@ Narrows the time range to improve query performance.                  |
 | `start`          | `string` |          | Optional start of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".
 Narrows the time range to improve query performance.                |
 | `tenant`         | `string` |          | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance. |
+
+**Output Schema:**
+
+| Field   | Type | Description                                    |
+| :------ | :--- | :--------------------------------------------- |
+| `trace` | ``   | The trace data with services, scopes and spans |
 
 ---
 
@@ -357,4 +369,10 @@ Use tempo_search_tags to discover available tag names. |
 e.g. '{ resource.service.name="payment-service" }' to only show tag values from the 'payment-service' service.     |
 | `start`          | `string` |          | Optional start of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing values.                                                        |
 | `tenant`         | `string` |          | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance.                                                |
+
+**Output Schema:**
+
+| Field       | Type | Description                                       |
+| :---------- | :--- | :------------------------------------------------ |
+| `tagValues` | ``   | Known values for the specified tag, keyed by type |
 
