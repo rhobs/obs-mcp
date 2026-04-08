@@ -46,9 +46,11 @@ endif
 	git tag -s "v$(VERSION)" -m "v$(VERSION)"
 	@echo "Tag v$(VERSION) created."
 
+GO_VERSION := $(shell awk '/^go /{print $$2}' go.mod | cut -d. -f1,2)
+
 .PHONY: container
 container: build-linux ## Build obs-mcp container image
-	$(CONTAINER_CLI) build --load -f Containerfile -t $(IMAGE):$(TAG) .
+	$(CONTAINER_CLI) build --build-arg GOLANG_BUILDER=$(GO_VERSION) --load -f Containerfile -t $(IMAGE):$(TAG) .
 
 .PHONY: format
 format: ## Format all code
