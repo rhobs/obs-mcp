@@ -1,4 +1,4 @@
-# obs-mcp evals
+# Lightspeed Evals
 
 The evaluations testset for the obs-mcp based on [lightspeed-evaluation](https://github.com/lightspeed-core/lightspeed-evaluation).
 
@@ -15,7 +15,7 @@ The evaluations testset for the obs-mcp based on [lightspeed-evaluation](https:/
 - OpenShift cluster with:
   - Thanos Querier or Prometheus accessible
   - Valid kubeconfig or service account credentials
-- obs-mcp server running and connected to Prometheus/Thanos Querier, [check readme for the instructions](../README.md)
+- obs-mcp server running and connected to Prometheus/Thanos Querier, [check readme for the instructions](../../README.md)
 - OpenAI API key
 
 ## Quickstart
@@ -35,7 +35,7 @@ git clone https://github.com/lightspeed-core/lightspeed-stack.git
 cd lightspeed-stack
 ```
 
-Copy the lightspeed configs from this [repo](../hack/lightspeed-stack) to above directory
+Copy the lightspeed configs from this [repo](../../hack/lightspeed-stack) to above directory
 
 **Note:** Adjust the path where obs-mcp is located accordingly in the below command
 
