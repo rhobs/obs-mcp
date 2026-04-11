@@ -1,9 +1,6 @@
 package tools
 
 import (
-	"encoding/json"
-	"reflect"
-
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/google/jsonschema-go/jsonschema"
 	"k8s.io/utils/ptr"
@@ -84,23 +81,10 @@ func (d ToolDef[T]) ToMCPTool() *mcp.Tool {
 		inputSchema["required"] = required
 	}
 
-	// Generate output schema from generic type T
-	var outputSchema map[string]any
-	var zero T
-	schema, err := jsonschema.ForType(reflect.TypeOf(zero), nil)
-	if err == nil {
-		// Convert schema to map[string]any by marshaling/unmarshaling
-		if schemaBytes, err := json.Marshal(schema); err == nil {
-			_ = json.Unmarshal(schemaBytes, &outputSchema)
-		}
-	}
-
-	// Create and populate tool
 	tool := &mcp.Tool{
-		Name:         d.Name,
-		Description:  d.Description,
-		InputSchema:  inputSchema,
-		OutputSchema: outputSchema,
+		Name:        d.Name,
+		Description: d.Description,
+		InputSchema: inputSchema,
 	}
 
 	if d.Title != "" {
