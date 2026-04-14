@@ -15,6 +15,15 @@ config:
       model: "openai:gpt-5-nano"
 
   taskSets:
+    # Smoke test
+    - path: tasks/queries/prometheus-reachability.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            toolPattern: "(list_metrics|execute_instant_query)"
+        minToolCalls: 1
+        maxToolCalls: 3
+
     # Metric discovery
     - path: tasks/metrics/list-metrics.yaml
       assertions:
@@ -271,6 +280,24 @@ config:
       assertions:
         minToolCalls: 3
         maxToolCalls: 20
+
+    # Time range precision
+    - path: tasks/queries/time-range-query.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: execute_range_query
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: execute_range_query
+        minToolCalls: 2
+        maxToolCalls: 10
 
     # Error handling
     - path: tasks/queries/nonexistent-metric.yaml

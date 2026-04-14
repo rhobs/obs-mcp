@@ -15,8 +15,8 @@ metadata:
 spec:
   verify:
     - llmJudge:
-        contains: "no"
-        reason: "Verify the agent reports no results or no pods found in the nonexistent namespace"
+        contains: "no data"
+        reason: "Verify the agent reports no data, no results, or no pods found in the nonexistent namespace"
   prompt:
     inline: |
       Show me the memory usage for all pods in the namespace called totally-fake-namespace-12345.

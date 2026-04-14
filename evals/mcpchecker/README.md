@@ -45,7 +45,15 @@ This uses the default `kubeconfig` auth mode with route auto-discovery. See [Bac
 export OPENAI_API_KEY="sk-..."   # used by both agent and LLM judge
 ```
 
-### 3. Run the evals
+### 3. Verify connectivity
+
+Run the smoke test first to confirm Prometheus is reachable. This avoids wasting tokens on evals that will all fail due to connectivity issues:
+
+```bash
+make run-mcpchecker-eval TASK=prometheus-reachability
+```
+
+### 4. Run the evals
 
 From the repo root using Makefile targets:
 
