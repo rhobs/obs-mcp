@@ -4,7 +4,7 @@ Evaluations for obs-mcp using [mcpchecker](https://github.com/mcpchecker/mcpchec
 
 ## Pre-requisites
 
-- [mcpchecker](https://github.com/mcpchecker/mcpchecker#install) installed (v0.0.14+)
+- [mcpchecker](https://github.com/mcpchecker/mcpchecker#install) installed (v0.0.15+)
 - A Kubernetes cluster with Prometheus and Alertmanager running
 - obs-mcp server deployed and accessible (see [Testing Guide — MCPChecker Evals](../../TESTING.md#mcpchecker-evals))
 

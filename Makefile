@@ -6,6 +6,7 @@ CONTAINER_CLI ?= docker
 IMAGE ?= ghcr.io/rhobs/obs-mcp
 TAG ?= $(shell git rev-parse --short HEAD)
 TOOLS_DIR := hack/tools
+MCPCHECKER_VERSION ?= 0.0.15
 
 ROOT_DIR := $(shell pwd)
 TOOLS_BIN_DIR := $(ROOT_DIR)/tmp/bin
@@ -168,6 +169,31 @@ test-e2e: ## Run E2E tests (requires cluster to be running)
 test-e2e-teardown: ## Teardown E2E test cluster
 	chmod +x hack/e2e/teardown-cluster.sh
 	CLUSTER_NAME=$(KIND_CLUSTER_NAME) ./hack/e2e/teardown-cluster.sh
+
+MCPCHECKER_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+MCPCHECKER_ARCH := $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+
+$(TOOLS_BIN_DIR)/mcpchecker: | $(TOOLS_BIN_DIR)
+	@echo "==> Installing mcpchecker v$(MCPCHECKER_VERSION) ($(MCPCHECKER_OS)/$(MCPCHECKER_ARCH))..."
+	@curl -fsSL -o $(TOOLS_BIN_DIR)/mcpchecker.zip \
+		https://github.com/mcpchecker/mcpchecker/releases/download/v$(MCPCHECKER_VERSION)/mcpchecker-$(MCPCHECKER_OS)-$(MCPCHECKER_ARCH).zip
+	@unzip -o -q $(TOOLS_BIN_DIR)/mcpchecker.zip -d $(TOOLS_BIN_DIR)
+	@rm -f $(TOOLS_BIN_DIR)/mcpchecker.zip
+	@chmod +x $(TOOLS_BIN_DIR)/mcpchecker
+	@echo "✓ mcpchecker v$(MCPCHECKER_VERSION) installed to $(TOOLS_BIN_DIR)/mcpchecker"
+
+.PHONY: install-mcpchecker
+install-mcpchecker: $(TOOLS_BIN_DIR)/mcpchecker ## Install mcpchecker CLI for running evals
+
+MCPCHECKER_EVAL_DIR := evals/mcpchecker
+
+.PHONY: run-mcpchecker-eval
+run-mcpchecker-eval: $(TOOLS_BIN_DIR)/mcpchecker ## Run mcpchecker eval (TASK=cpu-usage for single task, omit for all)
+ifdef TASK
+	cd $(MCPCHECKER_EVAL_DIR) && $(TOOLS_BIN_DIR)/mcpchecker check eval.yaml --run "$(TASK)" --runs 1 --verbose
+else
+	cd $(MCPCHECKER_EVAL_DIR) && $(TOOLS_BIN_DIR)/mcpchecker check eval.yaml --parallel 4
+endif
 
 .PHONY: deploy-kube-state-metrics
 deploy-kube-state-metrics: ## Deploy kube-state-metrics from kube-prometheus (for mcpchecker evals)
