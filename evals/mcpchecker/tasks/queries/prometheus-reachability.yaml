@@ -1,0 +1,22 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "prometheus-reachability"
+  difficulty: easy
+  parallel: true
+  runs: 1
+  labels:
+    category: queries
+    toolType: smoke-test
+  description: |
+    Smoke test to verify the agent can reach Prometheus and get a valid
+    response. The agent should query a basic metric (e.g. up) and confirm
+    Prometheus is reachable before any complex eval tasks run.
+spec:
+  verify:
+    - llmJudge:
+        contains: "up"
+        reason: "Verify the agent confirmed Prometheus is reachable and targets are up"
+  prompt:
+    inline: |
+      Is Prometheus reachable? Query up{job="prometheus-k8s"} and report the status.

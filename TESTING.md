@@ -36,8 +36,10 @@ make run-openshift-pf-prometheus     # port-forwards prometheus-k8s-0:9090 + ale
 **kube-prometheus or any other backend** — set URLs explicitly:
 
 ```bash
-PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 make run
+PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 AUTH_MODE=header make run
 ```
+
+> **Note:** `AUTH_MODE=header` is required for Kind clusters because their kubeconfig uses client certificates instead of bearer tokens. The default `kubeconfig` auth mode will fail with a "kubeconfig doesn't contain a bearer token" error.
 
 Override other defaults as needed:
 
@@ -99,3 +101,16 @@ OBS_MCP_URL=http://localhost:9100 make test-e2e             # full MCP tool smok
 ```
 
 > Note: `make test-e2e` without `OBS_MCP_URL` will attempt a port-forward to a Kind/k8s cluster. It will fail if no `obs-mcp` pod is running in the `obs-mcp` namespace.
+
+## MCPChecker Evals
+
+Validates that AI agents can discover and correctly use obs-mcp tools. See [`evals/mcpchecker/README.md`](evals/mcpchecker/README.md) for installation, environment setup, and detailed usage.
+
+Quick start:
+
+```bash
+make run-mcpchecker-eval                          # run all tasks in parallel (1 run each)
+make run-mcpchecker-eval CATEGORY=queries          # run by category (metrics, labels, queries, alerts)
+make run-mcpchecker-eval TASK=cpu-usage             # single task, verbose
+make run-mcpchecker-eval RUNS=3                     # multiple runs for consistency testing
+```

@@ -1,0 +1,5 @@
+mcpServers:
+  obs:
+    type: http
+    url: http://localhost:9100/mcp
+    enableAllTools: true

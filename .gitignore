@@ -12,6 +12,7 @@
 **/.testcache
 
 # Development
+.env
 .devcontainer/dev.env
 integration-tests/videos
 integration-tests/screenshots
@@ -20,3 +21,7 @@ tmp/*
 
 cpu.prof
 mem.prof
+
+# mcpchecker eval output files
+evals/mcpchecker/*-out*.json
+evals/mcpchecker/results/
