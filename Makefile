@@ -103,6 +103,12 @@ run: build ## Run obs-mcp in HTTP mode (use LOG_LEVEL=debug to see backend call 
 	@echo "Note: AUTH_MODE=serviceaccount or header requires PROMETHEUS_URL and ALERTMANAGER_URL to be set"
 	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --insecure --log-level $(LOG_LEVEL)
 
+.PHONY: run-no-guardrails
+run-no-guardrails: build ## Run obs-mcp in HTTP mode with guardrails disabled
+	@echo "Tip: Override backend URLs with PROMETHEUS_URL=https://... ALERTMANAGER_URL=https://... make run-no-guardrails"
+	@echo "Note: AUTH_MODE=serviceaccount or header requires PROMETHEUS_URL and ALERTMANAGER_URL to be set"
+	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --insecure --log-level $(LOG_LEVEL) --guardrails none
+
 .PHONY: run-prometheus
 run-prometheus: build ## Run obs-mcp with Prometheus as the metrics backend
 	@echo "Tip: Override backend URL with PROMETHEUS_URL=https://... make run-prometheus"
@@ -128,12 +134,6 @@ run-openshift-pf-prometheus: build pf-alertmanager ## Port-forward prometheus-k8
 inspect: COMPOSE_HOST_GATEWAY = $(if $(filter podman,$(CONTAINER_CLI)),host.containers.internal,host.docker.internal)
 inspect: ## Start obs-mcp + MCP Inspector via compose (port-forward Prometheus/Alertmanager first)
 	CONTAINER_HOST_GATEWAY=$(COMPOSE_HOST_GATEWAY) $(CONTAINER_CLI) compose -f compose.yaml up --build
-
-.PHONY: run-no-guardrails
-run-no-guardrails: build ## Run obs-mcp in HTTP mode with guardrails disabled
-	@echo "Tip: Override backend URLs with PROMETHEUS_URL=https://... ALERTMANAGER_URL=https://... make run-no-guardrails"
-	@echo "Note: AUTH_MODE=serviceaccount or header requires PROMETHEUS_URL and ALERTMANAGER_URL to be set"
-	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --insecure --log-level $(LOG_LEVEL) --guardrails none
 
 # E2E Testing
 KIND_CLUSTER_NAME ?= obs-mcp-e2e

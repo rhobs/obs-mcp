@@ -167,9 +167,17 @@ make run-mcpchecker-eval TASK=cpu-usage    # single task, verbose
 Start obs-mcp locally in one terminal, run evals in another:
 
 ```bash
-make run                          # via route auto-discovery
+make run                          # via route auto-discovery (OpenShift >= 4.22)
 # or
 make run-openshift-pf-prometheus  # via port-forward
+```
+
+On OpenShift <= 4.21, the default backend is Thanos Querier which does not support `/api/v1/status/tsdb` (required by the `max-metric-cardinality` and `max-label-cardinality` guardrails). Either disable all guardrails or keep only the static checks:
+
+```bash
+make run-no-guardrails
+# or selectively keep static guardrails:
+./obs-mcp --listen :9100 --auth-mode kubeconfig --guardrails require-label-matcher,disallow-blanket-regex
 ```
 
 ```bash
