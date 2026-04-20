@@ -16,7 +16,7 @@ config:
 
   taskSets:
     # Smoke test
-    - path: tasks/queries/prometheus-reachability.yaml
+    - path: tasks/queries/backend-reachability.yaml
       assertions:
         toolsUsed:
           - server: obs
@@ -98,6 +98,23 @@ config:
         minToolCalls: 2
         maxToolCalls: 7
 
+    - path: tasks/labels/series-by-namespace.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: get_series
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: get_series
+        minToolCalls: 2
+        maxToolCalls: 7
+
     # Instant / range queries (agent may legitimately use either query type)
     - path: tasks/queries/pending-pods.yaml
       assertions:
@@ -114,6 +131,20 @@ config:
         maxToolCalls: 15
 
     - path: tasks/queries/cpu-usage.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query)"
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+        minToolCalls: 2
+        maxToolCalls: 15
+
+    - path: tasks/queries/memory-usage.yaml
       assertions:
         toolsUsed:
           - server: obs
@@ -235,7 +266,15 @@ config:
           - server: obs
             toolPattern: "(list_metrics|execute_instant_query|execute_range_query)"
         minToolCalls: 2
-        maxToolCalls: 15
+        maxToolCalls: 20
+
+    - path: tasks/alerts/filtered-alerts.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: get_alerts
+        minToolCalls: 1
+        maxToolCalls: 5
 
     - path: tasks/alerts/get-silences.yaml
       assertions:
@@ -281,7 +320,11 @@ config:
         toolsUsed:
           - server: obs
             tool: list_metrics
-        minToolCalls: 3
+          - server: obs
+            tool: get_alerts
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query)"
+        minToolCalls: 4
         maxToolCalls: 20
 
     # Visualization

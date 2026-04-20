@@ -37,6 +37,12 @@ For Anthropic, Gemini, or custom endpoints, see [Using a Different Agent](#using
 make run
 ```
 
+On OpenShift <= 4.21 (Thanos Querier backend), disable guardrails since Thanos does not support the TSDB stats endpoint required by cardinality guardrails. Note that the `high-cardinality-rejection` task will not pass without guardrails:
+
+```bash
+make run-no-guardrails
+```
+
 This uses the default `kubeconfig` auth mode with route auto-discovery. See [Backend Setup](#backend-setup) for other options (Kind cluster, OpenShift). Update `mcp-config.yaml` if obs-mcp is not at `http://localhost:9100/mcp`.
 
 ### 2. Set environment variables
@@ -47,10 +53,10 @@ export OPENAI_API_KEY="sk-..."   # used by both agent and LLM judge
 
 ### 3. Verify connectivity
 
-Run the smoke test first to confirm Prometheus is reachable. This avoids wasting tokens on evals that will all fail due to connectivity issues:
+Run the smoke test first to confirm the metrics backend is reachable. This avoids wasting tokens on evals that will all fail due to connectivity issues:
 
 ```bash
-make run-mcpchecker-eval TASK=prometheus-reachability
+make run-mcpchecker-eval TASK=backend-reachability
 ```
 
 ### 4. Run the evals
@@ -58,8 +64,8 @@ make run-mcpchecker-eval TASK=prometheus-reachability
 From the repo root using Makefile targets:
 
 ```bash
-make run-mcpchecker-eval                          # all tasks in parallel (1 run each)
-make run-mcpchecker-eval CATEGORY=metrics         # run by category (metrics, labels, queries, alerts)
+make run-mcpchecker-eval                           # all tasks in parallel (1 run each)
+make run-mcpchecker-eval CATEGORY=metrics          # run by category (metrics, labels, queries, alerts)
 make run-mcpchecker-eval TASK=cpu-usage            # single task, verbose
 make run-mcpchecker-eval RUNS=3                    # all tasks, 3 runs each for consistency testing
 make run-mcpchecker-eval CATEGORY=alerts RUNS=3    # category with multiple runs
@@ -96,8 +102,8 @@ Use `TASK` to filter by name or `CATEGORY` to filter by category:
 
 ```bash
 make run-mcpchecker-eval TASK=cpu-usage            # single task, verbose
-make run-mcpchecker-eval TASK="alert|silence"       # regex match
-make run-mcpchecker-eval CATEGORY=alerts            # all alert tasks
+make run-mcpchecker-eval TASK="alert|silence"      # regex match
+make run-mcpchecker-eval CATEGORY=alerts           # all alert tasks
 ```
 
 Or directly with `mcpchecker`:
