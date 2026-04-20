@@ -6,6 +6,7 @@ CONTAINER_CLI ?= docker
 IMAGE ?= ghcr.io/rhobs/obs-mcp
 TAG ?= $(shell git rev-parse --short HEAD)
 TOOLS_DIR := hack/tools
+MCPCHECKER_VERSION ?= 0.0.15
 
 ROOT_DIR := $(shell pwd)
 TOOLS_BIN_DIR := $(ROOT_DIR)/tmp/bin
@@ -46,9 +47,11 @@ endif
 	git tag -s "v$(VERSION)" -m "v$(VERSION)"
 	@echo "Tag v$(VERSION) created."
 
+GO_VERSION := $(shell awk '/^go /{print $$2}' go.mod | cut -d. -f1,2)
+
 .PHONY: container
 container: build-linux ## Build obs-mcp container image
-	$(CONTAINER_CLI) build --load -f Containerfile -t $(IMAGE):$(TAG) .
+	$(CONTAINER_CLI) build --build-arg GOLANG_BUILDER=$(GO_VERSION) --load -f Containerfile -t $(IMAGE):$(TAG) .
 
 .PHONY: format
 format: ## Format all code
@@ -100,6 +103,12 @@ run: build ## Run obs-mcp in HTTP mode (use LOG_LEVEL=debug to see backend call 
 	@echo "Note: AUTH_MODE=serviceaccount or header requires PROMETHEUS_URL and ALERTMANAGER_URL to be set"
 	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --insecure --log-level $(LOG_LEVEL)
 
+.PHONY: run-no-guardrails
+run-no-guardrails: build ## Run obs-mcp in HTTP mode with guardrails disabled
+	@echo "Tip: Override backend URLs with PROMETHEUS_URL=https://... ALERTMANAGER_URL=https://... make run-no-guardrails"
+	@echo "Note: AUTH_MODE=serviceaccount or header requires PROMETHEUS_URL and ALERTMANAGER_URL to be set"
+	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --insecure --log-level $(LOG_LEVEL) --guardrails none
+
 .PHONY: run-prometheus
 run-prometheus: build ## Run obs-mcp with Prometheus as the metrics backend
 	@echo "Tip: Override backend URL with PROMETHEUS_URL=https://... make run-prometheus"
@@ -125,12 +134,6 @@ run-openshift-pf-prometheus: build pf-alertmanager ## Port-forward prometheus-k8
 inspect: COMPOSE_HOST_GATEWAY = $(if $(filter podman,$(CONTAINER_CLI)),host.containers.internal,host.docker.internal)
 inspect: ## Start obs-mcp + MCP Inspector via compose (port-forward Prometheus/Alertmanager first)
 	CONTAINER_HOST_GATEWAY=$(COMPOSE_HOST_GATEWAY) $(CONTAINER_CLI) compose -f compose.yaml up --build
-
-.PHONY: run-no-guardrails
-run-no-guardrails: build ## Run obs-mcp in HTTP mode with guardrails disabled
-	@echo "Tip: Override backend URLs with PROMETHEUS_URL=https://... ALERTMANAGER_URL=https://... make run-no-guardrails"
-	@echo "Note: AUTH_MODE=serviceaccount or header requires PROMETHEUS_URL and ALERTMANAGER_URL to be set"
-	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --insecure --log-level $(LOG_LEVEL) --guardrails none
 
 # E2E Testing
 KIND_CLUSTER_NAME ?= obs-mcp-e2e
@@ -166,6 +169,69 @@ test-e2e: ## Run E2E tests (requires cluster to be running)
 test-e2e-teardown: ## Teardown E2E test cluster
 	chmod +x hack/e2e/teardown-cluster.sh
 	CLUSTER_NAME=$(KIND_CLUSTER_NAME) ./hack/e2e/teardown-cluster.sh
+
+MCPCHECKER_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+MCPCHECKER_ARCH := $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+
+$(TOOLS_BIN_DIR)/mcpchecker: | $(TOOLS_BIN_DIR)
+	@echo "==> Installing mcpchecker v$(MCPCHECKER_VERSION) ($(MCPCHECKER_OS)/$(MCPCHECKER_ARCH))..."
+	@curl -fsSL -o $(TOOLS_BIN_DIR)/mcpchecker.zip \
+		https://github.com/mcpchecker/mcpchecker/releases/download/v$(MCPCHECKER_VERSION)/mcpchecker-$(MCPCHECKER_OS)-$(MCPCHECKER_ARCH).zip
+	@unzip -o -q $(TOOLS_BIN_DIR)/mcpchecker.zip -d $(TOOLS_BIN_DIR)
+	@rm -f $(TOOLS_BIN_DIR)/mcpchecker.zip
+	@chmod +x $(TOOLS_BIN_DIR)/mcpchecker
+	@echo "✓ mcpchecker v$(MCPCHECKER_VERSION) installed to $(TOOLS_BIN_DIR)/mcpchecker"
+
+.PHONY: install-mcpchecker
+install-mcpchecker: $(TOOLS_BIN_DIR)/mcpchecker ## Install mcpchecker CLI for running evals
+
+MCPCHECKER_EVAL_DIR := evals/mcpchecker
+RUNS ?= 1
+
+.PHONY: run-mcpchecker-eval
+run-mcpchecker-eval: $(TOOLS_BIN_DIR)/mcpchecker ## Run mcpchecker eval (TASK=name, CATEGORY=queries, RUNS=3 for consistency testing)
+ifdef TASK
+	cd $(MCPCHECKER_EVAL_DIR) && $(TOOLS_BIN_DIR)/mcpchecker check eval.yaml --run "$(TASK)" --runs $(RUNS) --verbose
+else ifdef CATEGORY
+	cd $(MCPCHECKER_EVAL_DIR) && $(TOOLS_BIN_DIR)/mcpchecker check eval.yaml --label-selector "category=$(CATEGORY)" --runs $(RUNS) --parallel 4
+else
+	cd $(MCPCHECKER_EVAL_DIR) && $(TOOLS_BIN_DIR)/mcpchecker check eval.yaml --runs $(RUNS) --parallel 4
+endif
+
+.PHONY: deploy-kube-state-metrics
+deploy-kube-state-metrics: ## Deploy kube-state-metrics from kube-prometheus (for mcpchecker evals)
+	@if [ ! -d "tmp/kube-prometheus" ]; then \
+		echo "Error: tmp/kube-prometheus not found. Run 'make test-e2e-setup' first."; exit 1; \
+	fi
+	@echo "==> Installing kube-state-metrics..."
+	@for f in tmp/kube-prometheus/manifests/kubeStateMetrics-*.yaml; do \
+		kubectl apply -f "$$f"; \
+	done
+	kubectl -n monitoring rollout status deployment/kube-state-metrics --timeout=3m
+
+.PHONY: deploy-node-exporter
+deploy-node-exporter: ## Deploy node-exporter from kube-prometheus (for mcpchecker evals)
+	@if [ ! -d "tmp/kube-prometheus" ]; then \
+		echo "Error: tmp/kube-prometheus not found. Run 'make test-e2e-setup' first."; exit 1; \
+	fi
+	@echo "==> Installing node-exporter..."
+	@for f in tmp/kube-prometheus/manifests/nodeExporter-*.yaml; do \
+		kubectl apply -f "$$f"; \
+	done
+	kubectl -n monitoring rollout status daemonset/node-exporter --timeout=3m
+
+.PHONY: deploy-kubelet-servicemonitors
+deploy-kubelet-servicemonitors: ## Deploy kubelet/cAdvisor scrape configs from kube-prometheus (for container_* metrics)
+	@if [ ! -d "tmp/kube-prometheus" ]; then \
+		echo "Error: tmp/kube-prometheus not found. Run 'make test-e2e-setup' first."; exit 1; \
+	fi
+	@echo "==> Installing kubelet/cAdvisor ServiceMonitors..."
+	@for f in tmp/kube-prometheus/manifests/kubernetesControlPlane-*.yaml; do \
+		kubectl apply -f "$$f"; \
+	done
+
+.PHONY: deploy-more-kube-prom-targets
+deploy-more-kube-prom-targets: deploy-kube-state-metrics deploy-node-exporter deploy-kubelet-servicemonitors ## Deploy additional kube-prometheus scrape targets (kube-state-metrics, node-exporter, kubelet)
 
 .PHONY: test-e2e-full
 test-e2e-full: test-e2e-setup test-e2e-deploy test-e2e test-e2e-teardown ## Run full E2E test cycle (setup, test, teardown)

@@ -32,7 +32,7 @@ const (
 func main() {
 	var showVersion = flag.Bool("version", false, "Print version and exit")
 	var listen = flag.String("listen", "", "Listen address for HTTP mode (e.g., :9100, 127.0.0.1:8080)")
-	var toolsets = flag.String("toolsets", "prometheus", "Comma-separated list of enabled toolsets: prometheus, tempo")
+	var toolsets = flag.String("toolsets", string(mcpserver.ToolsetMetrics), fmt.Sprintf("Comma-separated list of enabled toolsets: %s, %s", mcpserver.ToolsetMetrics, mcpserver.ToolsetTraces))
 	var authMode = flag.String("auth-mode", "", "Authentication mode: kubeconfig, serviceaccount, or header")
 	var insecure = flag.Bool("insecure", false, "Skip TLS certificate verification")
 	var logLevel = flag.String("log-level", "info", "Log level: debug, info, warn, error")

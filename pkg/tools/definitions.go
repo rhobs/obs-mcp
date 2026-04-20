@@ -1,5 +1,7 @@
 package tools
 
+import "slices"
+
 // All tool definitions as a single source of truth
 var (
 	ListMetrics = ToolDef[ListMetricsOutput]{
@@ -10,7 +12,7 @@ var (
 			{
 				Name:        "name_regex",
 				Type:        ParamTypeString,
-				Description: "Regex pattern to filter metric names (e.g., 'http_.*', 'node_.*', 'kube.*'). This parameter is required. Don't pass in blanket regex.",
+				Description: "Regex pattern to filter metric names. IMPORTANT: Metric names are typically prefixed (e.g., 'prometheus_tsdb_head_series'). Use wildcards to match substrings: '.*tsdb.*' matches any metric containing 'tsdb', while 'tsdb' only matches the exact string 'tsdb'. Examples: 'http_.*' (starts with http_), '.*memory.*' (contains memory), 'node_.*' (starts with node_). This parameter is required. Don't pass in blanket regex like '.*' or '.+'.",
 				Required:    true,
 			},
 		},
@@ -84,6 +86,35 @@ var (
 				Description: "Duration to look back from now (e.g., '1h', '30m', '1d', '2w') (optional)",
 				Required:    false,
 				Pattern:     `^\d+[smhdwy]$`,
+			},
+		},
+	}
+
+	ShowTimeseries = ToolDef[struct{}]{
+		Name:        "show_timeseries",
+		Description: ShowTimeseriesPrompt,
+		Title:       "Show Timeseries Chart",
+		ReadOnly:    true,
+		Destructive: false,
+		Idempotent:  true,
+		OpenWorld:   true,
+		Params: slices.Concat(ExecuteRangeQuery.Params, []ParamDef{
+			{
+				Name:        "title",
+				Type:        ParamTypeString,
+				Description: "Human-readable chart title describing what the query shows (e.g., 'API Error Rate Over Last Hour'). Displayed above the chart when provided.",
+				Required:    false,
+			},
+			{
+				Name:        "description",
+				Type:        ParamTypeString,
+				Description: "Explanation of the chart's meaning or context (e.g., 'Shows the rate of HTTP 5xx errors per second, broken down by pod'). Displayed below the title when provided.",
+				Required:    false,
+			},
+		}),
+		AdditionalFields: map[string]any{
+			"olsUi": map[string]any{
+				"id": "mcp-obs/show-timeseries",
 			},
 		},
 	}
@@ -257,6 +288,7 @@ func AllTools() []ToolDefInterface {
 		ListMetrics,
 		ExecuteInstantQuery,
 		ExecuteRangeQuery,
+		ShowTimeseries,
 		GetLabelNames,
 		GetLabelValues,
 		GetSeries,

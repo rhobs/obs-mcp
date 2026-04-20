@@ -36,7 +36,17 @@ func ExecuteRangeQueryHandler(params api.ToolHandlerParams) (*api.ToolCallResult
 	}
 
 	cfg := getConfig(params)
-	return tools.ExecuteRangeQueryHandler(params.Context, promClient, tools.BuildRangeQueryInput(params.GetArguments()), cfg.SummarizeRangeQuery).ToToolsetResult()
+	return tools.ExecuteRangeQueryHandler(params.Context, promClient, tools.BuildRangeQueryInput(params.GetArguments()), cfg.RangeQueryFullResponse).ToToolsetResult()
+}
+
+// ShowTimeseriesHandler handles the show_timeseries tool.
+func ShowTimeseriesHandler(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	promClient, err := getPromClient(params)
+	if err != nil {
+		return api.NewToolCallResult("", fmt.Errorf("failed to create Prometheus client: %w", err)), nil
+	}
+
+	return tools.ShowTimeseriesHandler(params.Context, promClient, tools.BuildShowTimeseriesInput(params.GetArguments())).ToToolsetResult()
 }
 
 // GetLabelNamesHandler handles the retrieval of label names.

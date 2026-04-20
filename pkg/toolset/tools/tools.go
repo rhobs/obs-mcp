@@ -27,6 +27,13 @@ func InitExecuteRangeQuery() []api.ServerTool {
 	}
 }
 
+// InitShowTimeseries creates the show_timeseries tool.
+func InitShowTimeseries() []api.ServerTool {
+	return []api.ServerTool{
+		tools.ShowTimeseries.ToServerTool(ShowTimeseriesHandler),
+	}
+}
+
 // InitGetLabelNames creates the get_label_names tool.
 func InitGetLabelNames() []api.ServerTool {
 	return []api.ServerTool{

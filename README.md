@@ -232,6 +232,9 @@ Use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to vi
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Authentication modes, in-cluster deployment, configuration |
 | [TOOLS.md](TOOLS.md) | Available MCP tools |
 | [TESTING.md](TESTING.md) | Testing guide |
+| [RELEASE.md](RELEASE.md) | Release process and versioning guidelines |
+| [CHANGELOG.md](CHANGELOG.md) | Notable changes per release |
+| [MCPChecker Evals](evals/mcpchecker/README.md) | Automated eval framework for tool verification |
 
 ## License
 

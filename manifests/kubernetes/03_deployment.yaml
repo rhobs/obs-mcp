@@ -30,7 +30,7 @@ spec:
             - --log-level
             - debug
             - --toolsets
-            - prometheus,tempo
+            - metrics,traces
           env:
             - name: PROMETHEUS_URL
               valueFrom:

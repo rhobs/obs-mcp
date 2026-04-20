@@ -209,6 +209,14 @@ func BuildRangeQueryInput(args map[string]any) RangeQueryInput {
 	}
 }
 
+func BuildShowTimeseriesInput(args map[string]any) ShowTimeseriesInput {
+	return ShowTimeseriesInput{
+		RangeQueryInput: BuildRangeQueryInput(args),
+		Title:           GetString(args, "title", ""),
+		Description:     GetString(args, "description", ""),
+	}
+}
+
 func BuildLabelNamesInput(args map[string]any) LabelNamesInput {
 	return LabelNamesInput{
 		Metric: GetString(args, "metric", ""),
@@ -293,19 +301,25 @@ func ExecuteRangeQueryHandler(ctx context.Context, promClient prometheus.Loader,
 		return resultutil.NewErrorResult(fmt.Errorf("invalid step format: %w", err))
 	}
 
-	// Validate parameter combinations
-	if input.Start != "" && input.End != "" && input.Duration != "" {
-		return resultutil.NewErrorResult(fmt.Errorf("cannot specify both start/end and duration parameters"))
-	}
-
-	if (input.Start != "" && input.End == "") || (input.Start == "" && input.End != "") {
+	if (input.Start == "") != (input.End == "") {
 		return resultutil.NewErrorResult(fmt.Errorf("both start and end must be provided together"))
 	}
 
 	var startTime, endTime time.Time
 
-	// Handle duration-based query (default to 1h if nothing specified)
-	if input.Duration != "" || (input.Start == "" && input.End == "") {
+	if input.Start != "" && input.End != "" {
+		// Handle explicit start/end times
+		startTime, err = prometheus.ParseTimestamp(input.Start)
+		if err != nil {
+			return resultutil.NewErrorResult(fmt.Errorf("invalid start time format: %w", err))
+		}
+
+		endTime, err = prometheus.ParseTimestamp(input.End)
+		if err != nil {
+			return resultutil.NewErrorResult(fmt.Errorf("invalid end time format: %w", err))
+		}
+	} else {
+		// Handle duration-based query (default to 1h if nothing specified)
 		durationStr := input.Duration
 		if durationStr == "" {
 			durationStr = "1h"
@@ -318,17 +332,6 @@ func ExecuteRangeQueryHandler(ctx context.Context, promClient prometheus.Loader,
 
 		endTime = time.Now()
 		startTime = endTime.Add(-time.Duration(duration))
-	} else {
-		// Handle explicit start/end times
-		startTime, err = prometheus.ParseTimestamp(input.Start)
-		if err != nil {
-			return resultutil.NewErrorResult(fmt.Errorf("invalid start time format: %w", err))
-		}
-
-		endTime, err = prometheus.ParseTimestamp(input.End)
-		if err != nil {
-			return resultutil.NewErrorResult(fmt.Errorf("invalid end time format: %w", err))
-		}
 	}
 
 	// Execute the range query
@@ -381,6 +384,20 @@ func ExecuteRangeQueryHandler(ctx context.Context, promClient prometheus.Loader,
 	}
 
 	return resultutil.NewSuccessResult(output)
+}
+
+// ShowTimeseriesHandler handles the show_timeseries tool, returning full range query data for chart rendering.
+func ShowTimeseriesHandler(ctx context.Context, promClient prometheus.Loader, input ShowTimeseriesInput) *resultutil.Result {
+	slog.Info("ShowTimeseriesHandler called")
+	slog.Debug("ShowTimeseriesHandler params", "input", input)
+
+	// Executing the query handler just to validate the query is correct.
+	result := ExecuteRangeQueryHandler(ctx, promClient, input.RangeQueryInput, true)
+	if result.Error != nil {
+		return result
+	}
+
+	return resultutil.NewSuccessResult(struct{}{})
 }
 
 // ExecuteInstantQueryHandler handles the execution of Prometheus instant queries.

@@ -1,0 +1,397 @@
+kind: Eval
+metadata:
+  name: "obs-mcp-tools"
+
+config:
+  agent:
+    type: "builtin.llm-agent"
+    model: "openai:gpt-5-nano"
+
+  mcpConfigFile: mcp-config.yaml
+
+  llmJudge:
+    ref:
+      type: builtin.llm-agent
+      model: "openai:gpt-5-nano"
+
+  taskSets:
+    # Smoke test
+    - path: tasks/queries/backend-reachability.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            toolPattern: "(list_metrics|execute_instant_query)"
+        minToolCalls: 1
+        maxToolCalls: 3
+
+    # Metric discovery
+    - path: tasks/metrics/list-metrics.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    - path: tasks/metrics/list-node-metrics.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    # Label exploration
+    - path: tasks/labels/label-names.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: get_label_names
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: get_label_names
+        minToolCalls: 2
+        maxToolCalls: 7
+
+    - path: tasks/labels/label-values.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: get_label_names
+          - server: obs
+            tool: get_label_values
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: get_label_names
+          - type: tool
+            server: obs
+            name: get_label_values
+        minToolCalls: 3
+        maxToolCalls: 7
+
+    - path: tasks/labels/get-series.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: get_series
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: get_series
+        minToolCalls: 2
+        maxToolCalls: 7
+
+    - path: tasks/labels/series-by-namespace.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: get_series
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: get_series
+        minToolCalls: 2
+        maxToolCalls: 7
+
+    # Instant / range queries (agent may legitimately use either query type)
+    - path: tasks/queries/pending-pods.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query)"
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+        minToolCalls: 2
+        maxToolCalls: 15
+
+    - path: tasks/queries/cpu-usage.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query)"
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+        minToolCalls: 2
+        maxToolCalls: 15
+
+    - path: tasks/queries/memory-usage.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query)"
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+        minToolCalls: 2
+        maxToolCalls: 15
+
+    - path: tasks/queries/network-traffic.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query)"
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+        minToolCalls: 2
+        maxToolCalls: 15
+
+    - path: tasks/queries/prometheus-head-series.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query)"
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+        minToolCalls: 2
+        maxToolCalls: 15
+
+    - path: tasks/queries/prometheus-requests.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query)"
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+        minToolCalls: 2
+        maxToolCalls: 15
+
+    - path: tasks/queries/prometheus-wal-size.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query)"
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+        minToolCalls: 2
+        maxToolCalls: 15
+
+    # Range queries
+    - path: tasks/queries/pods-created.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: execute_range_query
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: execute_range_query
+        minToolCalls: 2
+        maxToolCalls: 7
+
+    - path: tasks/queries/crashlooping-pods.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: execute_range_query
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: execute_range_query
+        minToolCalls: 2
+        maxToolCalls: 7
+
+    # Alertmanager
+    - path: tasks/alerts/get-alerts.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: get_alerts
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    - path: tasks/alerts/alert-investigation.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: get_alerts
+          - server: obs
+            toolPattern: "(list_metrics|execute_instant_query|execute_range_query)"
+        minToolCalls: 2
+        maxToolCalls: 20
+
+    - path: tasks/alerts/filtered-alerts.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: get_alerts
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    - path: tasks/alerts/get-silences.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: get_silences
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    # Multi-step reasoning (hard)
+    - path: tasks/queries/namespace-resource-usage.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query)"
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+        minToolCalls: 2
+        maxToolCalls: 15
+
+    # Multi-step reasoning (hard)
+    - path: tasks/queries/namespace-pod-count.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query|get_label_values)"
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+        minToolCalls: 2
+        maxToolCalls: 15
+
+    # Ambiguous diagnostic (hard)
+    - path: tasks/queries/diagnose-cluster-health.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: get_alerts
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query)"
+        minToolCalls: 4
+        maxToolCalls: 20
+
+    # Visualization
+    - path: tasks/queries/visualize-cpu-usage.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: show_timeseries
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: show_timeseries
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    # Time range precision
+    - path: tasks/queries/time-range-query.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            tool: execute_range_query
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+          - type: tool
+            server: obs
+            name: execute_range_query
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    # Error handling
+    - path: tasks/queries/nonexistent-metric.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    - path: tasks/queries/nonexistent-namespace.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query)"
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_metrics
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    - path: tasks/queries/high-cardinality-rejection.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_metrics
+          - server: obs
+            toolPattern: "(execute_instant_query|execute_range_query)"
+        minToolCalls: 2
+        maxToolCalls: 15

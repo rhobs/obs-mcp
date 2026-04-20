@@ -248,17 +248,6 @@ func TestExecuteRangeQueryHandler_RequiredParameters(t *testing.T) {
 			expectedError: "both start and end must be provided together",
 		},
 		{
-			name: "start, end, and duration",
-			params: map[string]any{
-				"query":    "up{job=\"api\"}",
-				"step":     "1m",
-				"start":    "2024-01-01T00:00:00Z",
-				"end":      "2024-01-01T01:00:00Z",
-				"duration": "1h",
-			},
-			expectedError: "cannot specify both start/end and duration parameters",
-		},
-		{
 			name: "invalid start time",
 			params: map[string]any{
 				"query": "up{job=\"api\"}",
@@ -572,6 +561,42 @@ func TestExecuteRangeQueryHandler_RelativeTime(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 		})
+	}
+}
+
+func TestShowTimeseriesHandler(t *testing.T) {
+	queryCalled := false
+	mockClient := &MockedLoader{
+		ExecuteRangeQueryFunc: func(ctx context.Context, query string, start, end time.Time, step time.Duration) (map[string]any, error) {
+			queryCalled = true
+			if query != "up{job=\"api\"}" {
+				t.Errorf("expected query 'up{job=\"api\"}', got %q", query)
+			}
+			return map[string]any{"resultType": "matrix", "result": []any{}}, nil
+		},
+	}
+
+	ctx := withMockClient(context.Background(), mockClient)
+	handler := ShowTimeseriesHandler(ObsMCPOptions{})
+	req := newMockRequest(map[string]any{
+		"query": "up{job=\"api\"}",
+		"step":  "1m",
+		"start": "2024-01-01T00:00:00Z",
+		"end":   "2024-01-01T01:00:00Z",
+	})
+
+	input := tools.BuildShowTimeseriesInput(map[string]any{
+		"query": "up{job=\"api\"}",
+		"step":  "1m",
+		"start": "2024-01-01T00:00:00Z",
+		"end":   "2024-01-01T01:00:00Z",
+	})
+	_, _, err := handler(ctx, &req, input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !queryCalled {
+		t.Fatal("expected range query to be executed")
 	}
 }
 

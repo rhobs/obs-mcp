@@ -16,7 +16,7 @@ var _ api.Toolset = (*Toolset)(nil)
 
 // GetName returns the name of the toolset.
 func (t *Toolset) GetName() string {
-	return "obs-mcp"
+	return "metrics"
 }
 
 // GetDescription returns a human-readable description of the toolset.
@@ -30,6 +30,7 @@ func (t *Toolset) GetTools(_ api.Openshift) []api.ServerTool {
 		toolset_tools.InitListMetrics(),
 		toolset_tools.InitExecuteInstantQuery(),
 		toolset_tools.InitExecuteRangeQuery(),
+		toolset_tools.InitShowTimeseries(),
 		toolset_tools.InitGetLabelNames(),
 		toolset_tools.InitGetLabelValues(),
 		toolset_tools.InitGetSeries(),

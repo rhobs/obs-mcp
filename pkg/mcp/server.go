@@ -24,8 +24,8 @@ import (
 type Toolset string
 
 const (
-	ToolsetPrometheus Toolset = "prometheus"
-	ToolsetTempo      Toolset = "tempo"
+	ToolsetMetrics Toolset = "metrics"
+	ToolsetTraces  Toolset = "traces"
 )
 
 // ObsMCPOptions contains configuration options for the MCP server
@@ -68,10 +68,11 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 }
 
 func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
-	if slices.Contains(opts.Toolsets, ToolsetPrometheus) {
+	if slices.Contains(opts.Toolsets, ToolsetMetrics) {
 		mcp.AddTool(mcpServer, tools.ListMetrics.ToMCPTool(), ListMetricsHandler(opts))
 		mcp.AddTool(mcpServer, tools.ExecuteInstantQuery.ToMCPTool(), ExecuteInstantQueryHandler(opts))
 		mcp.AddTool(mcpServer, tools.ExecuteRangeQuery.ToMCPTool(), ExecuteRangeQueryHandler(opts))
+		mcp.AddTool(mcpServer, tools.ShowTimeseries.ToMCPTool(), ShowTimeseriesHandler(opts))
 		mcp.AddTool(mcpServer, tools.GetLabelNames.ToMCPTool(), GetLabelNamesHandler(opts))
 		mcp.AddTool(mcpServer, tools.GetLabelValues.ToMCPTool(), GetLabelValuesHandler(opts))
 		mcp.AddTool(mcpServer, tools.GetSeries.ToMCPTool(), GetSeriesHandler(opts))
@@ -79,7 +80,7 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(), GetSilencesHandler(opts))
 	}
 
-	if slices.Contains(opts.Toolsets, ToolsetTempo) {
+	if slices.Contains(opts.Toolsets, ToolsetTraces) {
 		tempoToolset := &tempo.Toolset{}
 		restConfig, err := k8s.GetClientConfig()
 		if err != nil {

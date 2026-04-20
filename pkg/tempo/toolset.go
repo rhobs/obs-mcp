@@ -12,7 +12,7 @@ var _ api.Toolset = (*Toolset)(nil)
 
 // GetName returns the name of the toolset.
 func (t *Toolset) GetName() string {
-	return "tempo"
+	return "traces"
 }
 
 // GetDescription returns a human-readable description of the toolset.

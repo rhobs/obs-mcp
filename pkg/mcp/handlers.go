@@ -27,6 +27,27 @@ func ListMetricsHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[tools.ListMetrics
 	}
 }
 
+// ShowTimeseriesHandler handles the show_timeseries tool.
+func ShowTimeseriesHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[tools.ShowTimeseriesInput, struct{}] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input tools.ShowTimeseriesInput) (*mcp.CallToolResult, struct{}, error) {
+		promClient, err := getPromClient(ctx, opts)
+		if err != nil {
+			return nil, struct{}{}, fmt.Errorf("failed to create Prometheus client: %w", err)
+		}
+
+		result := tools.ShowTimeseriesHandler(ctx, promClient, input)
+		_, err = resultutil.Unwrap[struct{}](result)
+		if err != nil {
+			return nil, struct{}{}, err
+		}
+		// We return empty result to not overwhelm the LLM context. The purpose
+		// of the tool is to validate the query. The visualization is taking the
+		// required data from the tool inputs. An UI-only tool could be introduced
+		// to load the data for the visualization, if needed (MCP-apps case).
+		return nil, struct{}{}, nil
+	}
+}
+
 // ExecuteInstantQueryHandler handles the execution of Prometheus instant queries.
 func ExecuteInstantQueryHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[tools.InstantQueryInput, tools.InstantQueryOutput] {
 	return func(ctx context.Context, req *mcp.CallToolRequest, input tools.InstantQueryInput) (*mcp.CallToolResult, tools.InstantQueryOutput, error) {

@@ -58,6 +58,13 @@ This tool MUST be called first for EVERY observability question to:
 4. The 'name_regex' parameter should always be provided, and be a best guess of what the metric would be named like.
 5. Do not use a blanket regex like .* or .+ in the 'name_regex' parameter. Use specific ones like kube.*, node.*, etc.
 
+REGEX PATTERN GUIDANCE:
+- Prometheus metrics are typically prefixed (e.g., 'prometheus_tsdb_head_series', 'kube_pod_status_phase')
+- To match metrics CONTAINING a substring, use wildcards: '.*tsdb.*' matches 'prometheus_tsdb_head_series'
+- Without wildcards, the pattern matches EXACTLY: 'tsdb' only matches a metric literally named 'tsdb' (which rarely exists)
+- Common patterns: 'kube_pod.*' (pods), '.*memory.*' (memory-related), 'node_.*' (node metrics)
+- If you get empty results, try adding '.*' before/after your search term
+
 NEVER skip this step. NEVER guess metric names. Metric names vary between environments.
 
 After calling this tool:
@@ -90,6 +97,20 @@ TIME PARAMETERS:
 - 'step': Data point resolution (e.g., "1m" for 1-hour duration, "5m" for 24-hour duration)
 
 The 'query' parameter MUST use metric names that were returned by list_metrics.`
+
+	ShowTimeseriesPrompt = `Display the results as an interactive timeseries chart.
+
+This tool works like execute_range_query but renders the results as a visual chart in the UI clients.
+Use it when the user wants to see a graph or visualization of time-series data and to use visuals to provide the answer.
+Use the show_timeseries as the last tool call after all the other Prometheus tool calls where finalized.
+
+TIME PARAMETERS:
+- 'duration': Look back from now (e.g., "5m", "1h", "24h")
+- 'step': Data point resolution (e.g., "1m" for 1-hour duration, "5m" for 24-hour duration)
+- 'title': A descriptive chart title (e.g., "API Error Rate Over Last Hour")
+- 'description': An explanation of the chart's meaning or context (e.g., "Shows the rate of HTTP 5xx errors per second, broken down by pod")
+
+The 'query' parameter MUST be a range query and must use metric names that were returned by list_metrics.`
 
 	GetLabelNamesPrompt = `Get all label names (dimensions) available for filtering a metric.
 
