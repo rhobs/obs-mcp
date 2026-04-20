@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -59,6 +60,28 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 	}
 
 	mcpServer := mcp.NewServer(impl, serverOpts)
+
+	// If log level is set to debug, log tool calls
+	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		mcpServer.AddReceivingMiddleware(func(next mcp.MethodHandler) mcp.MethodHandler {
+			return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+				params := req.GetParams()
+				switch p := params.(type) {
+				case *mcp.CallToolParamsRaw:
+					var args map[string]any
+					_ = json.Unmarshal(p.Arguments, &args)
+					attrs := make([]slog.Attr, 0, len(args))
+					for k, v := range args {
+						attrs = append(attrs, slog.Any(k, v))
+					}
+					slog.Debug("MCP call", "method", method, "tool", p.Name, "arg", slog.GroupValue(attrs...))
+				default:
+					slog.Debug("MCP call", "method", method, "params", p)
+				}
+				return next(ctx, method, req)
+			}
+		})
+	}
 
 	if err := SetupTools(mcpServer, opts); err != nil {
 		return nil, err
