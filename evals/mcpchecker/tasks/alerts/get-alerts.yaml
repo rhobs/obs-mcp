@@ -14,8 +14,8 @@ metadata:
 spec:
   verify:
     - llmJudge:
-        contains: "alertname"
-        reason: "Verify the agent reported specific alert names, or confirmed no alerts are firing"
+        contains: "Watchdog"
+        reason: "Verify the agent retrieved firing alerts and reported the Watchdog alert"
   prompt:
     inline: |
       Check the cluster for any firing alerts and report what you find.

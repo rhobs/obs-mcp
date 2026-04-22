@@ -10,19 +10,18 @@ metadata:
     toolType: multi-step
   description: |
     Tests if the agent can perform multi-step alert triage: first retrieving
-    alerts from Alertmanager, then investigating related metrics for the most
-    critical alert using Prometheus queries.
+    alerts from Alertmanager, then investigating related metrics for a
+    firing alert using queries.
 spec:
   verify:
     - llmJudge:
-        contains: "alertname"
-        reason: "Verify the agent retrieved alerts and reported specific alert names from Alertmanager"
+        contains: "AlertmanagerReceiversNotConfigured"
+        reason: "Verify the agent retrieved firing alerts and identified AlertmanagerReceiversNotConfigured"
     - llmJudge:
-        contains: "query"
-        reason: "Verify the agent investigated related metrics by running a Prometheus query"
+        contains: "alertmanager"
+        reason: "Verify the agent investigated Alertmanager-related metrics for the alert"
   prompt:
     inline: |
       Check if there are any firing alerts. If there are, investigate
       the related metrics for the most critical alert and summarize
-      what's happening. If there are no firing alerts, check cluster
-      health metrics instead.
+      what's happening.
