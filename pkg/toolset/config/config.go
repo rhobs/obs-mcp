@@ -35,13 +35,13 @@ type Config struct {
 	// MaxMetricCardinality is the maximum allowed series count per metric.
 	// Set to 0 to disable this check.
 	// Default: 20000
-	MaxMetricCardinality uint64 `toml:"max_metric_cardinality,omitempty"`
+	MaxMetricCardinality *uint64 `toml:"max_metric_cardinality,omitempty"`
 
 	// MaxLabelCardinality is the maximum allowed label value count for blanket regex.
 	// Only takes effect if disallow-blanket-regex is enabled.
 	// Set to 0 to always disallow blanket regex.
 	// Default: 500
-	MaxLabelCardinality uint64 `toml:"max_label_cardinality,omitempty"`
+	MaxLabelCardinality *uint64 `toml:"max_label_cardinality,omitempty"`
 
 	// RangeQueryFullResponse controls whether range queries return full data points
 	// instead of summary statistics.
@@ -80,17 +80,23 @@ func (c *Config) GetGuardrails() (*prometheus.Guardrails, error) {
 		allGuardrails := guardrailsStr == "all" || c.Guardrails == ""
 
 		if allGuardrails {
-			guardrails.MaxMetricCardinality = c.MaxMetricCardinality
-			if guardrails.MaxMetricCardinality == 0 {
-				guardrails.MaxMetricCardinality = 20000
+			if c.MaxMetricCardinality != nil {
+				guardrails.MaxMetricCardinality = *c.MaxMetricCardinality
+			} else {
+				guardrails.MaxMetricCardinality = prometheus.DefaultGuardrails().MaxMetricCardinality
 			}
-			guardrails.MaxLabelCardinality = c.MaxLabelCardinality
-			if guardrails.MaxLabelCardinality == 0 {
-				guardrails.MaxLabelCardinality = 500
+			if c.MaxLabelCardinality != nil {
+				guardrails.MaxLabelCardinality = *c.MaxLabelCardinality
+			} else {
+				guardrails.MaxLabelCardinality = prometheus.DefaultGuardrails().MaxLabelCardinality
 			}
 		} else {
-			guardrails.MaxMetricCardinality = c.MaxMetricCardinality
-			guardrails.MaxLabelCardinality = c.MaxLabelCardinality
+			if c.MaxMetricCardinality != nil {
+				guardrails.MaxMetricCardinality = *c.MaxMetricCardinality
+			}
+			if c.MaxLabelCardinality != nil {
+				guardrails.MaxLabelCardinality = *c.MaxLabelCardinality
+			}
 		}
 	}
 
