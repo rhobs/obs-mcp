@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.1.0] - 2026-04-22
+
 > Note: Some entries lack PR numbers because they were developed in the original [monorepo](https://github.com/jhadvig/genie-plugin) before migration to [rhobs/obs-mcp](https://github.com/rhobs/obs-mcp).
 
 ### Added
@@ -24,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kubernetes deployment manifests with RBAC
 - GoReleaser-based release pipeline with cosign artifact signing ([#54](https://github.com/rhobs/obs-mcp/pull/54))
 - MCP Inspector compose setup for local testing with Docker and Podman ([#56](https://github.com/rhobs/obs-mcp/pull/56))
-- MCPChecker eval framework for automated tool verification ([#34](https://github.com/rhobs/obs-mcp/pull/34), [#66](https://github.com/rhobs/obs-mcp/pull/66))
+- MCPChecker eval framework for automated tool verification ([#34](https://github.com/rhobs/obs-mcp/pull/34), [#66](https://github.com/rhobs/obs-mcp/pull/66), [#69](https://github.com/rhobs/obs-mcp/pull/69))
 - Dependabot for Go modules and GitHub Actions ([#60](https://github.com/rhobs/obs-mcp/pull/60))
 
 ### Fixed
@@ -40,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Rename toolset registration from `observability` to `metrics` ([#68](https://github.com/rhobs/obs-mcp/pull/68), [#72](https://github.com/rhobs/obs-mcp/pull/72))
 - Migrate to `modelcontextprotocol/go-sdk` ([#53](https://github.com/rhobs/obs-mcp/pull/53))
 - Summarize range query results by default ([#37](https://github.com/rhobs/obs-mcp/pull/37))
 - Improved `list_metrics` prompt for better metric discovery ([#44](https://github.com/rhobs/obs-mcp/pull/44))
