@@ -14,8 +14,6 @@ func TestApplyCardinalityLimits(t *testing.T) {
 		guardrailsFlag           string
 		maxMetricCard            uint64
 		maxLabelCard             uint64
-		metricCardExplicit       bool
-		labelCardExplicit        bool
 		wantMaxMetricCardinality uint64
 		wantMaxLabelCardinality  uint64
 	}{
@@ -44,21 +42,25 @@ func TestApplyCardinalityLimits(t *testing.T) {
 			wantMaxLabelCardinality:  0,
 		},
 		{
-			name:                     "explicit subset with explicit max-metric-cardinality flag",
-			guardrailsFlag:           "require-label-matcher",
+			name:                     "explicit subset with max-metric-cardinality in guardrails flag",
+			guardrailsFlag:           "require-label-matcher,max-metric-cardinality",
 			maxMetricCard:            10000,
 			maxLabelCard:             500,
-			metricCardExplicit:       true,
 			wantMaxMetricCardinality: 10000,
 			wantMaxLabelCardinality:  0,
 		},
 		{
-			name:                     "explicit subset with both cardinality flags explicit",
-			guardrailsFlag:           "disallow-blanket-regex",
+			name:                     "explicit subset with max-metric-cardinality flag using default value",
+			guardrailsFlag:           "max-metric-cardinality",
+			maxMetricCard:            20000,
+			wantMaxMetricCardinality: 20000,
+			wantMaxLabelCardinality:  0,
+		},
+		{
+			name:                     "explicit subset with both cardinality guardrails",
+			guardrailsFlag:           "disallow-blanket-regex,max-metric-cardinality,max-label-cardinality",
 			maxMetricCard:            15000,
 			maxLabelCard:             300,
-			metricCardExplicit:       true,
-			labelCardExplicit:        true,
 			wantMaxMetricCardinality: 15000,
 			wantMaxLabelCardinality:  300,
 		},
@@ -75,7 +77,7 @@ func TestApplyCardinalityLimits(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := &prometheus.Guardrails{}
-			applyCardinalityLimits(g, tt.guardrailsFlag, tt.maxMetricCard, tt.maxLabelCard, tt.metricCardExplicit, tt.labelCardExplicit)
+			applyCardinalityLimits(g, tt.guardrailsFlag, tt.maxMetricCard, tt.maxLabelCard)
 			if g.MaxMetricCardinality != tt.wantMaxMetricCardinality {
 				t.Errorf("MaxMetricCardinality = %v, want %v", g.MaxMetricCardinality, tt.wantMaxMetricCardinality)
 			}
@@ -87,7 +89,7 @@ func TestApplyCardinalityLimits(t *testing.T) {
 }
 
 func TestApplyCardinalityLimits_NilGuardrails(t *testing.T) {
-	applyCardinalityLimits(nil, "all", 20000, 500, false, false)
+	applyCardinalityLimits(nil, "all", 20000, 500)
 }
 
 // TestParseMetricsBackend verifies the --metrics-backend flag parsing logic
