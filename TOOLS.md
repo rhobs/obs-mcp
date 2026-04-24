@@ -23,12 +23,6 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 | :----------- | :------- | :------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `name_regex` | `string` | ✅        | Regex pattern to filter metric names. IMPORTANT: Metric names are typically prefixed (e.g., 'prometheus_tsdb_head_series'). Use wildcards to match substrings: '.*tsdb.*' matches any metric containing 'tsdb', while 'tsdb' only matches the exact string 'tsdb'. Examples: 'http_.*' (starts with http_), '.*memory.*' (contains memory), 'node_.*' (starts with node_). This parameter is required. Don't pass in blanket regex like '.*' or '.+'. |
 
-**Output Schema:**
-
-| Field     | Type       | Description                        |
-| :-------- | :--------- | :--------------------------------- |
-| `metrics` | `string[]` | List of all available metric names |
-
 ---
 
 ## `execute_instant_query`
@@ -47,14 +41,6 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 | :-------- | :------- | :------: | :-------------------------------------------------------------------------------- |
 | `query`   | `string` | ✅        | PromQL query string using metric names verified via list_metrics                  |
 | `time`    | `string` |          | Evaluation time as RFC3339 or Unix timestamp. Omit or use 'NOW' for current time. |
-
-**Output Schema:**
-
-| Field        | Type       | Description                                               |
-| :----------- | :--------- | :-------------------------------------------------------- |
-| `result`     | `object[]` | The query results as an array of instant values           |
-| `resultType` | `string`   | The type of result returned (e.g. vector, scalar, string) |
-| `warnings`   | `string[]` | Any warnings generated during query execution             |
 
 ---
 
@@ -82,15 +68,6 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 > [!NOTE]
 > Parameters with patterns must match: `^\d+[smhdwy]$`
 
-**Output Schema:**
-
-| Field        | Type       | Description                                                              |
-| :----------- | :--------- | :----------------------------------------------------------------------- |
-| `result`     | `object[]` | The query results as an array of time series                             |
-| `resultType` | `string`   | The type of result returned: matrix or vector or scalar                  |
-| `summary`    | `object[]` | Summary statistics for each time series (when summarize flag is enabled) |
-| `warnings`   | `string[]` | Any warnings generated during query execution                            |
-
 ---
 
 ## `show_timeseries`
@@ -100,6 +77,7 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 **Usage Tips:**
 
 - This tool works like execute_range_query but renders the results as a visual chart in the UI clients. Use it when the user wants to see a graph or visualization of time-series data and to use visuals to provide the answer. Use the show_timeseries as the last tool call after all the other Prometheus tool calls where finalized.
+- This tool can also be used with PromQL queries extracted from Perses dashboard panels (via get_dashboard_panels). When using queries from dashboard panels, substitute any dashboard variables (e.g., $namespace) with concrete values.
 - TIME PARAMETERS: - 'duration': Look back from now (e.g., "5m", "1h", "24h") - 'step': Data point resolution (e.g., "1m" for 1-hour duration, "5m" for 24-hour duration) - 'title': A descriptive chart title (e.g., "API Error Rate Over Last Hour") - 'description': An explanation of the chart's meaning or context (e.g., "Shows the rate of HTTP 5xx errors per second, broken down by pod")
 - The 'query' parameter MUST be a range query and must use metric names that were returned by list_metrics.
 
@@ -137,12 +115,6 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 | `metric`  | `string` |          | Metric name (from list_metrics) to get label names for. Leave empty for all metrics.           |
 | `start`   | `string` |          | Start time for label discovery as RFC3339 or Unix timestamp (optional, defaults to 1 hour ago) |
 
-**Output Schema:**
-
-| Field    | Type       | Description                                                           |
-| :------- | :--------- | :-------------------------------------------------------------------- |
-| `labels` | `string[]` | List of label names available for the specified metric or all metrics |
-
 ---
 
 ## `get_label_values`
@@ -163,12 +135,6 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 | `metric`  | `string` |          | Metric name (from list_metrics) to scope the label values to. Leave empty for all metrics.           |
 | `start`   | `string` |          | Start time for label value discovery as RFC3339 or Unix timestamp (optional, defaults to 1 hour ago) |
 
-**Output Schema:**
-
-| Field    | Type       | Description                                   |
-| :------- | :--------- | :-------------------------------------------- |
-| `values` | `string[]` | List of unique values for the specified label |
-
 ---
 
 ## `get_series`
@@ -188,13 +154,6 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 | `matches` | `string` | ✅        | PromQL series selector using metric names from list_metrics                                     |
 | `end`     | `string` |          | End time for series discovery as RFC3339 or Unix timestamp (optional, defaults to now)          |
 | `start`   | `string` |          | Start time for series discovery as RFC3339 or Unix timestamp (optional, defaults to 1 hour ago) |
-
-**Output Schema:**
-
-| Field         | Type       | Description                                                                              |
-| :------------ | :--------- | :--------------------------------------------------------------------------------------- |
-| `cardinality` | `integer`  | Total number of series matching the selector                                             |
-| `series`      | `object[]` | List of time series matching the selector, each series is a map of label names to values |
 
 ---
 
@@ -220,12 +179,6 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 | `silenced`    | `boolean` |          | Filter for silenced alerts only (true/false, optional)                |
 | `unprocessed` | `boolean` |          | Filter for unprocessed alerts only (true/false, optional)             |
 
-**Output Schema:**
-
-| Field    | Type       | Description                      |
-| :------- | :--------- | :------------------------------- |
-| `alerts` | `object[]` | List of alerts from Alertmanager |
-
 ---
 
 ## `get_silences`
@@ -244,9 +197,63 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 | :-------- | :------- | :------: | :---------------------------------------------------------------------- |
 | `filter`  | `string` |          | Label matchers to filter silences (e.g., 'alertname=HighCPU', optional) |
 
-**Output Schema:**
+---
 
-| Field      | Type       | Description                        |
-| :--------- | :--------- | :--------------------------------- |
-| `silences` | `object[]` | List of silences from Alertmanager |
+## `list_perses_dashboards`
+
+> List all PersesDashboard resources from the cluster.
+
+**Usage Tips:**
+
+- Start here when the user asks about existing dashboards or wants to visualize metrics from a dashboard.
+- Returns dashboard summaries with name, namespace, labels, and descriptions.
+- Use the descriptions to identify dashboards relevant to the user's question.
+- In the case that there is insufficient information in the description, use get_perses_dashboard to fetch the full dashboard spec for more context. Doing so is an expensive operation, so only do this when necessary.
+- Follow up with get_dashboard_panels to see what panels are available in the relevant dashboard(s), then pass the panel's PromQL query to show_timeseries for visualization.
+
+|                |      |
+| :------------- | :--- |
+| **Parameters** | None |
+
+---
+
+## `get_perses_dashboard`
+
+> Get a specific Dashboard by name and namespace. This tool is used to get the dashboard's panels and configuration.
+
+**Usage Tips:**
+
+- Use the list_perses_dashboards tool first to find available dashboards, then use this tool to get the full specification of a specific dashboard, if needed (to gather more context).
+- The intended use of this tool is only to gather more context on one or more dashboards when the description from list_perses_dashboards is insufficient.
+- Information about panels themselves should be gathered using get_dashboard_panels instead (e.g., looking at a "kind: Markdown" panel to gather more context).
+- Returns the dashboard's full specification including panels, layouts, variables, and datasources in JSON format.
+- For most use cases, you will want to follow up with get_dashboard_panels to extract panel metadata for selection.
+
+**Parameters:**
+
+| Parameter   | Type     | Required | Description                |
+| :---------- | :------- | :------: | :------------------------- |
+| `name`      | `string` | ✅        | Name of the Dashboard      |
+| `namespace` | `string` | ✅        | Namespace of the Dashboard |
+
+---
+
+## `get_dashboard_panels`
+
+> Get panel(s) information from a specific Dashboard.
+
+**Usage Tips:**
+
+- After finding a relevant dashboard (using list_perses_dashboards and conditionally, get_perses_dashboard), use this to see what panels it contains.
+- Returns panel metadata including: - Panel IDs (format: 'panelName' or 'panelName-N' for multi-query panels) - Titles and descriptions - PromQL queries (may contain variables like $namespace) - Chart types (TimeSeriesChart, PieChart, Table)
+- You can optionally provide specific panel IDs to fetch only those panels. This is useful when you remember panel IDs from earlier calls and want to re-fetch just their metadata without retrieving the entire dashboard's panels.
+- Use this information to identify which panels answer the user's question, then pass the panel's PromQL query to show_timeseries for visualization.
+
+**Parameters:**
+
+| Parameter   | Type     | Required | Description                                                                                                                                                                                                                                                                                             |
+| :---------- | :------- | :------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `name`      | `string` | ✅        | Name of the Dashboard                                                                                                                                                                                                                                                                                   |
+| `namespace` | `string` | ✅        | Namespace of the Dashboard                                                                                                                                                                                                                                                                              |
+| `panel_ids` | `string` |          | Optional comma-separated list of panel IDs to filter. Panel IDs follow the format 'panelName' or 'panelName-N' where N is the query index (e.g. 'cpuUsage,memoryUsage-0,networkTraffic-1'). Use this to fetch metadata for specific panels you've seen in earlier calls. Leave empty to get all panels. |
 

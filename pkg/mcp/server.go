@@ -64,6 +64,9 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	mcp.AddTool(mcpServer, tools.GetSeries.ToMCPTool(), GetSeriesHandler(opts))
 	mcp.AddTool(mcpServer, tools.GetAlerts.ToMCPTool(), GetAlertsHandler(opts))
 	mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(), GetSilencesHandler(opts))
+	mcp.AddTool(mcpServer, tools.ListPersesDashboards.ToMCPTool(), DashboardsHandler(opts))
+	mcp.AddTool(mcpServer, tools.GetPersesDashboard.ToMCPTool(), GetDashboardHandler(opts))
+	mcp.AddTool(mcpServer, tools.GetDashboardPanels.ToMCPTool(), GetDashboardPanelsHandler(opts))
 	return nil
 }
 
@@ -105,7 +108,7 @@ func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string) error 
 	mux.Handle(mcpEndpoint, streamableHandler)
 	mux.Handle("/", streamableHandler)
 
-	mux.HandleFunc(healthEndpoint, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(healthEndpoint, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	})

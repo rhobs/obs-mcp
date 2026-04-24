@@ -19,7 +19,8 @@ func AllTools() []mcp.Tool {
 	return mcpTools
 }
 
-// Individual tool creation functions for backward compatibility and testing
+// Individual tool creation functions for backward compatibility and testing.
+
 func CreateListMetricsTool() mcp.Tool {
 	return *tools.ListMetrics.ToMCPTool()
 }
@@ -55,4 +56,16 @@ func CreateGetAlertsTool() mcp.Tool {
 
 func CreateGetSilencesTool() mcp.Tool {
 	return *tools.GetSilences.ToMCPTool()
+}
+
+func CreateListDashboardsTool() mcp.Tool {
+	return *tools.ListPersesDashboards.ToMCPTool()
+}
+
+func CreateGetDashboardTool() mcp.Tool {
+	return *tools.GetPersesDashboard.ToMCPTool()
+}
+
+func CreateGetDashboardPanelsTool() mcp.Tool {
+	return *tools.GetDashboardPanels.ToMCPTool()
 }

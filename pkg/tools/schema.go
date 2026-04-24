@@ -1,5 +1,7 @@
 package tools
 
+import "github.com/rhobs/obs-mcp/pkg/perses"
+
 // ListMetricsOutput defines the output schema for the list_metrics tool.
 type ListMetricsOutput struct {
 	Metrics []string `json:"metrics" jsonschema:"List of all available metric names"`
@@ -179,4 +181,37 @@ type AlertsInput struct {
 // SilencesInput defines the input parameters for GetSilencesHandler.
 type SilencesInput struct {
 	Filter string `json:"filter,omitempty"`
+}
+
+// DashboardsOutput defines the output schema for the list_perses_dashboards tool.
+type DashboardsOutput struct {
+	Dashboards []perses.DashboardInfo `json:"dashboards" jsonschema:"List of all PersesDashboard resources from the cluster with their metadata"`
+}
+
+// GetDashboardOutput defines the output schema for the get_perses_dashboard tool.
+type GetDashboardOutput struct {
+	Name      string         `json:"name" jsonschema:"Name of the Dashboard"`
+	Namespace string         `json:"namespace" jsonschema:"Namespace where the Dashboard is located"`
+	Spec      map[string]any `json:"spec" jsonschema:"The full dashboard specification including panels, layouts, variables, and datasources"`
+}
+
+// GetDashboardPanelsOutput defines the output schema for the get_dashboard_panels tool.
+type GetDashboardPanelsOutput struct {
+	Name      string                   `json:"name" jsonschema:"Name of the dashboard"`
+	Namespace string                   `json:"namespace" jsonschema:"Namespace of the dashboard"`
+	Duration  string                   `json:"duration,omitempty" jsonschema:"Default time duration for queries extracted from dashboard spec (e.g. 1h, 24h)"`
+	Panels    []*perses.DashboardPanel `json:"panels" jsonschema:"List of panel metadata including IDs, titles, queries, and chart types for LLM selection"`
+}
+
+// DashboardInput defines the input parameters for GetDashboardHandler.
+type DashboardInput struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
+// DashboardPanelsInput defines the input parameters for GetDashboardPanelsHandler.
+type DashboardPanelsInput struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	PanelIDs  string `json:"panel_ids,omitempty"`
 }
