@@ -13,6 +13,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 )
@@ -55,6 +56,7 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 }
 
 func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
+	// Prometheus/Alertmanager tools
 	mcp.AddTool(mcpServer, tools.ListMetrics.ToMCPTool(), ListMetricsHandler(opts))
 	mcp.AddTool(mcpServer, tools.ExecuteInstantQuery.ToMCPTool(), ExecuteInstantQueryHandler(opts))
 	mcp.AddTool(mcpServer, tools.ExecuteRangeQuery.ToMCPTool(), ExecuteRangeQueryHandler(opts))
@@ -64,6 +66,13 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	mcp.AddTool(mcpServer, tools.GetSeries.ToMCPTool(), GetSeriesHandler(opts))
 	mcp.AddTool(mcpServer, tools.GetAlerts.ToMCPTool(), GetAlertsHandler(opts))
 	mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(), GetSilencesHandler(opts))
+
+	// OpenTelemetry Collector tools
+	mcp.AddTool(mcpServer, otelcol.ListComponents.ToMCPTool(), ListOtelColComponentsHandler(opts))
+	mcp.AddTool(mcpServer, otelcol.GetComponentSchema.ToMCPTool(), GetOtelColComponentSchemaHandler(opts))
+	mcp.AddTool(mcpServer, otelcol.ValidateConfig.ToMCPTool(), ValidateOtelColConfigHandler(opts))
+	mcp.AddTool(mcpServer, otelcol.GetVersions.ToMCPTool(), GetOtelColVersionsHandler(opts))
+
 	return nil
 }
 
