@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.1.1] - 2026-04-23
+
+### Fixed
+
+- Rename the toolset config key consistently everywhere ([#75](https://github.com/rhobs/obs-mcp/pull/75))
+- Strengthen mcpchecker eval judge checks with tool-derived values and OpenShift compatibility fixes ([#71](https://github.com/rhobs/obs-mcp/pull/71))
+
 ## [v0.1.0] - 2026-04-22
 
 > Note: Some entries lack PR numbers because they were developed in the original [monorepo](https://github.com/jhadvig/genie-plugin) before migration to [rhobs/obs-mcp](https://github.com/rhobs/obs-mcp).
