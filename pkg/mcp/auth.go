@@ -179,26 +179,27 @@ func createAPIConfigWithToken(prometheusURL, token string, insecure bool) (proma
 
 	useTLS := strings.HasPrefix(prometheusURL, "https://")
 	if useTLS {
-		defaultRt, ok := promapi.DefaultRoundTripper.(*http.Transport)
+		baseRt, ok := promapi.DefaultRoundTripper.(*http.Transport)
 		if !ok {
 			return promapi.Config{}, fmt.Errorf("unexpected RoundTripper type: %T, expected *http.Transport", promapi.DefaultRoundTripper)
 		}
+		rt := baseRt.Clone()
 
 		if insecure {
-			defaultRt.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+			rt.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 		} else {
 			certs, err := createCertPool()
 			if err != nil {
 				return promapi.Config{}, err
 			}
-			defaultRt.TLSClientConfig = &tls.Config{RootCAs: certs}
+			rt.TLSClientConfig = &tls.Config{RootCAs: certs}
 		}
 
 		if token != "" {
 			apiConfig.RoundTripper = promcfg.NewAuthorizationCredentialsRoundTripper(
-				"Bearer", promcfg.NewInlineSecret(token), defaultRt)
+				"Bearer", promcfg.NewInlineSecret(token), rt)
 		} else {
-			apiConfig.RoundTripper = defaultRt
+			apiConfig.RoundTripper = rt
 		}
 	} else {
 		slog.Warn("Connecting to Prometheus without TLS")
