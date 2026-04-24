@@ -86,11 +86,7 @@ func main() {
 		log.Fatalf("Invalid guardrails configuration: %v", err)
 	}
 
-	// Set max metric cardinality and max label cardinality if guardrails are enabled
-	if parsedGuardrails != nil {
-		parsedGuardrails.MaxMetricCardinality = *maxMetricCardinality
-		parsedGuardrails.MaxLabelCardinality = *maxLabelCardinality
-	}
+	applyCardinalityLimits(parsedGuardrails, *guardrails, *maxMetricCardinality, *maxLabelCardinality)
 
 	// Create MCP options
 	opts := mcpserver.ObsMCPOptions{
@@ -130,6 +126,25 @@ func main() {
 		if _, err := mcpServer.Connect(context.Background(), transport, nil); err != nil {
 			log.Fatalf("Server failed: %v", err)
 		}
+	}
+}
+
+// applyCardinalityLimits sets MaxMetricCardinality and MaxLabelCardinality on the
+// guardrails struct. When all guardrails are enabled (guardrailsFlag is "all" or ""),
+// the flag defaults are applied. For explicit subsets, cardinality limits are only
+// applied if the user explicitly passed the corresponding flag.
+func applyCardinalityLimits(g *prometheus.Guardrails, guardrailsFlag string, maxMetricCard, maxLabelCard uint64) {
+	if g == nil {
+		return
+	}
+	allGuardrails := guardrailsFlag == "all" || guardrailsFlag == ""
+
+	if allGuardrails || strings.Contains(guardrailsFlag, prometheus.GuardrailMaxMetricCardinality) {
+		g.MaxMetricCardinality = maxMetricCard
+	}
+
+	if allGuardrails || strings.Contains(guardrailsFlag, prometheus.GuardrailMaxLabelCardinality) {
+		g.MaxLabelCardinality = maxLabelCard
 	}
 }
 
