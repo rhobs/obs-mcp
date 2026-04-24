@@ -51,9 +51,11 @@ func NewPrometheusClient(apiConfig api.Config) (*RealLoader, error) {
 	}
 
 	v1api := v1.NewAPI(client)
+	tsdbAvailable := checkTSDBAvailability(context.Background(), v1api)
+
 	return &RealLoader{
 		client:     v1api,
-		guardrails: DefaultGuardrails(),
+		guardrails: DefaultGuardrails(tsdbAvailable),
 		backend:    backend,
 	}, nil
 }
@@ -287,4 +289,17 @@ func (p *RealLoader) GetSeries(ctx context.Context, matches []string, start, end
 		result[i] = labels
 	}
 	return result, nil
+}
+
+// checkTSDBAvailability tests if the TSDB endpoint is available
+func checkTSDBAvailability(ctx context.Context, client v1.API) bool {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	_, err := client.TSDB(ctx)
+	if err != nil {
+		slog.Debug("TSDB endpoint not available", "error", err)
+		return false
+	}
+	return true
 }
