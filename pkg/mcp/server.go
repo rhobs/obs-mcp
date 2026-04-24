@@ -2,29 +2,43 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"k8s.io/client-go/dynamic"
 
+	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
+	"github.com/rhobs/obs-mcp/pkg/tempo"
 	"github.com/rhobs/obs-mcp/pkg/tools"
+)
+
+type Toolset string
+
+const (
+	ToolsetMetrics Toolset = "metrics"
+	ToolsetTraces  Toolset = "traces"
 )
 
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
+	Toolsets               []Toolset
 	AuthMode               AuthMode
 	MetricsBackendURL      string
 	AlertmanagerURL        string
 	Insecure               bool
 	Guardrails             *prometheus.Guardrails
 	FullRangeQueryResponse bool
+	Tempo                  *tempo.Config
 }
 
 const (
@@ -47,6 +61,28 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 
 	mcpServer := mcp.NewServer(impl, serverOpts)
 
+	// If log level is set to debug, log tool calls
+	if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		mcpServer.AddReceivingMiddleware(func(next mcp.MethodHandler) mcp.MethodHandler {
+			return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+				params := req.GetParams()
+				switch p := params.(type) {
+				case *mcp.CallToolParamsRaw:
+					var args map[string]any
+					_ = json.Unmarshal(p.Arguments, &args)
+					attrs := make([]slog.Attr, 0, len(args))
+					for k, v := range args {
+						attrs = append(attrs, slog.Any(k, v))
+					}
+					slog.Debug("MCP call", "method", method, "tool", p.Name, "arg", slog.GroupValue(attrs...))
+				default:
+					slog.Debug("MCP call", "method", method, "params", p)
+				}
+				return next(ctx, method, req)
+			}
+		})
+	}
+
 	if err := SetupTools(mcpServer, opts); err != nil {
 		return nil, err
 	}
@@ -55,15 +91,34 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 }
 
 func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
-	mcp.AddTool(mcpServer, tools.ListMetrics.ToMCPTool(), ListMetricsHandler(opts))
-	mcp.AddTool(mcpServer, tools.ExecuteInstantQuery.ToMCPTool(), ExecuteInstantQueryHandler(opts))
-	mcp.AddTool(mcpServer, tools.ExecuteRangeQuery.ToMCPTool(), ExecuteRangeQueryHandler(opts))
-	mcp.AddTool(mcpServer, tools.ShowTimeseries.ToMCPTool(), ShowTimeseriesHandler(opts))
-	mcp.AddTool(mcpServer, tools.GetLabelNames.ToMCPTool(), GetLabelNamesHandler(opts))
-	mcp.AddTool(mcpServer, tools.GetLabelValues.ToMCPTool(), GetLabelValuesHandler(opts))
-	mcp.AddTool(mcpServer, tools.GetSeries.ToMCPTool(), GetSeriesHandler(opts))
-	mcp.AddTool(mcpServer, tools.GetAlerts.ToMCPTool(), GetAlertsHandler(opts))
-	mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(), GetSilencesHandler(opts))
+	if slices.Contains(opts.Toolsets, ToolsetMetrics) {
+		mcp.AddTool(mcpServer, tools.ListMetrics.ToMCPTool(), ListMetricsHandler(opts))
+		mcp.AddTool(mcpServer, tools.ExecuteInstantQuery.ToMCPTool(), ExecuteInstantQueryHandler(opts))
+		mcp.AddTool(mcpServer, tools.ExecuteRangeQuery.ToMCPTool(), ExecuteRangeQueryHandler(opts))
+		mcp.AddTool(mcpServer, tools.ShowTimeseries.ToMCPTool(), ShowTimeseriesHandler(opts))
+		mcp.AddTool(mcpServer, tools.GetLabelNames.ToMCPTool(), GetLabelNamesHandler(opts))
+		mcp.AddTool(mcpServer, tools.GetLabelValues.ToMCPTool(), GetLabelValuesHandler(opts))
+		mcp.AddTool(mcpServer, tools.GetSeries.ToMCPTool(), GetSeriesHandler(opts))
+		mcp.AddTool(mcpServer, tools.GetAlerts.ToMCPTool(), GetAlertsHandler(opts))
+		mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(), GetSilencesHandler(opts))
+	}
+
+	if slices.Contains(opts.Toolsets, ToolsetTraces) {
+		tempoToolset := &tempo.Toolset{}
+		restConfig, err := k8s.GetClientConfig()
+		if err != nil {
+			return err
+		}
+		dynamicClient, err := dynamic.NewForConfig(restConfig)
+		if err != nil {
+			return err
+		}
+		mcp.AddTool(mcpServer, tempo.ListInstancesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.ListInstancesHandler))
+		mcp.AddTool(mcpServer, tempo.GetTraceByIDTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.GetTraceByIDHandler))
+		mcp.AddTool(mcpServer, tempo.SearchTracesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTracesHandler))
+		mcp.AddTool(mcpServer, tempo.SearchTagsTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTagsHandler))
+		mcp.AddTool(mcpServer, tempo.SearchTagValuesTool.ToMCPTool(), tempo.ToMCPHandler(restConfig, dynamicClient, opts.Tempo, tempoToolset.SearchTagValuesHandler))
+	}
 	return nil
 }
 

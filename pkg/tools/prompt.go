@@ -39,7 +39,13 @@ If the user mentions a specific alert by name, use get_alerts with a filter to r
 ## Query Type Selection
 
 - **execute_instant_query**: Current values, point-in-time snapshots, "right now" questions
-- **execute_range_query**: Trends over time, rate calculations, historical analysis`
+- **execute_range_query**: Trends over time, rate calculations, historical analysis
+
+## Instructions for using the Tempo tools
+Do not query across multiple instances unless specifically asked by the user.
+Do not query across multiple tenants unless specifically asked by the user.
+Ask the user which Tempo instance and tenant to query if the user did not specify it explicitly.
+`
 
 	ListMetricsPrompt = `MANDATORY FIRST STEP: List all available metric names in Prometheus.
 
