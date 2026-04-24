@@ -395,3 +395,44 @@ config:
             toolPattern: "(execute_instant_query|execute_range_query)"
         minToolCalls: 2
         maxToolCalls: 15
+
+    # OpenTelemetry Collector
+    - path: tasks/otelcol/get-versions.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: get_otelcol_versions
+        minToolCalls: 1
+        maxToolCalls: 3
+
+    - path: tasks/otelcol/list-components.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_otelcol_components
+        minToolCalls: 1
+        maxToolCalls: 3
+
+    - path: tasks/otelcol/get-batch-processor-schema.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: get_otelcol_component_schema
+        minToolCalls: 1
+        maxToolCalls: 3
+
+    - path: tasks/otelcol/validate-batch-processor-config-invalid.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: validate_otelcol_config
+        minToolCalls: 1
+        maxToolCalls: 3
+
+    - path: tasks/otelcol/validate-batch-processor-config-valid.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: validate_otelcol_config
+        minToolCalls: 1
+        maxToolCalls: 3

@@ -205,12 +205,13 @@ By default, the evals use `builtin.llm-agent` with `openai:gpt-5-nano`. To use a
 
 Tasks are organized by category under `tasks/`:
 
-| Directory          | Description                                  |
-|--------------------|----------------------------------------------|
-| `tasks/metrics/`   | Metric discovery and listing                 |
-| `tasks/labels/`    | Label names, values, and series              |
-| `tasks/queries/`   | PromQL queries and multi-step diagnostics    |
-| `tasks/alerts/`    | Alertmanager alerts, investigation, silences |
+| Directory          | Description                                           |
+|--------------------|-------------------------------------------------------|
+| `tasks/metrics/`   | Metric discovery and listing                          |
+| `tasks/labels/`    | Label names, values, and series                       |
+| `tasks/queries/`   | PromQL queries and multi-step diagnostics             |
+| `tasks/alerts/`    | Alertmanager alerts, investigation, silences          |
+| `tasks/otelcol/`   | OpenTelemetry Collector components, schemas, configs  |
 
 Each task YAML defines the prompt, expected tools, call bounds, and LLM judge criteria. All tasks include `labels` for filtering with `--label-selector` (e.g. `category=metrics`, `category=alerts`).
 
