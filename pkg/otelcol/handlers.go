@@ -49,11 +49,11 @@ func NewSchemaLoaderFromDir(schemaDir string) (SchemaLoader, error) {
 	return &schemaManagerWrapper{manager: manager}, nil
 }
 
-func (w *schemaManagerWrapper) GetComponentSchema(componentType collectorschema.ComponentType, componentName string, version string) (*collectorschema.ComponentSchema, error) {
+func (w *schemaManagerWrapper) GetComponentSchema(componentType collectorschema.ComponentType, componentName, version string) (*collectorschema.ComponentSchema, error) {
 	return w.manager.GetComponentSchema(componentType, componentName, version)
 }
 
-func (w *schemaManagerWrapper) GetComponentSchemaJSON(componentType collectorschema.ComponentType, componentName string, version string) ([]byte, error) {
+func (w *schemaManagerWrapper) GetComponentSchemaJSON(componentType collectorschema.ComponentType, componentName, version string) ([]byte, error) {
 	return w.manager.GetComponentSchemaJSON(componentType, componentName, version)
 }
 
@@ -61,7 +61,7 @@ func (w *schemaManagerWrapper) ListAvailableComponents(version string) (map[coll
 	return w.manager.ListAvailableComponents(version)
 }
 
-func (w *schemaManagerWrapper) ValidateComponentYAML(componentType collectorschema.ComponentType, componentName string, version string, yamlData []byte) (*ValidationResult, error) {
+func (w *schemaManagerWrapper) ValidateComponentYAML(componentType collectorschema.ComponentType, componentName, version string, yamlData []byte) (*ValidationResult, error) {
 	result, err := w.manager.ValidateComponentYAML(componentType, componentName, version, yamlData)
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func (w *schemaManagerWrapper) ValidateComponentYAML(componentType collectorsche
 	return validationResult, nil
 }
 
-func (w *schemaManagerWrapper) ValidateComponentJSON(componentType collectorschema.ComponentType, componentName string, version string, jsonData []byte) (*ValidationResult, error) {
+func (w *schemaManagerWrapper) ValidateComponentJSON(componentType collectorschema.ComponentType, componentName, version string, jsonData []byte) (*ValidationResult, error) {
 	result, err := w.manager.ValidateComponentJSON(componentType, componentName, version, jsonData)
 	if err != nil {
 		return nil, err

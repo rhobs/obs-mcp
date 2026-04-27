@@ -17,7 +17,7 @@ type MockSchemaLoader struct {
 	validateRes *ValidationResult
 }
 
-func (m *MockSchemaLoader) GetComponentSchema(componentType collectorschema.ComponentType, componentName string, version string) (*collectorschema.ComponentSchema, error) {
+func (m *MockSchemaLoader) GetComponentSchema(componentType collectorschema.ComponentType, componentName, version string) (*collectorschema.ComponentSchema, error) {
 	if m.schema != nil {
 		return m.schema, nil
 	}
@@ -29,7 +29,7 @@ func (m *MockSchemaLoader) GetComponentSchema(componentType collectorschema.Comp
 	}, nil
 }
 
-func (m *MockSchemaLoader) GetComponentSchemaJSON(componentType collectorschema.ComponentType, componentName string, version string) ([]byte, error) {
+func (m *MockSchemaLoader) GetComponentSchemaJSON(componentType collectorschema.ComponentType, componentName, version string) ([]byte, error) {
 	return []byte(`{"type":"object"}`), nil
 }
 
@@ -46,7 +46,7 @@ func (m *MockSchemaLoader) ListAvailableComponents(version string) (map[collecto
 	}, nil
 }
 
-func (m *MockSchemaLoader) ValidateComponentYAML(componentType collectorschema.ComponentType, componentName string, version string, yamlData []byte) (*ValidationResult, error) {
+func (m *MockSchemaLoader) ValidateComponentYAML(componentType collectorschema.ComponentType, componentName, version string, yamlData []byte) (*ValidationResult, error) {
 	if m.validateErr != nil {
 		return nil, m.validateErr
 	}
@@ -56,7 +56,7 @@ func (m *MockSchemaLoader) ValidateComponentYAML(componentType collectorschema.C
 	return &ValidationResult{Valid: true}, nil
 }
 
-func (m *MockSchemaLoader) ValidateComponentJSON(componentType collectorschema.ComponentType, componentName string, version string, jsonData []byte) (*ValidationResult, error) {
+func (m *MockSchemaLoader) ValidateComponentJSON(componentType collectorschema.ComponentType, componentName, version string, jsonData []byte) (*ValidationResult, error) {
 	if m.validateErr != nil {
 		return nil, m.validateErr
 	}
