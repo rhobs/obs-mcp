@@ -6,7 +6,7 @@ CONTAINER_CLI ?= docker
 IMAGE ?= ghcr.io/rhobs/obs-mcp
 TAG ?= $(shell git rev-parse --short HEAD)
 TOOLS_DIR := hack/tools
-MCPCHECKER_VERSION ?= 0.0.15
+MCPCHECKER_VERSION ?= 0.0.16
 
 ROOT_DIR := $(shell pwd)
 TOOLS_BIN_DIR := $(ROOT_DIR)/tmp/bin
