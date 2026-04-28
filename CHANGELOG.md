@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.1.2] - 2026-04-28
+
+### Fixed
+
+- Fix Prometheus client to get bearer token from request context ([#78](https://github.com/rhobs/obs-mcp/pull/78))
+
+### Changed
+
+- Sync mcpchecker eval task definitions with openshift-mcp-server and bump mcpchecker to v0.0.16 ([#79](https://github.com/rhobs/obs-mcp/pull/79))
+
 ## [v0.1.1] - 2026-04-23
 
 ### Fixed
