@@ -19,6 +19,12 @@ const (
 	GuardrailMaxLabelCardinality       = "max-label-cardinality"
 )
 
+// Default cardinality thresholds
+const (
+	DefaultMaxMetricCardinality uint64 = 20000
+	DefaultMaxLabelCardinality  uint64 = 500
+)
+
 // GuardrailViolation is returned when a query violates a specific guardrail rule.
 // It carries the guardrail name for structured logging.
 type GuardrailViolation struct {
@@ -38,7 +44,10 @@ type Guardrails struct {
 	RequireLabelMatcher bool
 	// DisallowBlanketRegex prevents expensive regex patterns like .* or .+ on any label
 	DisallowBlanketRegex bool
-	// MaxMetricCardinality sets the maximum allowed series count per metric (0 = disabled)
+	// ForceMaxMetricCardinality enables the maximum series count per metric guardrail
+	ForceMaxMetricCardinality bool
+	// MaxMetricCardinality sets the maximum allowed series count per metric
+	// (only enforced when ForceMaxMetricCardinality is true)
 	MaxMetricCardinality uint64
 	// MaxLabelCardinality sets the maximum allowed label value count for blanket regex
 	// (0 = always disallow regex matcher provided DisallowBlanketRegex is true)
@@ -46,13 +55,16 @@ type Guardrails struct {
 }
 
 // DefaultGuardrails returns a Guardrails instance with all safety checks enabled.
-func DefaultGuardrails() *Guardrails {
+// DefaultGuardrails returns a Guardrails instance with default numeric thresholds.
+// When enableAll is true, all boolean guardrails are also enabled (equivalent to "all").
+func DefaultGuardrails(enableAll bool) *Guardrails {
 	return &Guardrails{
-		DisallowExplicitNameLabel: true,
-		RequireLabelMatcher:       true,
-		DisallowBlanketRegex:      true,
-		MaxMetricCardinality:      20000,
-		MaxLabelCardinality:       500,
+		DisallowExplicitNameLabel: enableAll,
+		RequireLabelMatcher:       enableAll,
+		DisallowBlanketRegex:      enableAll,
+		ForceMaxMetricCardinality: enableAll,
+		MaxMetricCardinality:      DefaultMaxMetricCardinality,
+		MaxLabelCardinality:       DefaultMaxLabelCardinality,
 	}
 }
 
@@ -63,10 +75,10 @@ func ParseGuardrails(value string) (*Guardrails, error) {
 	case "none":
 		return nil, nil
 	case "all", "":
-		return DefaultGuardrails(), nil
+		return DefaultGuardrails(true), nil
 	}
 
-	g := &Guardrails{}
+	g := DefaultGuardrails(false)
 	names := strings.SplitSeq(value, ",")
 	for name := range names {
 		name = strings.TrimSpace(strings.ToLower(name))
@@ -81,10 +93,12 @@ func ParseGuardrails(value string) (*Guardrails, error) {
 			g.RequireLabelMatcher = true
 		case GuardrailDisallowBlanketRegex:
 			g.DisallowBlanketRegex = true
+		case GuardrailMaxMetricCardinality:
+			g.ForceMaxMetricCardinality = true
 		default:
-			return nil, fmt.Errorf("unknown guardrail: %q (valid options: %s, %s, %s)",
+			return nil, fmt.Errorf("unknown guardrail: %q (valid options: %s, %s, %s, %s)",
 				name, GuardrailDisallowExplicitNameLabel, GuardrailRequireLabelMatcher,
-				GuardrailDisallowBlanketRegex)
+				GuardrailDisallowBlanketRegex, GuardrailMaxMetricCardinality)
 		}
 	}
 
@@ -102,7 +116,7 @@ func ParseGuardrails(value string) (*Guardrails, error) {
 //
 //nolint:gocyclo // complex validation logic, refactoring would reduce readability
 func (g *Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.API) (bool, error) {
-	if ((g.DisallowBlanketRegex && g.MaxLabelCardinality > 0) || (g.MaxMetricCardinality > 0)) && (client == nil || ctx == nil) {
+	if ((g.DisallowBlanketRegex && g.MaxLabelCardinality > 0) || g.ForceMaxMetricCardinality) && (client == nil || ctx == nil) {
 		return false, fmt.Errorf("cannot verify cardinality without TSDB client")
 	}
 
@@ -158,7 +172,7 @@ func (g *Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.AP
 	}
 
 	// Check metric cardinality
-	if g.MaxMetricCardinality > 0 {
+	if g.ForceMaxMetricCardinality {
 		metricNames, err := ExtractMetricNames(query)
 		if err != nil {
 			return false, fmt.Errorf("failed to extract metric names: %w", err)

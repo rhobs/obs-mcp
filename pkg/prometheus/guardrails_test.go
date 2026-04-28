@@ -587,6 +587,7 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 			DisallowExplicitNameLabel: false,
 			RequireLabelMatcher:       false,
 			DisallowBlanketRegex:      true,
+			ForceMaxMetricCardinality: true,
 			MaxMetricCardinality:      10000, // Metric threshold
 			MaxLabelCardinality:       100,   // Label threshold
 		}
@@ -613,6 +614,7 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 			DisallowExplicitNameLabel: false,
 			RequireLabelMatcher:       false,
 			DisallowBlanketRegex:      true,
+			ForceMaxMetricCardinality: true,
 			MaxMetricCardinality:      10000,
 			MaxLabelCardinality:       100,
 		}

@@ -36,8 +36,8 @@ func main() {
 	var logLevel = flag.String("log-level", "info", "Log level: debug, info, warn, error")
 	var metricsBackend = flag.String("metrics-backend", "thanos", "Metrics backend: thanos (default, with prometheus fallback) or prometheus (strict, no fallback)")
 	var guardrails = flag.String("guardrails", "all", "Guardrails configuration: 'all' (default), 'none', or comma-separated list of guardrails to enable (disallow-explicit-name-label, require-label-matcher, disallow-blanket-regex)")
-	var maxMetricCardinality = flag.Uint64("guardrails.max-metric-cardinality", 20000, "Maximum allowed series count per metric (0 = disabled)")
-	var maxLabelCardinality = flag.Uint64("guardrails.max-label-cardinality", 500, "Maximum allowed label value count for blanket regex (0 = always disallow blanket regex). Only takes effect if disallow-blanket-regex is enabled.")
+	var maxMetricCardinality = flag.Uint64("guardrails.max-metric-cardinality", prometheus.DefaultMaxMetricCardinality, "Maximum allowed series count per metric (0 = disabled)")
+	var maxLabelCardinality = flag.Uint64("guardrails.max-label-cardinality", prometheus.DefaultMaxLabelCardinality, "Maximum allowed label value count for blanket regex (0 = always disallow blanket regex). Only takes effect if disallow-blanket-regex is enabled.")
 	var fullRangeQueryResponse = flag.Bool("full-range-query-response", false, "Return full data points for range queries")
 	flag.Parse()
 
@@ -86,10 +86,26 @@ func main() {
 		log.Fatalf("Invalid guardrails configuration: %v", err)
 	}
 
-	// Set max metric cardinality and max label cardinality if guardrails are enabled
+	// Reject cardinality flags that have no effect given the active guardrails.
+	if isFlagExplicitlySet("guardrails.max-metric-cardinality") &&
+		(parsedGuardrails == nil || !parsedGuardrails.ForceMaxMetricCardinality) {
+		log.Fatalf("--guardrails.max-metric-cardinality has no effect: add %q to --guardrails to enable the metric cardinality guardrail",
+			prometheus.GuardrailMaxMetricCardinality)
+	}
+	if isFlagExplicitlySet("guardrails.max-label-cardinality") &&
+		(parsedGuardrails == nil || !parsedGuardrails.DisallowBlanketRegex) {
+		log.Fatalf("--guardrails.max-label-cardinality has no effect: add %q to --guardrails to enable the blanket-regex guardrail",
+			prometheus.GuardrailDisallowBlanketRegex)
+	}
+
+	// Set max metric cardinality and max label cardinality if the corresponding guardrails are enabled.
 	if parsedGuardrails != nil {
-		parsedGuardrails.MaxMetricCardinality = *maxMetricCardinality
-		parsedGuardrails.MaxLabelCardinality = *maxLabelCardinality
+		if parsedGuardrails.ForceMaxMetricCardinality {
+			parsedGuardrails.MaxMetricCardinality = *maxMetricCardinality
+		}
+		if parsedGuardrails.DisallowBlanketRegex {
+			parsedGuardrails.MaxLabelCardinality = *maxLabelCardinality
+		}
 	}
 
 	// Create MCP options
