@@ -1,44 +1,40 @@
-package toolset
+package traces
 
 import (
-	"slices"
-
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
-	"github.com/containers/kubernetes-mcp-server/pkg/toolsets"
 
-	"github.com/rhobs/obs-mcp/pkg/toolset/config"
-	toolset_tools "github.com/rhobs/obs-mcp/pkg/toolset/tools"
-	tempo "github.com/rhobs/obs-mcp/pkg/traces"
+	tempoclient "github.com/rhobs/obs-mcp/pkg/traces/tempo"
 )
 
-// Toolset implements the observability toolset for advanced Prometheus monitoring.
-type Toolset struct{}
+const ToolsetName = "traces"
+
+// Toolset implements the observability toolset for Tempo.
+type Toolset struct {
+	NewTempoLoader func(params api.ToolHandlerParams, url string) (tempoclient.Loader, error)
+}
 
 var _ api.Toolset = (*Toolset)(nil)
 
 // GetName returns the name of the toolset.
 func (t *Toolset) GetName() string {
-	return config.MetricsToolSetName
+	return ToolsetName
 }
 
 // GetDescription returns a human-readable description of the toolset.
 func (t *Toolset) GetDescription() string {
-	return "Toolset for querying Prometheus and Alertmanager endpoints in efficient ways."
+	return "Toolset for querying Tempo"
 }
 
 // GetTools returns all tools provided by this toolset.
 func (t *Toolset) GetTools(_ api.Openshift) []api.ServerTool {
-	return slices.Concat(
-		toolset_tools.InitListMetrics(),
-		toolset_tools.InitExecuteInstantQuery(),
-		toolset_tools.InitExecuteRangeQuery(),
-		toolset_tools.InitShowTimeseries(),
-		toolset_tools.InitGetLabelNames(),
-		toolset_tools.InitGetLabelValues(),
-		toolset_tools.InitGetSeries(),
-		toolset_tools.InitGetAlerts(),
-		toolset_tools.InitGetSilences(),
-	)
+	return []api.ServerTool{
+		// TODO: merge the two conversion steps into one call
+		ListInstancesTool.ToServerTool(ToServerHandler(t.NewTempoLoader, t.ListInstancesHandler)),
+		GetTraceByIDTool.ToServerTool(ToServerHandler(t.NewTempoLoader, t.GetTraceByIDHandler)),
+		SearchTracesTool.ToServerTool(ToServerHandler(t.NewTempoLoader, t.SearchTracesHandler)),
+		SearchTagsTool.ToServerTool(ToServerHandler(t.NewTempoLoader, t.SearchTagsHandler)),
+		SearchTagValuesTool.ToServerTool(ToServerHandler(t.NewTempoLoader, t.SearchTagValuesHandler)),
+	}
 }
 
 // GetPrompts returns prompts provided by this toolset.
@@ -56,9 +52,4 @@ func (t *Toolset) GetResources() []api.ServerResource {
 // GetResourceTemplates returns resource templates provided by this toolset.
 func (t *Toolset) GetResourceTemplates() []api.ServerResourceTemplate {
 	return nil
-}
-
-func init() {
-	toolsets.Register(&Toolset{})
-	toolsets.Register(&tempo.Toolset{NewTempoLoader: toolset_tools.NewTempoLoader})
 }

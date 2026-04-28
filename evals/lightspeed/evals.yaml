@@ -244,6 +244,59 @@
       turn_metrics:
         - "custom:tool_eval"
 
+- conversation_group_id: "tempo-search-error-traces"
+  description: "Search for traces with errors"
+
+  conversation_metrics: []
+  conversation_metrics_metadata: {}
+
+  turns:
+    - turn_id: "turn-1"
+      query: "Find traces with errors in the last hour. Use instance tempo1."
+      expected_tool_calls:
+        - - tool_name: mcp_list_tools
+            arguments:
+              server_label: obs
+        - - tool_name: tempo_list_instances
+            arguments:
+              server_label: obs
+        - - tool_name: tempo_search_traces
+            arguments:
+              tempoNamespace: obs-mcp-tracing
+              tempoName: tempo1
+              query: '{ status=error }'
+              start: NOW-1h
+              end: NOW
+              server_label: obs
+      turn_metrics:
+        - "custom:tool_eval"
+        
+- conversation_group_id: "tempo-latency-investigation"
+  description: "Find high latency traces for a specific service"
+
+  conversation_metrics: []
+  conversation_metrics_metadata: {}
+
+  turns:
+    - turn_id: "turn-1"
+      query: "Find traces where the shop-backend service took more than 500ms. Use instance tempo1."
+      expected_tool_calls:
+        - - tool_name: mcp_list_tools
+            arguments:
+              server_label: obs
+        - - tool_name: tempo_list_instances
+            arguments:
+              server_label: obs
+        - - tool_name: tempo_search_traces
+            arguments:
+              tempoNamespace: obs-mcp-tracing
+              tempoName: tempo1
+              query: '{ resource.service.name="shop-backend" && duration>500ms }'
+              server_label: obs
+      turn_metrics:
+        - "custom:tool_eval"
+
+        
 # TODO: Add this eval once we have the nodes-cpu-usage-query rule in a Prometheus.
 # - conversation_group_id: "nodes-cpu-usage-query"
 #   description: "Asks about basic metrics in the cluster."

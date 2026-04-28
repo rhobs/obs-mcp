@@ -7,6 +7,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/prometheus/common/promslog"
@@ -16,6 +17,8 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	mcpserver "github.com/rhobs/obs-mcp/pkg/mcp"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
+	"github.com/rhobs/obs-mcp/pkg/toolset/config"
+	"github.com/rhobs/obs-mcp/pkg/traces"
 )
 
 var (
@@ -31,6 +34,7 @@ const (
 func main() {
 	var showVersion = flag.Bool("version", false, "Print version and exit")
 	var listen = flag.String("listen", "", "Listen address for HTTP mode (e.g., :9100, 127.0.0.1:8080)")
+	var toolsets = flag.String("toolsets", string(mcpserver.ToolsetMetrics), fmt.Sprintf("Comma-separated list of enabled toolsets: %s", strings.Join(mcpserver.AllToolsets, ", ")))
 	var authMode = flag.String("auth-mode", "", "Authentication mode: kubeconfig, serviceaccount, or header")
 	var insecure = flag.Bool("insecure", false, "Skip TLS certificate verification")
 	var logLevel = flag.String("log-level", "info", "Log level: debug, info, warn, error")
@@ -50,6 +54,7 @@ func main() {
 		"Maximum allowed label value count for blanket regex (0 = always disallow blanket regex).\n"+
 			"Only takes effect if disallow-blanket-regex is enabled.")
 	var fullRangeQueryResponse = flag.Bool("full-range-query-response", false, "Return full data points for range queries")
+	var tempoUseRoute = flag.Bool("tempo.use-route", false, "Use Route instead of internal service DNS when connecting to Tempo API")
 	flag.Parse()
 
 	if *showVersion {
@@ -127,12 +132,18 @@ func main() {
 
 	// Create MCP options
 	opts := mcpserver.ObsMCPOptions{
+		Toolsets:               parseToolsets(*toolsets),
 		AuthMode:               parsedAuthMode,
 		MetricsBackendURL:      metricsBackendURL,
 		AlertmanagerURL:        alertmanagerURL,
 		Insecure:               *insecure,
 		Guardrails:             parsedGuardrails,
 		FullRangeQueryResponse: *fullRangeQueryResponse,
+		Tempo: &traces.Config{
+			AuthMode: config.AuthMode(parsedAuthMode),
+			Insecure: *insecure,
+			UseRoute: *tempoUseRoute,
+		},
 	}
 
 	// Create MCP server
@@ -142,6 +153,7 @@ func main() {
 	}
 
 	slog.Info("Starting server",
+		"toolsets", opts.Toolsets,
 		"auth_mode", opts.AuthMode,
 		"metrics_backend_url", opts.MetricsBackendURL,
 		"metrics_backend_url_source", metricsURLSource,
@@ -164,6 +176,20 @@ func main() {
 			log.Fatalf("Server failed: %v", err)
 		}
 	}
+}
+
+func parseToolsets(toolsets string) []mcpserver.Toolset {
+	parts := strings.Split(toolsets, ",")
+	result := make([]mcpserver.Toolset, len(parts))
+	for i, p := range parts {
+		p = strings.TrimSpace(p)
+		if !slices.Contains(mcpserver.AllToolsets, p) {
+			log.Fatalf("Unknown toolset %q, must be one of: %s", p, strings.Join(mcpserver.AllToolsets, ", "))
+		}
+
+		result[i] = mcpserver.Toolset(p)
+	}
+	return result
 }
 
 func parseMetricsBackend(backend string) (k8s.MetricsBackend, error) {
