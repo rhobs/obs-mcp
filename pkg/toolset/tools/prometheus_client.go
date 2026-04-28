@@ -206,11 +206,15 @@ func extractBearerToken(restConfig *rest.Config) string {
 }
 
 func readTokenFromCtx(params api.ToolHandlerParams) string {
-	token, ok := params.Value(kubernetes.OAuthAuthorizationHeader).(string)
+	authHeader, ok := params.Value(kubernetes.OAuthAuthorizationHeader).(string)
 	if !ok {
 		return ""
 	}
-	return token
+	parts := strings.Fields(authHeader)
+	if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+		return parts[1]
+	}
+	return strings.TrimSpace(authHeader)
 }
 
 // getAlertmanagerClient creates an Alertmanager client using the toolset configuration.
