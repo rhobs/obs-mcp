@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.1.3] - 2026-04-28
+
+### Fixed
+
+- Strip Bearer prefix from authorization header in `readTokenFromCtx` to prevent duplicate scheme ([#82](https://github.com/rhobs/obs-mcp/pull/82))
+
+### Added
+
+- Enable CodeRabbit for automated PR reviews ([#83](https://github.com/rhobs/obs-mcp/pull/83))
+
 ## [v0.1.2] - 2026-04-28
 
 ### Fixed
