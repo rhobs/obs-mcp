@@ -15,15 +15,15 @@ We use [Semantic Versioning](https://semver.org/) and maintain a separate branch
 
 - New features and changes are merged into `main`.
 - When ready to cut a new minor release, create a `release-X.Y` branch from `main`. From this point on, all release work (changelog, tagging) happens on the release branch.
-- Bug fixes for a released version are merged into the **latest release branch**.
+- Bug fixes for a released version are merged into the **latest maintained release branch** (the `release-X.Y` branch with the highest `Y` for the current `X`).
 - Bug fixes from the release branch are then merged back into `main` so that `main` always contains all commits from the latest release branch.
 
-```
+```text
 main:          A---B---C-----------G
                         \         /
-release-0.1:             C'--D--fix1--fix2
+release-X.Y:             C'--D--fix1--fix2
                           |        |
-                        v0.1.0   v0.1.1
+                        vX.Y.0   vX.Y.1
 ```
 
 ### Rules
