@@ -16,7 +16,6 @@ const (
 	GuardrailRequireLabelMatcher       = "require-label-matcher"
 	GuardrailDisallowBlanketRegex      = "disallow-blanket-regex"
 	GuardrailMaxMetricCardinality      = "max-metric-cardinality"
-	GuardrailMaxLabelCardinality       = "max-label-cardinality"
 )
 
 // Default cardinality thresholds
@@ -69,39 +68,51 @@ func DefaultGuardrails(enableAll bool) *Guardrails {
 }
 
 func ParseGuardrails(value string) (*Guardrails, error) {
-	value = strings.TrimSpace(value)
+	value = strings.TrimSpace(strings.ToLower(value))
 
-	switch strings.ToLower(value) {
+	switch value {
 	case "none":
 		return nil, nil
 	case "all", "":
 		return DefaultGuardrails(true), nil
 	}
 
-	g := DefaultGuardrails(false)
-	names := strings.SplitSeq(value, ",")
-	for name := range names {
-		name = strings.TrimSpace(strings.ToLower(name))
+	// Determine mode from whether any token carries a "!" prefix, then verify
+	// all tokens are consistent (mixing positive and negative is not allowed).
+	negative := strings.Contains(value, "!")
+	var names []string
+	for name := range strings.SplitSeq(value, ",") {
+		name = strings.TrimSpace(name)
 		if name == "" {
 			continue
 		}
+		if negative != strings.HasPrefix(name, "!") {
+			return nil, fmt.Errorf("cannot mix positive and negative guardrail names: " +
+				"use either explicit names to enable, or !name to disable from the full set")
+		}
+		name = strings.TrimPrefix(name, "!")
+		names = append(names, name)
+	}
 
+	// In negative mode all guardrails start enabled; in positive mode all start disabled.
+	defaultValue := negative
+	g := DefaultGuardrails(defaultValue)
+	for _, name := range names {
 		switch name {
 		case GuardrailDisallowExplicitNameLabel:
-			g.DisallowExplicitNameLabel = true
+			g.DisallowExplicitNameLabel = !defaultValue
 		case GuardrailRequireLabelMatcher:
-			g.RequireLabelMatcher = true
+			g.RequireLabelMatcher = !defaultValue
 		case GuardrailDisallowBlanketRegex:
-			g.DisallowBlanketRegex = true
+			g.DisallowBlanketRegex = !defaultValue
 		case GuardrailMaxMetricCardinality:
-			g.ForceMaxMetricCardinality = true
+			g.ForceMaxMetricCardinality = !defaultValue
 		default:
 			return nil, fmt.Errorf("unknown guardrail: %q (valid options: %s, %s, %s, %s)",
 				name, GuardrailDisallowExplicitNameLabel, GuardrailRequireLabelMatcher,
 				GuardrailDisallowBlanketRegex, GuardrailMaxMetricCardinality)
 		}
 	}
-
 	return g, nil
 }
 
@@ -239,7 +250,7 @@ func (g *Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.AP
 				if count, exists := labelValueCountByLabel[labelName]; exists {
 					if count > g.MaxLabelCardinality {
 						return false, &GuardrailViolation{
-							Guardrail: GuardrailMaxLabelCardinality,
+							Guardrail: GuardrailDisallowBlanketRegex,
 							Message:   fmt.Sprintf("label %q has cardinality %d, which exceeds maximum allowed %d for blanket regex", labelName, count, g.MaxLabelCardinality),
 						}
 					}

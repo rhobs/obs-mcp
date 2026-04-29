@@ -89,10 +89,74 @@ func TestParseGuardrails(t *testing.T) {
 				MaxLabelCardinality:  DefaultMaxLabelCardinality,
 			},
 		},
+		// Negative guardrails (! prefix disables a guardrail, all others remain enabled)
+		{
+			name:  "single negative guardrail disables only that one",
+			input: "!" + GuardrailRequireLabelMatcher,
+			wantGuardrails: &Guardrails{
+				DisallowExplicitNameLabel: true,
+				RequireLabelMatcher:       false,
+				DisallowBlanketRegex:      true,
+				ForceMaxMetricCardinality: true,
+				MaxMetricCardinality:      DefaultMaxMetricCardinality,
+				MaxLabelCardinality:       DefaultMaxLabelCardinality,
+			},
+		},
+		{
+			name:  "multiple negative guardrails disable each listed one",
+			input: "!" + GuardrailDisallowExplicitNameLabel + ",!" + GuardrailRequireLabelMatcher,
+			wantGuardrails: &Guardrails{
+				DisallowExplicitNameLabel: false,
+				RequireLabelMatcher:       false,
+				DisallowBlanketRegex:      true,
+				ForceMaxMetricCardinality: true,
+				MaxMetricCardinality:      DefaultMaxMetricCardinality,
+				MaxLabelCardinality:       DefaultMaxLabelCardinality,
+			},
+		},
+		{
+			name:  "negative max-metric-cardinality disables ForceMaxMetricCardinality",
+			input: "!" + GuardrailMaxMetricCardinality,
+			wantGuardrails: &Guardrails{
+				DisallowExplicitNameLabel: true,
+				RequireLabelMatcher:       true,
+				DisallowBlanketRegex:      true,
+				ForceMaxMetricCardinality: false,
+				MaxMetricCardinality:      DefaultMaxMetricCardinality,
+				MaxLabelCardinality:       DefaultMaxLabelCardinality,
+			},
+		},
+		{
+			name:  "negative guardrail name is case-insensitive",
+			input: "!" + "REQUIRE-LABEL-MATCHER",
+			wantGuardrails: &Guardrails{
+				DisallowExplicitNameLabel: true,
+				RequireLabelMatcher:       false,
+				DisallowBlanketRegex:      true,
+				ForceMaxMetricCardinality: true,
+				MaxMetricCardinality:      DefaultMaxMetricCardinality,
+				MaxLabelCardinality:       DefaultMaxLabelCardinality,
+			},
+		},
 		// Error cases
 		{
 			name:    "unknown name mixed with valid name returns error",
 			input:   GuardrailRequireLabelMatcher + ",bad-name",
+			wantErr: true,
+		},
+		{
+			name:    "unknown negative name returns error",
+			input:   "!bad-name",
+			wantErr: true,
+		},
+		{
+			name:    "mixing positive and negative guardrails returns error",
+			input:   GuardrailDisallowExplicitNameLabel + ",!" + GuardrailRequireLabelMatcher,
+			wantErr: true,
+		},
+		{
+			name:    "mixing negative and positive guardrails returns error",
+			input:   "!" + GuardrailDisallowExplicitNameLabel + "," + GuardrailRequireLabelMatcher,
 			wantErr: true,
 		},
 	}
