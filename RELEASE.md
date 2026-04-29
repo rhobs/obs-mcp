@@ -177,6 +177,16 @@ git push <fork> merge-release-X.Y
 
 Open a PR targeting `main`, review, and merge.
 
+#### 6. Bump dependency in openshift-mcp-server
+
+After the release is published, open a PR in [openshift-mcp-server](https://github.com/openshift/openshift-mcp-server) to bump the `github.com/rhobs/obs-mcp` dependency to the new version, and cherry-pick to release branches as required:
+
+```bash
+go get github.com/rhobs/obs-mcp@vX.Y.Z
+go mod tidy
+go mod vendor
+```
+
 ### Patch release
 
 For patch releases, work on the existing release branch:
