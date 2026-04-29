@@ -86,6 +86,12 @@ func main() {
 		log.Fatalf("Invalid guardrails configuration: %v", err)
 	}
 
+	// Reject deprecated use of 0 to disable the metric cardinality guardrail.
+	if isFlagExplicitlySet("guardrails.max-metric-cardinality") && *maxMetricCardinality == 0 {
+		log.Fatalf("--guardrails.max-metric-cardinality=0 is no longer supported to disable the guardrail; "+
+			"use %q in --guardrails instead", "!"+prometheus.GuardrailMaxMetricCardinality)
+	}
+
 	// Reject cardinality flags that have no effect given the active guardrails.
 	if isFlagExplicitlySet("guardrails.max-metric-cardinality") &&
 		(parsedGuardrails == nil || !parsedGuardrails.ForceMaxMetricCardinality) {
