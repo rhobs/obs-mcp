@@ -208,6 +208,22 @@ max_metric_cardinality = 0
 			},
 		},
 		{
+			name: "guardrails none with max_metric_cardinality returns error",
+			toml: `
+guardrails = "none"
+max_metric_cardinality = 5000
+`,
+			wantErr: "max_metric_cardinality is set but",
+		},
+		{
+			name: "guardrails none with max_label_cardinality returns error",
+			toml: `
+guardrails = "none"
+max_label_cardinality = 200
+`,
+			wantErr: "max_label_cardinality is set but",
+		},
+		{
 			name: "max_metric_cardinality without enabling the guardrail returns error",
 			toml: `
 guardrails = "require-label-matcher"

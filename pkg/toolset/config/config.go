@@ -106,23 +106,21 @@ func (c *Config) GetGuardrails() (*prometheus.Guardrails, error) {
 		return nil, err
 	}
 
-	if guardrails != nil {
-		if c.MaxMetricCardinality != nil {
-			if !guardrails.ForceMaxMetricCardinality {
-				return nil, fmt.Errorf(
-					"max_metric_cardinality is set but the %q guardrail is not enabled",
-					prometheus.GuardrailMaxMetricCardinality)
-			}
-			guardrails.MaxMetricCardinality = *c.MaxMetricCardinality
+	if c.MaxMetricCardinality != nil {
+		if guardrails == nil || !guardrails.ForceMaxMetricCardinality {
+			return nil, fmt.Errorf(
+				"max_metric_cardinality is set but the %q guardrail is not enabled",
+				prometheus.GuardrailMaxMetricCardinality)
 		}
-		if c.MaxLabelCardinality != nil {
-			if !guardrails.DisallowBlanketRegex {
-				return nil, fmt.Errorf(
-					"max_label_cardinality is set but the %q guardrail is not enabled",
-					prometheus.GuardrailDisallowBlanketRegex)
-			}
-			guardrails.MaxLabelCardinality = *c.MaxLabelCardinality
+		guardrails.MaxMetricCardinality = *c.MaxMetricCardinality
+	}
+	if c.MaxLabelCardinality != nil {
+		if guardrails == nil || !guardrails.DisallowBlanketRegex {
+			return nil, fmt.Errorf(
+				"max_label_cardinality is set but the %q guardrail is not enabled",
+				prometheus.GuardrailDisallowBlanketRegex)
 		}
+		guardrails.MaxLabelCardinality = *c.MaxLabelCardinality
 	}
 
 	return guardrails, nil
