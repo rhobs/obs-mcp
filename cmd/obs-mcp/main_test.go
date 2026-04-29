@@ -5,7 +5,92 @@ import (
 
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/mcp"
+	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
+
+func TestApplyCardinalityLimits(t *testing.T) {
+	tests := []struct {
+		name                     string
+		guardrailsFlag           string
+		maxMetricCard            uint64
+		maxLabelCard             uint64
+		wantMaxMetricCardinality uint64
+		wantMaxLabelCardinality  uint64
+	}{
+		{
+			name:                     "all guardrails applies defaults",
+			guardrailsFlag:           "all",
+			maxMetricCard:            20000,
+			maxLabelCard:             500,
+			wantMaxMetricCardinality: 20000,
+			wantMaxLabelCardinality:  500,
+		},
+		{
+			name:                     "empty guardrails flag applies defaults",
+			guardrailsFlag:           "",
+			maxMetricCard:            20000,
+			maxLabelCard:             500,
+			wantMaxMetricCardinality: 20000,
+			wantMaxLabelCardinality:  500,
+		},
+		{
+			name:                     "explicit subset without cardinality flags does not apply defaults",
+			guardrailsFlag:           "require-label-matcher,disallow-blanket-regex",
+			maxMetricCard:            20000,
+			maxLabelCard:             500,
+			wantMaxMetricCardinality: 0,
+			wantMaxLabelCardinality:  0,
+		},
+		{
+			name:                     "explicit subset with max-metric-cardinality in guardrails flag",
+			guardrailsFlag:           "require-label-matcher,max-metric-cardinality",
+			maxMetricCard:            10000,
+			maxLabelCard:             500,
+			wantMaxMetricCardinality: 10000,
+			wantMaxLabelCardinality:  0,
+		},
+		{
+			name:                     "explicit subset with max-metric-cardinality flag using default value",
+			guardrailsFlag:           "max-metric-cardinality",
+			maxMetricCard:            20000,
+			wantMaxMetricCardinality: 20000,
+			wantMaxLabelCardinality:  0,
+		},
+		{
+			name:                     "explicit subset with both cardinality guardrails",
+			guardrailsFlag:           "disallow-blanket-regex,max-metric-cardinality,max-label-cardinality",
+			maxMetricCard:            15000,
+			maxLabelCard:             300,
+			wantMaxMetricCardinality: 15000,
+			wantMaxLabelCardinality:  300,
+		},
+		{
+			name:                     "all guardrails with custom cardinality values",
+			guardrailsFlag:           "all",
+			maxMetricCard:            50000,
+			maxLabelCard:             1000,
+			wantMaxMetricCardinality: 50000,
+			wantMaxLabelCardinality:  1000,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := &prometheus.Guardrails{}
+			applyCardinalityLimits(g, tt.guardrailsFlag, tt.maxMetricCard, tt.maxLabelCard)
+			if g.MaxMetricCardinality != tt.wantMaxMetricCardinality {
+				t.Errorf("MaxMetricCardinality = %v, want %v", g.MaxMetricCardinality, tt.wantMaxMetricCardinality)
+			}
+			if g.MaxLabelCardinality != tt.wantMaxLabelCardinality {
+				t.Errorf("MaxLabelCardinality = %v, want %v", g.MaxLabelCardinality, tt.wantMaxLabelCardinality)
+			}
+		})
+	}
+}
+
+func TestApplyCardinalityLimits_NilGuardrails(t *testing.T) {
+	applyCardinalityLimits(nil, "all", 20000, 500)
+}
 
 // TestParseMetricsBackend verifies the --metrics-backend flag parsing logic
 func TestParseMetricsBackend(t *testing.T) {
