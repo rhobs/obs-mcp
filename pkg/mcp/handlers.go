@@ -393,12 +393,14 @@ func mapChartTypeToComponent(chartType string) string {
 }
 
 func inferBreakpointFromWidth(width int) string {
-	if width >= 18 {
+	switch {
+	case width >= 18:
 		return "xl"
-	} else if width >= 12 {
+	case width >= 12:
 		return "lg"
-	} else if width >= 6 {
+	case width >= 6:
 		return "md"
+	default:
+		return "sm"
 	}
-	return "sm"
 }

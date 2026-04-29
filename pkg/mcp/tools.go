@@ -59,7 +59,7 @@ func CreateGetSilencesTool() mcp.Tool {
 
 // DashboardsOutput defines the output schema for the list_perses_dashboards tool.
 type DashboardsOutput struct {
-	Dashboards []perses.DashboardInfo `json:"dashboards" jsonschema:"description=List of all PersesDashboard resources from the cluster with their metadata"`
+	Dashboards []perses.DashboardInfo `json:"dashboards" jsonschema:"List of all PersesDashboard resources from the cluster with their metadata"`
 }
 
 var ListDashboards = tools.ToolDef[DashboardsOutput]{
@@ -86,9 +86,9 @@ func CreateListDashboardsTool() *mcp.Tool {
 
 // GetDashboardOutput defines the output schema for the get_perses_dashboard tool.
 type GetDashboardOutput struct {
-	Name      string                 `json:"name" jsonschema:"description=Name of the Dashboard"`
-	Namespace string                 `json:"namespace" jsonschema:"description=Namespace where the Dashboard is located"`
-	Spec      map[string]interface{} `json:"spec" jsonschema:"description=The full dashboard specification including panels, layouts, variables, and datasources"`
+	Name      string         `json:"name" jsonschema:"Name of the Dashboard"`
+	Namespace string         `json:"namespace" jsonschema:"Namespace where the Dashboard is located"`
+	Spec      map[string]any `json:"spec" jsonschema:"The full dashboard specification including panels, layouts, variables, and datasources"`
 }
 
 // GetDashboardInput defines the input schema for the get_perses_dashboard tool.
@@ -131,10 +131,10 @@ For most use cases, you will want to follow up with get_dashboard_panels to extr
 
 // GetDashboardPanelsOutput defines the output schema for the get_dashboard_panels tool.
 type GetDashboardPanelsOutput struct {
-	Name      string                  `json:"name" jsonschema:"description=Name of the dashboard"`
-	Namespace string                  `json:"namespace" jsonschema:"description=Namespace of the dashboard"`
-	Duration  string                  `json:"duration,omitempty" jsonschema:"description=Default time duration for queries extracted from dashboard spec (e.g. 1h, 24h)"`
-	Panels    []*perses.DashboardPanel `json:"panels" jsonschema:"description=List of panel metadata including IDs, titles, queries, and chart types for LLM selection"`
+	Name      string                   `json:"name" jsonschema:"Name of the dashboard"`
+	Namespace string                   `json:"namespace" jsonschema:"Namespace of the dashboard"`
+	Duration  string                   `json:"duration,omitempty" jsonschema:"Default time duration for queries extracted from dashboard spec (e.g. 1h, 24h)"`
+	Panels    []*perses.DashboardPanel `json:"panels" jsonschema:"List of panel metadata including IDs, titles, queries, and chart types for LLM selection"`
 }
 
 // GetDashboardPanelsInput defines the input schema for the get_dashboard_panels tool.
@@ -185,7 +185,7 @@ Use this information to identify which panels answer the user's question, then u
 
 // FormatPanelsForUIOutput defines the output schema for the format_panels_for_ui tool.
 type FormatPanelsForUIOutput struct {
-	Widgets []perses.DashboardWidget `json:"widgets" jsonschema:"description=Dashboard widgets in DashboardWidget format ready for direct rendering by genie-plugin UI"`
+	Widgets []perses.DashboardWidget `json:"widgets" jsonschema:"Dashboard widgets in DashboardWidget format ready for direct rendering by genie-plugin UI"`
 }
 
 // FormatPanelsForUIInput defines the input schema for the format_panels_for_ui tool.

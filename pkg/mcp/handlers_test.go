@@ -164,7 +164,7 @@ func TestExecuteRangeQueryHandler_ExplicitTimeRange_RFC3339(t *testing.T) {
 func TestExecuteRangeQueryHandler_StepParsing_ValidSteps(t *testing.T) {
 	mockClient := &MockedLoader{
 		ExecuteRangeQueryFunc: func(_ context.Context, _ string, _, _ time.Time, _ time.Duration) (map[string]any, error) {
-			return map[string]interface{}{"resultType": "matrix", "result": []interface{}{}}, nil
+			return map[string]any{"resultType": "matrix", "result": []any{}}, nil
 		},
 	}
 

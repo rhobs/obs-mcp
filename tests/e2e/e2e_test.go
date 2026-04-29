@@ -678,6 +678,34 @@ func TestGetAlertsEmptyFilter(t *testing.T) {
 	t.Log("Query for non-existent alert handled correctly")
 }
 
+func getStructuredContent(t *testing.T, result map[string]any) map[string]any {
+	t.Helper()
+
+	// The new SDK puts typed output in structuredContent; fall back to
+	// extracting from content[0].text for older SDK responses.
+	if sc, ok := result["structuredContent"].(map[string]any); ok {
+		return sc
+	}
+
+	content, ok := result["content"].([]any)
+	if !ok || len(content) == 0 {
+		t.Fatalf("No content in result: %v", result)
+	}
+	firstContent, ok := content[0].(map[string]any)
+	if !ok {
+		t.Fatalf("Unexpected content structure")
+	}
+	text, ok := firstContent["text"].(string)
+	if !ok {
+		t.Fatalf("No text field in content")
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(text), &parsed); err != nil {
+		t.Fatalf("Failed to parse text content: %v", err)
+	}
+	return parsed
+}
+
 func getFirstDashboard(t *testing.T) (name, namespace string) {
 	t.Helper()
 
@@ -689,37 +717,19 @@ func getFirstDashboard(t *testing.T) (name, namespace string) {
 		t.Fatalf("MCP error getting dashboards: %s", resp.Error.Message)
 	}
 
-	content, ok := resp.Result["content"].([]any)
-	if !ok || len(content) == 0 {
-		t.Fatalf("No dashboards available")
-	}
+	sc := getStructuredContent(t, resp.Result)
 
-	firstContent, ok := content[0].(map[string]any)
-	if !ok {
-		t.Fatalf("Unexpected content structure")
-	}
-
-	text, ok := firstContent["text"].(string)
-	if !ok {
-		t.Fatalf("No text field in content")
-	}
-
-	var dashboardData struct {
-		Dashboards []struct {
-			Name      string `json:"name"`
-			Namespace string `json:"namespace"`
-		} `json:"dashboards"`
-	}
-
-	if err := json.Unmarshal([]byte(text), &dashboardData); err != nil {
-		t.Fatalf("Failed to parse dashboard data: %v", err)
-	}
-
-	if len(dashboardData.Dashboards) == 0 {
+	dashboards, ok := sc["dashboards"].([]any)
+	if !ok || len(dashboards) == 0 {
 		t.Fatalf("No dashboards found")
 	}
 
-	return dashboardData.Dashboards[0].Name, dashboardData.Dashboards[0].Namespace
+	first, ok := dashboards[0].(map[string]any)
+	if !ok {
+		t.Fatalf("Unexpected dashboard structure")
+	}
+
+	return first["name"].(string), first["namespace"].(string)
 }
 
 func getDashboardPanelIDs(t *testing.T, dashboardName, dashboardNamespace string) []string {
@@ -736,33 +746,26 @@ func getDashboardPanelIDs(t *testing.T, dashboardName, dashboardNamespace string
 		t.Fatalf("MCP error: %s", resp.Error.Message)
 	}
 
-	content, ok := resp.Result["content"].([]any)
-	if !ok || len(content) == 0 {
-		t.Fatalf("No panel content available")
-	}
+	sc := getStructuredContent(t, resp.Result)
 
-	text, ok := content[0].(map[string]any)["text"].(string)
-	if !ok {
-		t.Fatalf("No text field in panel content")
-	}
-
-	var panelsData struct {
-		Panels []struct {
-			ID string `json:"id"`
-		} `json:"panels"`
-	}
-
-	if err := json.Unmarshal([]byte(text), &panelsData); err != nil {
-		t.Fatalf("Failed to parse panels data: %v", err)
-	}
-
-	if len(panelsData.Panels) == 0 {
+	panels, ok := sc["panels"].([]any)
+	if !ok || len(panels) == 0 {
 		t.Fatalf("No panels found in dashboard")
 	}
 
-	panelIDs := make([]string, len(panelsData.Panels))
-	for i, panel := range panelsData.Panels {
-		panelIDs[i] = panel.ID
+	panelIDs := make([]string, 0, len(panels))
+	for _, p := range panels {
+		pm, ok := p.(map[string]any)
+		if !ok {
+			continue
+		}
+		if id, ok := pm["id"].(string); ok {
+			panelIDs = append(panelIDs, id)
+		}
+	}
+
+	if len(panelIDs) == 0 {
+		t.Fatalf("No panel IDs extracted")
 	}
 
 	return panelIDs
