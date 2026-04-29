@@ -80,7 +80,7 @@ obs-mcp includes query guardrails that prevent expensive or unsafe PromQL querie
 - **Thanos < v0.40.0**: The TSDB status endpoint is not available on the Query component. Use `--guardrails=none` or use the `!tsdb` shortcut to disable only the TSDB-dependent guardrails while keeping the others enabled:
 
   ```shell
-  --guardrails=!tsdb
+  --guardrails='!tsdb'
   ```
 
 - **Prometheus**: All guardrails work with any supported Prometheus version.
