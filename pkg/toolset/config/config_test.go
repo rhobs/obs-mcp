@@ -184,6 +184,30 @@ max_label_cardinality = 200
 			},
 		},
 		{
+			name: "max_label_cardinality zero sets threshold to zero (always disallow blanket regex)",
+			toml: `
+guardrails = "disallow-blanket-regex"
+max_label_cardinality = 0
+`,
+			wantGuardrails: &prometheus.Guardrails{
+				DisallowBlanketRegex: true,
+				MaxMetricCardinality: prometheus.DefaultMaxMetricCardinality,
+				MaxLabelCardinality:  0,
+			},
+		},
+		{
+			name: "max_metric_cardinality zero sets threshold to zero",
+			toml: `
+guardrails = "max-metric-cardinality"
+max_metric_cardinality = 0
+`,
+			wantGuardrails: &prometheus.Guardrails{
+				ForceMaxMetricCardinality: true,
+				MaxMetricCardinality:      0,
+				MaxLabelCardinality:       prometheus.DefaultMaxLabelCardinality,
+			},
+		},
+		{
 			name: "max_metric_cardinality without enabling the guardrail returns error",
 			toml: `
 guardrails = "require-label-matcher"
