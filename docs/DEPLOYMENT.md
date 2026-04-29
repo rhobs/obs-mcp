@@ -72,15 +72,15 @@ obs-mcp includes query guardrails that prevent expensive or unsafe PromQL querie
 | Guardrail | What it checks |
 |-----------|----------------|
 | `max-metric-cardinality` | Rejects queries against metrics with more series than the configured limit |
-| `disallow-blanket-regex` | Rejects blanket regex matchers (`=~".+"`) on high-cardinality labels |
+| `disallow-blanket-regex` (with `max-label-cardinality > 0`)| Rejects blanket regex matchers (`=~".+"`) on high-cardinality labels |
 
 **Thanos compatibility:**
 
 - **Thanos v0.40.0+** (Oct 2025): The Query component exposes `/api/v1/status/tsdb` ([#8484](https://github.com/thanos-io/thanos/pull/8484)), so all guardrails work.
-- **Thanos < v0.40.0**: The TSDB status endpoint is not available on the Query component. Use `--guardrails=none` or disable only the cardinality guardrail while keeping the others enabled:
+- **Thanos < v0.40.0**: The TSDB status endpoint is not available on the Query component. Use `--guardrails=none` or use the `!tsdb` shortcut to disable only the TSDB-dependent guardrails while keeping the others enabled:
 
   ```shell
-  --guardrails=!max-metric-cardinality,!disallow-blanket-regex 
+  --guardrails=!tsdb
   ```
 
 - **Prometheus**: All guardrails work with any supported Prometheus version.

@@ -115,6 +115,23 @@ func TestParseGuardrails(t *testing.T) {
 			},
 		},
 		{
+			name:  "!tsdb shortcut disables both TSDB-dependent guardrails",
+			input: "!" + GuardrailShortcutTSDB,
+			wantGuardrails: &Guardrails{
+				DisallowExplicitNameLabel: true,
+				RequireLabelMatcher:       true,
+				DisallowBlanketRegex:      false,
+				ForceMaxMetricCardinality: false,
+				MaxMetricCardinality:      DefaultMaxMetricCardinality,
+				MaxLabelCardinality:       DefaultMaxLabelCardinality,
+			},
+		},
+		{
+			name:    "tsdb shortcut without ! is not allowed",
+			input:   GuardrailShortcutTSDB,
+			wantErr: true,
+		},
+		{
 			name:  "negative max-metric-cardinality disables ForceMaxMetricCardinality",
 			input: "!" + GuardrailMaxMetricCardinality,
 			wantGuardrails: &Guardrails{

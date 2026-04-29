@@ -16,6 +16,12 @@ const (
 	GuardrailRequireLabelMatcher       = "require-label-matcher"
 	GuardrailDisallowBlanketRegex      = "disallow-blanket-regex"
 	GuardrailMaxMetricCardinality      = "max-metric-cardinality"
+
+	// GuardrailShortcutTSDB is a shortcut that refers to both TSDB-dependent
+	// guardrails (max-metric-cardinality and disallow-blanket-regex). Use
+	// "!tsdb" to disable both when the backend does not expose
+	// /api/v1/status/tsdb (e.g. Thanos Querier < v0.40.0).
+	GuardrailShortcutTSDB = "tsdb"
 )
 
 // Default cardinality thresholds
@@ -107,6 +113,12 @@ func ParseGuardrails(value string) (*Guardrails, error) {
 			g.DisallowBlanketRegex = !defaultValue
 		case GuardrailMaxMetricCardinality:
 			g.ForceMaxMetricCardinality = !defaultValue
+		case GuardrailShortcutTSDB:
+			if !negative {
+				return nil, fmt.Errorf("%q is only valid as a negative shortcut (!tsdb); use individual guardrail names in positive mode", GuardrailShortcutTSDB)
+			}
+			g.ForceMaxMetricCardinality = false
+			g.DisallowBlanketRegex = false
 		default:
 			return nil, fmt.Errorf("unknown guardrail: %q (valid options: %s, %s, %s, %s)",
 				name, GuardrailDisallowExplicitNameLabel, GuardrailRequireLabelMatcher,
