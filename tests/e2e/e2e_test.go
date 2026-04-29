@@ -677,3 +677,213 @@ func TestGetAlertsEmptyFilter(t *testing.T) {
 	// Should succeed but may return empty alerts array
 	t.Log("Query for non-existent alert handled correctly")
 }
+
+func getStructuredContent(t *testing.T, result map[string]any) map[string]any {
+	t.Helper()
+
+	// The new SDK puts typed output in structuredContent; fall back to
+	// extracting from content[0].text for older SDK responses.
+	if sc, ok := result["structuredContent"].(map[string]any); ok {
+		return sc
+	}
+
+	content, ok := result["content"].([]any)
+	if !ok || len(content) == 0 {
+		t.Fatalf("No content in result: %v", result)
+	}
+	firstContent, ok := content[0].(map[string]any)
+	if !ok {
+		t.Fatalf("Unexpected content structure")
+	}
+	text, ok := firstContent["text"].(string)
+	if !ok {
+		t.Fatalf("No text field in content")
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(text), &parsed); err != nil {
+		t.Fatalf("Failed to parse text content: %v", err)
+	}
+	return parsed
+}
+
+func getFirstDashboard(t *testing.T) (name, namespace string) {
+	t.Helper()
+
+	resp, err := mcpClient.CallTool(t, 33, "list_perses_dashboards", map[string]any{})
+	if err != nil {
+		t.Fatalf("Failed to call list_perses_dashboards: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("MCP error getting dashboards: %s", resp.Error.Message)
+	}
+
+	sc := getStructuredContent(t, resp.Result)
+
+	dashboards, ok := sc["dashboards"].([]any)
+	if !ok || len(dashboards) == 0 {
+		t.Fatalf("No dashboards found")
+	}
+
+	first, ok := dashboards[0].(map[string]any)
+	if !ok {
+		t.Fatalf("Unexpected dashboard structure")
+	}
+
+	return first["name"].(string), first["namespace"].(string)
+}
+
+func getDashboardPanelIDs(t *testing.T, dashboardName, dashboardNamespace string) []string {
+	t.Helper()
+
+	resp, err := mcpClient.CallTool(t, 34, "get_dashboard_panels", map[string]any{
+		"name":      dashboardName,
+		"namespace": dashboardNamespace,
+	})
+	if err != nil {
+		t.Fatalf("Failed to call get_dashboard_panels: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+
+	sc := getStructuredContent(t, resp.Result)
+
+	panels, ok := sc["panels"].([]any)
+	if !ok || len(panels) == 0 {
+		t.Fatalf("No panels found in dashboard")
+	}
+
+	panelIDs := make([]string, 0, len(panels))
+	for _, p := range panels {
+		pm, ok := p.(map[string]any)
+		if !ok {
+			continue
+		}
+		if id, ok := pm["id"].(string); ok {
+			panelIDs = append(panelIDs, id)
+		}
+	}
+
+	if len(panelIDs) == 0 {
+		t.Fatalf("No panel IDs extracted")
+	}
+
+	return panelIDs
+}
+
+func TestListPersesDashboards(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 35, "list_perses_dashboards", map[string]any{})
+	if err != nil {
+		t.Fatalf("Failed to call list_perses_dashboards: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+	if resp.Result == nil {
+		t.Fatal("Expected result, got nil")
+	}
+
+	resultJSON, _ := json.Marshal(resp.Result)
+	if !strings.Contains(string(resultJSON), "dashboards") {
+		t.Error("Expected 'dashboards' field in result")
+	}
+
+	t.Log("list_perses_dashboards returned successfully with valid structure")
+}
+
+func TestGetDashboardPanels(t *testing.T) {
+	t.Run("WithListDashboards", func(t *testing.T) {
+		dashboardName, dashboardNamespace := getFirstDashboard(t)
+
+		resp, err := mcpClient.CallTool(t, 36, "get_dashboard_panels", map[string]any{
+			"name":      dashboardName,
+			"namespace": dashboardNamespace,
+		})
+		if err != nil {
+			t.Fatalf("Failed to call get_dashboard_panels: %v", err)
+		}
+		if resp.Error != nil {
+			t.Fatalf("MCP error: %s", resp.Error.Message)
+		}
+		if resp.Result == nil {
+			t.Fatal("Expected result, got nil")
+		}
+
+		t.Logf("get_dashboard_panels returned successfully for %s/%s", dashboardNamespace, dashboardName)
+	})
+
+	t.Run("WithPanelIDsFilter", func(t *testing.T) {
+		dashboardName, dashboardNamespace := getFirstDashboard(t)
+		panelIDs := getDashboardPanelIDs(t, dashboardName, dashboardNamespace)
+
+		if len(panelIDs) < 2 {
+			t.Skip("Need at least 2 panels for this test")
+		}
+
+		resp, err := mcpClient.CallTool(t, 37, "get_dashboard_panels", map[string]any{
+			"name":      dashboardName,
+			"namespace": dashboardNamespace,
+			"panel_ids": panelIDs[0] + "," + panelIDs[1],
+		})
+		if err != nil {
+			t.Fatalf("Failed to call get_dashboard_panels: %v", err)
+		}
+		if resp.Error != nil {
+			t.Errorf("Unexpected error: %s", resp.Error.Message)
+		}
+
+		t.Log("get_dashboard_panels with panel_ids filter handled correctly")
+	})
+}
+
+func TestFormatPanelsForUI(t *testing.T) {
+	t.Run("SinglePanel", func(t *testing.T) {
+		dashboardName, dashboardNamespace := getFirstDashboard(t)
+		panelIDs := getDashboardPanelIDs(t, dashboardName, dashboardNamespace)
+
+		resp, err := mcpClient.CallTool(t, 38, "format_panels_for_ui", map[string]any{
+			"name":      dashboardName,
+			"namespace": dashboardNamespace,
+			"panel_ids": panelIDs[0],
+		})
+		if err != nil {
+			t.Fatalf("Failed to call format_panels_for_ui: %v", err)
+		}
+		if resp.Error != nil {
+			t.Fatalf("MCP error: %s", resp.Error.Message)
+		}
+		if resp.Result == nil {
+			t.Fatal("Expected result, got nil")
+		}
+
+		resultJSON, _ := json.Marshal(resp.Result)
+		if !strings.Contains(string(resultJSON), "widgets") {
+			t.Error("Expected 'widgets' field in result")
+		}
+
+		t.Log("format_panels_for_ui returned successfully")
+	})
+
+	t.Run("MultiplePanels", func(t *testing.T) {
+		dashboardName, dashboardNamespace := getFirstDashboard(t)
+		panelIDs := getDashboardPanelIDs(t, dashboardName, dashboardNamespace)
+
+		if len(panelIDs) < 2 {
+			t.Skip("Need at least 2 panels for this test")
+		}
+
+		resp, err := mcpClient.CallTool(t, 39, "format_panels_for_ui", map[string]any{
+			"name":      dashboardName,
+			"namespace": dashboardNamespace,
+			"panel_ids": panelIDs[0] + "," + panelIDs[1],
+		})
+		if err != nil {
+			t.Fatalf("Failed to call format_panels_for_ui: %v", err)
+		}
+		if resp.Error != nil {
+			t.Fatalf("MCP error: %s", resp.Error.Message)
+		}
+
+		t.Log("format_panels_for_ui with multiple panel IDs handled correctly")
+	})
+}
