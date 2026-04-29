@@ -241,4 +241,24 @@ spec:
 
 Then add a corresponding `taskSet` entry in `eval.yaml` pointing to the new file.
 
+## Keeping Evals in Sync with openshift-mcp-server
+
+The observability eval tasks in this repo (`evals/mcpchecker/tasks/`) are the **source of truth** for task definitions. The same tasks are mirrored in [openshift-mcp-server](https://github.com/openshift/openshift-mcp-server/tree/main/evals/tasks/observability) under `evals/tasks/observability/`.
+
+When updating eval tasks, changes must be synced between both repos to avoid config drift:
+
+1. **obs-mcp → openshift-mcp-server**: After updating tasks here, copy them to `evals/tasks/observability/` in openshift-mcp-server and open a PR.
+2. **openshift-mcp-server → obs-mcp**: If tasks are updated there first (e.g. after running evals on an OpenShift cluster), copy them back here.
+
+Everything under `evals/mcpchecker/tasks/` in this repo maps to `evals/tasks/observability/` in openshift-mcp-server.
+
+To check for divergence between the two repos:
+
+```bash
+diff -r evals/mcpchecker/tasks/ /path/to/openshift-mcp-server/evals/tasks/observability/
+```
+
+> [!NOTE]
+> The directory layout in openshift-mcp-server may change over time, but the goal is to always keep the observability eval tasks in sync with this repo.
+
 > **TODO:** All tasks currently use `runs: 1` to reduce token cost while iterating. Once evals are stable, bump to `runs: 3` for consistency testing.

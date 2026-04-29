@@ -1,3 +1,7 @@
+# Initial configuration taken from the internal "Using CodeRabbit" document.
+# Adopted from https://github.com/rhobs/observability-operator/blob/main/.coderabbit.yaml as a starting point.
+# Inherits org-wide settings from https://github.com/openshift/coderabbit/blob/main/.coderabbit.yaml
+---
 inheritance: true
 reviews:
   high_level_summary: false
