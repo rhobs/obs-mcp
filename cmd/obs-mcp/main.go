@@ -36,7 +36,7 @@ func main() {
 	var logLevel = flag.String("log-level", "info", "Log level: debug, info, warn, error")
 	var metricsBackend = flag.String("metrics-backend", "thanos", "Metrics backend: thanos (default, with prometheus fallback) or prometheus (strict, no fallback)")
 	var guardrails = flag.String("guardrails", "all", "Guardrails configuration: 'all' (default), 'none', or comma-separated list of guardrails to enable (disallow-explicit-name-label, require-label-matcher, disallow-blanket-regex)")
-	var maxMetricCardinality = flag.Uint64("guardrails.max-metric-cardinality", prometheus.DefaultMaxMetricCardinality, "Maximum allowed series count per metric (0 = disabled)")
+	var maxMetricCardinality = flag.Uint64("guardrails.max-metric-cardinality", prometheus.DefaultMaxMetricCardinality, "Maximum allowed series count per metric")
 	var maxLabelCardinality = flag.Uint64("guardrails.max-label-cardinality", prometheus.DefaultMaxLabelCardinality, "Maximum allowed label value count for blanket regex (0 = always disallow blanket regex). Only takes effect if disallow-blanket-regex is enabled.")
 	var fullRangeQueryResponse = flag.Bool("full-range-query-response", false, "Return full data points for range queries")
 	flag.Parse()
