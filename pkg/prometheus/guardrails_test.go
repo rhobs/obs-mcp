@@ -9,6 +9,206 @@ import (
 	"github.com/prometheus/common/model"
 )
 
+func TestParseGuardrails(t *testing.T) {
+	allEnabled := DefaultGuardrails(true)
+
+	tests := []struct {
+		name           string
+		input          string
+		wantNil        bool // expect (nil, nil)
+		wantErr        bool
+		wantGuardrails *Guardrails
+	}{
+		// Special keywords
+		{
+			name:    "none disables all guardrails",
+			input:   "none",
+			wantNil: true,
+		},
+		{
+			name:    "NONE is case-insensitive",
+			input:   "NONE",
+			wantNil: true,
+		},
+		{
+			name:           "all enables all guardrails",
+			input:          "all",
+			wantGuardrails: allEnabled,
+		},
+		{
+			name:           "empty string enables all guardrails",
+			input:          "",
+			wantGuardrails: allEnabled,
+		},
+		{
+			name:  "disallow-explicit-name-label only",
+			input: GuardrailDisallowExplicitNameLabel,
+			wantGuardrails: &Guardrails{
+				DisallowExplicitNameLabel: true,
+				MaxMetricCardinality:      DefaultMaxMetricCardinality,
+				MaxLabelCardinality:       DefaultMaxLabelCardinality,
+			},
+		},
+		{
+			name:  "two guardrails",
+			input: GuardrailDisallowExplicitNameLabel + "," + GuardrailRequireLabelMatcher,
+			wantGuardrails: &Guardrails{
+				DisallowExplicitNameLabel: true,
+				RequireLabelMatcher:       true,
+				MaxMetricCardinality:      DefaultMaxMetricCardinality,
+				MaxLabelCardinality:       DefaultMaxLabelCardinality,
+			},
+		},
+		// Whitespace tolerance
+		{
+			name:  "spaces around commas are trimmed",
+			input: GuardrailDisallowExplicitNameLabel + " , " + GuardrailRequireLabelMatcher,
+			wantGuardrails: &Guardrails{
+				DisallowExplicitNameLabel: true,
+				RequireLabelMatcher:       true,
+				MaxMetricCardinality:      DefaultMaxMetricCardinality,
+				MaxLabelCardinality:       DefaultMaxLabelCardinality,
+			},
+		},
+		{
+			name:  "empty segments from extra commas are ignored",
+			input: "," + GuardrailRequireLabelMatcher + ",",
+			wantGuardrails: &Guardrails{
+				RequireLabelMatcher:  true,
+				MaxMetricCardinality: DefaultMaxMetricCardinality,
+				MaxLabelCardinality:  DefaultMaxLabelCardinality,
+			},
+		},
+		// Case insensitivity for named guardrails
+		{
+			name:  "guardrail name is case-insensitive",
+			input: "REQUIRE-LABEL-MATCHER",
+			wantGuardrails: &Guardrails{
+				RequireLabelMatcher:  true,
+				MaxMetricCardinality: DefaultMaxMetricCardinality,
+				MaxLabelCardinality:  DefaultMaxLabelCardinality,
+			},
+		},
+		// Negative guardrails (! prefix disables a guardrail, all others remain enabled)
+		{
+			name:  "single negative guardrail disables only that one",
+			input: "!" + GuardrailRequireLabelMatcher,
+			wantGuardrails: &Guardrails{
+				DisallowExplicitNameLabel: true,
+				RequireLabelMatcher:       false,
+				DisallowBlanketRegex:      true,
+				ForceMaxMetricCardinality: true,
+				MaxMetricCardinality:      DefaultMaxMetricCardinality,
+				MaxLabelCardinality:       DefaultMaxLabelCardinality,
+			},
+		},
+		{
+			name:  "multiple negative guardrails disable each listed one",
+			input: "!" + GuardrailDisallowExplicitNameLabel + ",!" + GuardrailRequireLabelMatcher,
+			wantGuardrails: &Guardrails{
+				DisallowExplicitNameLabel: false,
+				RequireLabelMatcher:       false,
+				DisallowBlanketRegex:      true,
+				ForceMaxMetricCardinality: true,
+				MaxMetricCardinality:      DefaultMaxMetricCardinality,
+				MaxLabelCardinality:       DefaultMaxLabelCardinality,
+			},
+		},
+		{
+			name:  "!tsdb shortcut disables both TSDB-dependent guardrails",
+			input: "!" + GuardrailShortcutTSDB,
+			wantGuardrails: &Guardrails{
+				DisallowExplicitNameLabel: true,
+				RequireLabelMatcher:       true,
+				DisallowBlanketRegex:      false,
+				ForceMaxMetricCardinality: false,
+				MaxMetricCardinality:      DefaultMaxMetricCardinality,
+				MaxLabelCardinality:       DefaultMaxLabelCardinality,
+			},
+		},
+		{
+			name:    "tsdb shortcut without ! is not allowed",
+			input:   GuardrailShortcutTSDB,
+			wantErr: true,
+		},
+		{
+			name:  "negative max-metric-cardinality disables ForceMaxMetricCardinality",
+			input: "!" + GuardrailMaxMetricCardinality,
+			wantGuardrails: &Guardrails{
+				DisallowExplicitNameLabel: true,
+				RequireLabelMatcher:       true,
+				DisallowBlanketRegex:      true,
+				ForceMaxMetricCardinality: false,
+				MaxMetricCardinality:      DefaultMaxMetricCardinality,
+				MaxLabelCardinality:       DefaultMaxLabelCardinality,
+			},
+		},
+		{
+			name:  "negative guardrail name is case-insensitive",
+			input: "!" + "REQUIRE-LABEL-MATCHER",
+			wantGuardrails: &Guardrails{
+				DisallowExplicitNameLabel: true,
+				RequireLabelMatcher:       false,
+				DisallowBlanketRegex:      true,
+				ForceMaxMetricCardinality: true,
+				MaxMetricCardinality:      DefaultMaxMetricCardinality,
+				MaxLabelCardinality:       DefaultMaxLabelCardinality,
+			},
+		},
+		// Error cases
+		{
+			name:    "unknown name mixed with valid name returns error",
+			input:   GuardrailRequireLabelMatcher + ",bad-name",
+			wantErr: true,
+		},
+		{
+			name:    "unknown negative name returns error",
+			input:   "!bad-name",
+			wantErr: true,
+		},
+		{
+			name:    "mixing positive and negative guardrails returns error",
+			input:   GuardrailDisallowExplicitNameLabel + ",!" + GuardrailRequireLabelMatcher,
+			wantErr: true,
+		},
+		{
+			name:    "mixing negative and positive guardrails returns error",
+			input:   "!" + GuardrailDisallowExplicitNameLabel + "," + GuardrailRequireLabelMatcher,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseGuardrails(tt.input)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("ParseGuardrails(%q) expected error, got nil", tt.input)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParseGuardrails(%q) unexpected error: %v", tt.input, err)
+			}
+
+			if tt.wantNil {
+				if got != nil {
+					t.Errorf("ParseGuardrails(%q) = %+v, want nil", tt.input, got)
+				}
+				return
+			}
+
+			if got == nil {
+				t.Fatalf("ParseGuardrails(%q) = nil, want non-nil", tt.input)
+			}
+			if *got != *tt.wantGuardrails {
+				t.Errorf("ParseGuardrails(%q)\n got  %+v\n want %+v", tt.input, *got, *tt.wantGuardrails)
+			}
+		})
+	}
+}
+
 func TestGuardrails_IsSafeQuery(t *testing.T) {
 	// Use static guardrails without cardinality limits (no TSDB client needed)
 	g := &Guardrails{
@@ -587,6 +787,7 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 			DisallowExplicitNameLabel: false,
 			RequireLabelMatcher:       false,
 			DisallowBlanketRegex:      true,
+			ForceMaxMetricCardinality: true,
 			MaxMetricCardinality:      10000, // Metric threshold
 			MaxLabelCardinality:       100,   // Label threshold
 		}
@@ -613,6 +814,7 @@ func TestGuardrails_MaxLabelCardinalityWithMockedTSDB(t *testing.T) {
 			DisallowExplicitNameLabel: false,
 			RequireLabelMatcher:       false,
 			DisallowBlanketRegex:      true,
+			ForceMaxMetricCardinality: true,
 			MaxMetricCardinality:      10000,
 			MaxLabelCardinality:       100,
 		}

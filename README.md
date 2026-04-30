@@ -52,7 +52,7 @@ go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-b
 
 > [!NOTE]
 >
-> Thanos versions before v0.40.0 do not expose the `/api/v1/status/tsdb` endpoint, so guardrails that rely on TSDB stats (`max-metric-cardinality`, `max-label-cardinality`) will fail. Use `--guardrails=none` when using older Thanos versions. Thanos v0.40.0+ ([#8484](https://github.com/thanos-io/thanos/pull/8484)) added TSDB status support to the Query component, so guardrails should work if your cluster runs that version or later.
+> Thanos versions before v0.40.0 do not expose the `/api/v1/status/tsdb` endpoint, so guardrails that rely on TSDB stats (`max-metric-cardinality`, `disallow-blanket-regex` with `max-label-cardinality > 0`) will fail. Use `--guardrails=none` or `--guardrails='!tsdb'` when using older Thanos versions. Thanos v0.40.0+ ([#8484](https://github.com/thanos-io/thanos/pull/8484)) added TSDB status support to the Query component, so guardrails should work if your cluster runs that version or later.
 
 ```shell
 make run-no-guardrails
