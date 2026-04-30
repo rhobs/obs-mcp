@@ -41,14 +41,7 @@ func TestValidate(t *testing.T) {
 			toml:    `auth_mode = "magic"`,
 			wantErr: `invalid auth_mode`,
 		},
-		{
-			name: "guardrails all is valid",
-			toml: `guardrails = "all"`,
-		},
-		{
-			name: "guardrails none is valid",
-			toml: `guardrails = "none"`,
-		},
+		// test just a sub set of guardrails validations, the rest is covered in `TestGetGuardrails`
 		{
 			name: "guardrails named list is valid",
 			toml: `guardrails = "require-label-matcher,disallow-blanket-regex"`,
@@ -56,7 +49,15 @@ func TestValidate(t *testing.T) {
 		{
 			name:    "unknown guardrail name returns error",
 			toml:    `guardrails = "not-a-real-guardrail"`,
-			wantErr: `invalid guardrails configuration`,
+			wantErr: `unknown guardrail`,
+		},
+		{
+			name: "max_metric_cardinality without enabling the guardrail returns error",
+			toml: `
+guardrails = "require-label-matcher"
+max_metric_cardinality = 5000
+`,
+			wantErr: "max_metric_cardinality is set but",
 		},
 		{
 			name: "full valid config",
@@ -65,7 +66,7 @@ auth_mode = "kubeconfig"
 prometheus_url = "https://thanos.example.com"
 alertmanager_url = "https://alertmanager.example.com"
 insecure = true
-guardrails = "require-label-matcher,disallow-blanket-regex"
+guardrails = "all"
 max_metric_cardinality = 5000
 max_label_cardinality = 200
 `,
