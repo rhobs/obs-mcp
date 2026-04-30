@@ -395,3 +395,38 @@ config:
             toolPattern: "(execute_instant_query|execute_range_query)"
         minToolCalls: 2
         maxToolCalls: 15
+
+    # Traces
+    - path: tasks/traces/search-error-traces.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: tempo_list_instances
+          - server: obs
+            tool: tempo_search_traces
+        callOrder:
+          - type: tool
+            server: obs
+            name: tempo_list_instances
+          - type: tool
+            server: obs
+            name: tempo_search_traces
+        minToolCalls: 2
+        maxToolCalls: 5
+
+    - path: tasks/traces/latency-investigation.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: tempo_list_instances
+          - server: obs
+            tool: tempo_search_traces
+        callOrder:
+          - type: tool
+            server: obs
+            name: tempo_list_instances
+          - type: tool
+            server: obs
+            name: tempo_search_traces
+        minToolCalls: 2
+        maxToolCalls: 5

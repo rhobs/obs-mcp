@@ -1,0 +1,32 @@
+apiVersion: tempo.grafana.com/v1alpha1
+kind:  TempoStack
+metadata:
+  name: tempo1
+  namespace: obs-mcp-tracing
+spec:
+  storage:
+    secret:
+      name: minio
+      type: s3
+  storageSize: 1Gi
+  observability:
+    tracing:
+      # collect operational traces from Tempo itself
+      otlp_http_endpoint: http://otel-collector.obs-mcp-tracing:4318
+      sampling_fraction: "1"
+  template:
+    queryFrontend:
+      jaegerQuery:
+        enabled: true
+---
+apiVersion: tempo.grafana.com/v1alpha1
+kind:  TempoStack
+metadata:
+  name: tempo2
+  namespace: obs-mcp-tracing
+spec:
+  storage:
+    secret:
+      name: minio
+      type: s3
+  storageSize: 1Gi

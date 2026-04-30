@@ -8,6 +8,7 @@ import (
 
 	"github.com/rhobs/obs-mcp/pkg/toolset/config"
 	toolset_tools "github.com/rhobs/obs-mcp/pkg/toolset/tools"
+	tempo "github.com/rhobs/obs-mcp/pkg/traces"
 )
 
 // Toolset implements the observability toolset for advanced Prometheus monitoring.
@@ -49,4 +50,5 @@ func (t *Toolset) GetPrompts() []api.ServerPrompt {
 
 func init() {
 	toolsets.Register(&Toolset{})
+	toolsets.Register(&tempo.Toolset{NewTempoClient: toolset_tools.NewTempoClient})
 }

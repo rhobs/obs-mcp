@@ -18,6 +18,8 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/alertmanager"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	toolsetconfig "github.com/rhobs/obs-mcp/pkg/toolset/config"
+	"github.com/rhobs/obs-mcp/pkg/traces"
+	tempoclient "github.com/rhobs/obs-mcp/pkg/traces/tempo"
 )
 
 const (
@@ -215,6 +217,22 @@ func readTokenFromCtx(params api.ToolHandlerParams) string {
 		return parts[1]
 	}
 	return strings.TrimSpace(authHeader)
+}
+
+// NewTempoClient creates a Tempo client using the tempo toolset configuration.
+func NewTempoClient(params api.ToolHandlerParams, url string) (tempoclient.Loader, error) {
+	cfg := traces.GetConfig(params)
+
+	apiConfig, err := buildAPIConfig(params, url, cfg.Insecure, cfg.GetAuthMode())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API config: %w", err)
+	}
+
+	httpClient := &http.Client{
+		Timeout:   tempoclient.RequestTimeout,
+		Transport: apiConfig.RoundTripper,
+	}
+	return tempoclient.NewTempoLoader(httpClient, url), nil
 }
 
 // getAlertmanagerClient creates an Alertmanager client using the toolset configuration.

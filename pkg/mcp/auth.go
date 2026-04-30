@@ -17,6 +17,7 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/alertmanager"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
+	tempoclient "github.com/rhobs/obs-mcp/pkg/traces/tempo"
 )
 
 // AuthMode defines the authentication mode for Prometheus client
@@ -107,6 +108,25 @@ func getAlertmanagerClient(ctx context.Context, opts ObsMCPOptions) (alertmanage
 	}
 
 	return amClient, nil
+}
+
+func getTempoHTTPClient(ctx context.Context, opts ObsMCPOptions, url string) (tempoclient.Loader, error) {
+	tempoOpts := ObsMCPOptions{
+		AuthMode:          opts.AuthMode,
+		MetricsBackendURL: url,
+		Insecure:          opts.Insecure,
+	}
+
+	apiConfig, err := createAPIConfig(ctx, tempoOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API config: %w", err)
+	}
+
+	httpClient := &http.Client{
+		Timeout:   tempoclient.RequestTimeout,
+		Transport: apiConfig.RoundTripper,
+	}
+	return tempoclient.NewTempoLoader(httpClient, url), nil
 }
 
 func createAPIConfig(ctx context.Context, opts ObsMCPOptions) (promapi.Config, error) {
