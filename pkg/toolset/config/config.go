@@ -109,6 +109,11 @@ func (c *Config) GetGuardrails() (*prometheus.Guardrails, error) {
 				"max_metric_cardinality is set but the %q guardrail is not enabled",
 				prometheus.GuardrailMaxMetricCardinality)
 		}
+		if *c.MaxMetricCardinality == 0 {
+			return nil, fmt.Errorf(
+				"max_metric_cardinality = 0 is not supported to disable the guardrail; use '!%s' in guardrails instead",
+				prometheus.GuardrailMaxMetricCardinality)
+		}
 		guardrails.MaxMetricCardinality = *c.MaxMetricCardinality
 	}
 	if c.MaxLabelCardinality != nil {

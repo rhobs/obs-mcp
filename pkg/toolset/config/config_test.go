@@ -197,16 +197,12 @@ max_label_cardinality = 0
 			},
 		},
 		{
-			name: "max_metric_cardinality zero sets threshold to zero",
+			name: "max_metric_cardinality zero returns error",
 			toml: `
 guardrails = "max-metric-cardinality"
 max_metric_cardinality = 0
 `,
-			wantGuardrails: &prometheus.Guardrails{
-				ForceMaxMetricCardinality: true,
-				MaxMetricCardinality:      0,
-				MaxLabelCardinality:       prometheus.DefaultMaxLabelCardinality,
-			},
+			wantErr: "max_metric_cardinality = 0 is not supported to disable the guardrail",
 		},
 		{
 			name: "guardrails none with max_metric_cardinality returns error",
