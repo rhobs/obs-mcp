@@ -207,7 +207,7 @@ func (g *Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.AP
 				return false, fmt.Errorf(
 					"cannot enforce max-metric-cardinality guardrail: TSDB stats endpoint is unavailable on this backend "+
 						"(Thanos Querier < v0.40.0 does not implement /api/v1/status/tsdb); "+
-						"disable this guardrail with --guardrails require-label-matcher,disallow-blanket-regex: %w", err)
+						"disable this guardrail with --guardrails '!tsdb': %w", err)
 			}
 
 			seriesCountByMetric := make(map[string]uint64)
@@ -250,7 +250,7 @@ func (g *Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.AP
 				return false, fmt.Errorf(
 					"cannot enforce max-label-cardinality guardrail: TSDB stats endpoint is unavailable on this backend "+
 						"(Thanos Querier < v0.40.0 does not implement /api/v1/status/tsdb); "+
-						"disable this guardrail with --guardrails require-label-matcher,disallow-blanket-regex: %w", err)
+						"disable this guardrail with --guardrails '!tsdb': %w", err)
 			}
 
 			labelValueCountByLabel := make(map[string]uint64)

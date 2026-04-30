@@ -76,11 +76,8 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("invalid auth_mode: %q (valid options: %q, %q)", c.AuthMode, AuthModeHeader, AuthModeKubeConfig)
 	}
 
-	if c.Guardrails != "" {
-		_, err := prometheus.ParseGuardrails(c.Guardrails)
-		if err != nil {
-			return fmt.Errorf("invalid guardrails configuration: %w", err)
-		}
+	if _, err := c.GetGuardrails(); err != nil {
+		return err
 	}
 
 	return nil
