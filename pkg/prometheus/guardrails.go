@@ -59,7 +59,6 @@ type Guardrails struct {
 	MaxLabelCardinality uint64
 }
 
-// DefaultGuardrails returns a Guardrails instance with all safety checks enabled.
 // DefaultGuardrails returns a Guardrails instance with default numeric thresholds.
 // When enableAll is true, all boolean guardrails are also enabled (equivalent to "all").
 func DefaultGuardrails(enableAll bool) *Guardrails {
