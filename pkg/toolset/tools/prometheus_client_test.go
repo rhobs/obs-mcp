@@ -21,6 +21,7 @@ func (m *mockKubernetesClient) RESTConfig() *rest.Config {
 }
 
 type mockConfigProvider struct {
+	api.BaseConfig
 	config *toolsetconfig.Config
 }
 
@@ -43,10 +44,10 @@ func (m *mockToolCallRequest) GetArguments() map[string]any {
 
 func newTestParams(ctx context.Context, restConfig *rest.Config, cfg *toolsetconfig.Config) api.ToolHandlerParams {
 	return api.ToolHandlerParams{
-		Context:                ctx,
-		KubernetesClient:       &mockKubernetesClient{restConfig: restConfig},
-		ExtendedConfigProvider: &mockConfigProvider{config: cfg},
-		ToolCallRequest:        &mockToolCallRequest{},
+		Context:          ctx,
+		KubernetesClient: &mockKubernetesClient{restConfig: restConfig},
+		BaseConfig:       &mockConfigProvider{config: cfg},
+		ToolCallRequest:  &mockToolCallRequest{},
 	}
 }
 
