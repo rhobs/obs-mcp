@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.1.4] - 2026-05-06
+
+### Added
+
+- Unify guardrails configuration with `!prefix` exclusion and allow disabling all TSDB guardrails at once ([#86](https://github.com/rhobs/obs-mcp/pull/86))
+
+### Fixed
+
+- Validate `max-metric-cardinality = 0` in toolset config and improve `--help` messages for guardrails ([#86](https://github.com/rhobs/obs-mcp/pull/86))
+
+### Changed
+
+- Bump kubernetes-mcp-server dependency ([#94](https://github.com/rhobs/obs-mcp/pull/94))
+- Document eval sync process with openshift-mcp-server ([#87](https://github.com/rhobs/obs-mcp/pull/87))
+
 ## [v0.1.3] - 2026-04-28
 
 ### Fixed
