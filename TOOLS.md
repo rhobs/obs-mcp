@@ -250,3 +250,112 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 | :--------- | :--------- | :--------------------------------- |
 | `silences` | `object[]` | List of silences from Alertmanager |
 
+---
+
+## `list_perses_dashboards`
+
+> List all PersesDashboard resources from the cluster.
+
+**Usage Tips:**
+
+- Start here when the user asks about existing dashboards or wants to visualize metrics from a dashboard.
+- Returns dashboard summaries with name, namespace, labels, and descriptions.
+- Use the descriptions to identify dashboards relevant to the user's question.
+- In the case that there is insufficient information in the description, use get_perses_dashboard to fetch the full dashboard spec for more context. Doing so is an expensive operation, so only do this when necessary.
+- Follow up with get_dashboard_panels to see what panels are available in the relevant dashboard(s), then pass the panel's PromQL query to show_timeseries for visualization.
+
+|                |      |
+| :------------- | :--- |
+| **Parameters** | None |
+
+**Output Schema:**
+
+| Field        | Type       | Description                                                                |
+| :----------- | :--------- | :------------------------------------------------------------------------- |
+| `dashboards` | `object[]` | List of all PersesDashboard resources from the cluster with their metadata |
+
+---
+
+## `get_perses_dashboard`
+
+> Get a specific Dashboard by name and namespace. This tool is used to get the dashboard's panels and configuration.
+
+**Usage Tips:**
+
+- Use the list_perses_dashboards tool first to find available dashboards, then use this tool to get the full specification of a specific dashboard, if needed (to gather more context).
+- The intended use of this tool is only to gather more context on one or more dashboards when the description from list_perses_dashboards is insufficient.
+- Information about panels themselves should be gathered using get_dashboard_panels instead (e.g., looking at a "kind: Markdown" panel to gather more context).
+- Returns the dashboard's full specification including panels, layouts, variables, and datasources in JSON format.
+- For most use cases, you will want to follow up with get_dashboard_panels to extract panel metadata for selection.
+
+**Parameters:**
+
+| Parameter   | Type     | Required | Description                |
+| :---------- | :------- | :------: | :------------------------- |
+| `name`      | `string` | ✅        | Name of the Dashboard      |
+| `namespace` | `string` | ✅        | Namespace of the Dashboard |
+
+**Output Schema:**
+
+| Field       | Type     | Description                                                                            |
+| :---------- | :------- | :------------------------------------------------------------------------------------- |
+| `name`      | `string` | Name of the Dashboard                                                                  |
+| `namespace` | `string` | Namespace where the Dashboard is located                                               |
+| `spec`      | `object` | The full dashboard specification including panels, layouts, variables, and datasources |
+
+---
+
+## `get_dashboard_panels`
+
+> Get panel(s) information from a specific Dashboard.
+
+**Usage Tips:**
+
+- After finding a relevant dashboard (using list_perses_dashboards and conditionally, get_perses_dashboard), use this to see what panels it contains.
+- Returns panel metadata including: - Panel IDs (format: 'panelName' or 'panelName-N' for multi-query panels) - Titles and descriptions - PromQL queries (may contain variables like $namespace) - Chart types (TimeSeriesChart, PieChart, Table)
+- You can optionally provide specific panel IDs to fetch only those panels. This is useful when you remember panel IDs from earlier calls and want to re-fetch just their metadata without retrieving the entire dashboard's panels.
+- Use this information to identify which panels answer the user's question, then pass the panel's PromQL query to show_timeseries for visualization.
+
+**Parameters:**
+
+| Parameter   | Type     | Required | Description                                          |
+| :---------- | :------- | :------: | :--------------------------------------------------- |
+| `name`      | `string` | ✅        | Name of the Dashboard                                |
+| `namespace` | `string` | ✅        | Namespace of the Dashboard                           |
+| `panel_ids` | `string` |          | Optional comma-separated list of panel IDs to filter |
+
+**Output Schema:**
+
+| Field       | Type       | Description                                                                              |
+| :---------- | :--------- | :--------------------------------------------------------------------------------------- |
+| `duration`  | `string`   | Default time duration for queries extracted from dashboard spec (e.g. 1h, 24h)           |
+| `name`      | `string`   | Name of the dashboard                                                                    |
+| `namespace` | `string`   | Namespace of the dashboard                                                               |
+| `panels`    | `object[]` | List of panel metadata including IDs, titles, queries, and chart types for LLM selection |
+
+---
+
+## `format_panels_for_ui`
+
+> Format selected dashboard panels for UI rendering in DashboardWidget format.
+
+**Usage Tips:**
+
+- After choosing relevant panels, use this to prepare them for display.
+- Returns an array of DashboardWidget objects ready for direct rendering, with: - id: Unique panel identifier - componentType: Perses component name (PersesTimeSeries, PersesPieChart, PersesTable) - position: Grid layout coordinates (x, y, w, h) in 24-column grid - breakpoint: Responsive grid breakpoint (xl/lg/md/sm) inferred from panel width - props: Component properties (query, duration, step, start, end)
+- Panel IDs (fetched using get_dashboard_panels) must be provided to specify which panels to format.
+
+**Parameters:**
+
+| Parameter   | Type     | Required | Description                                 |
+| :---------- | :------- | :------: | :------------------------------------------ |
+| `name`      | `string` | ✅        | Name of the dashboard containing the panels |
+| `namespace` | `string` | ✅        | Namespace of the dashboard                  |
+| `panel_ids` | `string` | ✅        | Comma-separated list of panel IDs to format |
+
+**Output Schema:**
+
+| Field     | Type       | Description                                                                               |
+| :-------- | :--------- | :---------------------------------------------------------------------------------------- |
+| `widgets` | `object[]` | Dashboard widgets in DashboardWidget format ready for direct rendering by genie-plugin UI |
+

@@ -64,6 +64,12 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	mcp.AddTool(mcpServer, tools.GetSeries.ToMCPTool(), GetSeriesHandler(opts))
 	mcp.AddTool(mcpServer, tools.GetAlerts.ToMCPTool(), GetAlertsHandler(opts))
 	mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(), GetSilencesHandler(opts))
+
+	mcp.AddTool(mcpServer, tools.ListPersesDashboards.ToMCPTool(), ListDashboardsHandler(opts))
+	mcp.AddTool(mcpServer, tools.GetPersesDashboard.ToMCPTool(), GetDashboardHandler(opts))
+	mcp.AddTool(mcpServer, tools.GetDashboardPanels.ToMCPTool(), GetDashboardPanelsHandler(opts))
+	mcp.AddTool(mcpServer, tools.FormatPanelsForUI.ToMCPTool(), FormatPanelsForUIHandler(opts))
+
 	return nil
 }
 

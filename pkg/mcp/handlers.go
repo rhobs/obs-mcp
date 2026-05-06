@@ -166,3 +166,51 @@ func GetSilencesHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[tools.SilencesInp
 		return nil, output, nil
 	}
 }
+
+// ListDashboardsHandler handles returning all dashboards from the cluster.
+func ListDashboardsHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[struct{}, tools.ListDashboardsOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, tools.ListDashboardsOutput, error) {
+		result := tools.ListDashboardsHandler(ctx)
+		output, err := resultutil.Unwrap[tools.ListDashboardsOutput](result)
+		if err != nil {
+			return nil, tools.ListDashboardsOutput{}, err
+		}
+		return nil, output, nil
+	}
+}
+
+// GetDashboardHandler handles getting a specific dashboard by name and namespace.
+func GetDashboardHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[tools.GetDashboardInput, tools.GetDashboardOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input tools.GetDashboardInput) (*mcp.CallToolResult, tools.GetDashboardOutput, error) {
+		result := tools.GetDashboardHandler(ctx, input)
+		output, err := resultutil.Unwrap[tools.GetDashboardOutput](result)
+		if err != nil {
+			return nil, tools.GetDashboardOutput{}, err
+		}
+		return nil, output, nil
+	}
+}
+
+// GetDashboardPanelsHandler handles getting panel metadata from a dashboard for LLM selection.
+func GetDashboardPanelsHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[tools.GetDashboardPanelsInput, tools.GetDashboardPanelsOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input tools.GetDashboardPanelsInput) (*mcp.CallToolResult, tools.GetDashboardPanelsOutput, error) {
+		result := tools.GetDashboardPanelsHandler(ctx, input)
+		output, err := resultutil.Unwrap[tools.GetDashboardPanelsOutput](result)
+		if err != nil {
+			return nil, tools.GetDashboardPanelsOutput{}, err
+		}
+		return nil, output, nil
+	}
+}
+
+// FormatPanelsForUIHandler handles formatting selected panels for UI rendering.
+func FormatPanelsForUIHandler(_ ObsMCPOptions) mcp.ToolHandlerFor[tools.FormatPanelsForUIInput, tools.FormatPanelsForUIOutput] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, input tools.FormatPanelsForUIInput) (*mcp.CallToolResult, tools.FormatPanelsForUIOutput, error) {
+		result := tools.FormatPanelsForUIHandler(ctx, input)
+		output, err := resultutil.Unwrap[tools.FormatPanelsForUIOutput](result)
+		if err != nil {
+			return nil, tools.FormatPanelsForUIOutput{}, err
+		}
+		return nil, output, nil
+	}
+}

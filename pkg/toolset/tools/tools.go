@@ -68,3 +68,27 @@ func InitGetSilences() []api.ServerTool {
 		tools.GetSilences.ToServerTool(GetSilencesHandler),
 	}
 }
+
+func InitListPersesDashboards() []api.ServerTool {
+	return []api.ServerTool{
+		tools.ListPersesDashboards.ToServerTool(ListPersesDashboardsHandler),
+	}
+}
+
+func InitGetPersesDashboard() []api.ServerTool {
+	return []api.ServerTool{
+		tools.GetPersesDashboard.ToServerTool(GetPersesDashboardHandler),
+	}
+}
+
+func InitGetDashboardPanels() []api.ServerTool {
+	return []api.ServerTool{
+		tools.GetDashboardPanels.ToServerTool(GetDashboardPanelsHandler),
+	}
+}
+
+func InitFormatPanelsForUI() []api.ServerTool {
+	return []api.ServerTool{
+		tools.FormatPanelsForUI.ToServerTool(FormatPanelsForUIHandler),
+	}
+}

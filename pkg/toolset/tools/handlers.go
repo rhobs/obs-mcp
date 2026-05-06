@@ -98,3 +98,36 @@ func GetSilencesHandler(params api.ToolHandlerParams) (*api.ToolCallResult, erro
 
 	return tools.GetSilencesHandler(params.Context, amClient, tools.BuildSilencesInput(params.GetArguments())).ToToolsetResult()
 }
+
+func ListPersesDashboardsHandler(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	return tools.ListDashboardsHandler(params.Context).ToToolsetResult()
+}
+
+func GetPersesDashboardHandler(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	args := params.GetArguments()
+	input := tools.GetDashboardInput{
+		Name:      tools.GetString(args, "name", ""),
+		Namespace: tools.GetString(args, "namespace", ""),
+	}
+	return tools.GetDashboardHandler(params.Context, input).ToToolsetResult()
+}
+
+func GetDashboardPanelsHandler(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	args := params.GetArguments()
+	input := tools.GetDashboardPanelsInput{
+		Name:      tools.GetString(args, "name", ""),
+		Namespace: tools.GetString(args, "namespace", ""),
+		PanelIDs:  tools.GetString(args, "panel_ids", ""),
+	}
+	return tools.GetDashboardPanelsHandler(params.Context, input).ToToolsetResult()
+}
+
+func FormatPanelsForUIHandler(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	args := params.GetArguments()
+	input := tools.FormatPanelsForUIInput{
+		Name:      tools.GetString(args, "name", ""),
+		Namespace: tools.GetString(args, "namespace", ""),
+		PanelIDs:  tools.GetString(args, "panel_ids", ""),
+	}
+	return tools.FormatPanelsForUIHandler(params.Context, input).ToToolsetResult()
+}

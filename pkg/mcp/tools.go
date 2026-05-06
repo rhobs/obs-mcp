@@ -33,7 +33,6 @@ func CreateExecuteRangeQueryTool() mcp.Tool {
 }
 
 func CreateShowTimeseriesTool() mcp.Tool {
-	// For UI purposes only, no additional data to be sent to the LLM context.
 	return *tools.ShowTimeseries.ToMCPTool()
 }
 
@@ -55,4 +54,8 @@ func CreateGetAlertsTool() mcp.Tool {
 
 func CreateGetSilencesTool() mcp.Tool {
 	return *tools.GetSilences.ToMCPTool()
+}
+
+func CreateListDashboardsTool() *mcp.Tool {
+	return tools.ListPersesDashboards.ToMCPTool()
 }

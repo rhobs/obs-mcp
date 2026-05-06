@@ -50,6 +50,7 @@ func main() {
 		"Maximum allowed label value count for blanket regex (0 = always disallow blanket regex).\n"+
 			"Only takes effect if disallow-blanket-regex is enabled.")
 	var fullRangeQueryResponse = flag.Bool("full-range-query-response", false, "Return full data points for range queries")
+
 	flag.Parse()
 
 	if *showVersion {

@@ -280,6 +280,47 @@ var (
 			},
 		},
 	}
+	ListPersesDashboards = ToolDef[ListDashboardsOutput]{
+		Name:        "list_perses_dashboards",
+		Description: ListPersesDashboardsPrompt,
+		Title:       "List Perses Dashboards",
+		ReadOnly:    true,
+	}
+
+	GetPersesDashboard = ToolDef[GetDashboardOutput]{
+		Name:        "get_perses_dashboard",
+		Description: GetPersesDashboardPrompt,
+		Title:       "Get Perses Dashboard",
+		ReadOnly:    true,
+		Params: []ParamDef{
+			{Name: "name", Type: ParamTypeString, Description: "Name of the Dashboard", Required: true},
+			{Name: "namespace", Type: ParamTypeString, Description: "Namespace of the Dashboard", Required: true},
+		},
+	}
+
+	GetDashboardPanels = ToolDef[GetDashboardPanelsOutput]{
+		Name:        "get_dashboard_panels",
+		Description: GetDashboardPanelsPrompt,
+		Title:       "Get Dashboard Panels",
+		ReadOnly:    true,
+		Params: []ParamDef{
+			{Name: "name", Type: ParamTypeString, Description: "Name of the Dashboard", Required: true},
+			{Name: "namespace", Type: ParamTypeString, Description: "Namespace of the Dashboard", Required: true},
+			{Name: "panel_ids", Type: ParamTypeString, Description: "Optional comma-separated list of panel IDs to filter"},
+		},
+	}
+
+	FormatPanelsForUI = ToolDef[FormatPanelsForUIOutput]{
+		Name:        "format_panels_for_ui",
+		Description: FormatPanelsForUIPrompt,
+		Title:       "Format Panels for UI",
+		ReadOnly:    true,
+		Params: []ParamDef{
+			{Name: "name", Type: ParamTypeString, Description: "Name of the dashboard containing the panels", Required: true},
+			{Name: "namespace", Type: ParamTypeString, Description: "Namespace of the dashboard", Required: true},
+			{Name: "panel_ids", Type: ParamTypeString, Description: "Comma-separated list of panel IDs to format", Required: true},
+		},
+	}
 )
 
 // AllTools returns all tool definitions
@@ -294,5 +335,9 @@ func AllTools() []ToolDefInterface {
 		GetSeries,
 		GetAlerts,
 		GetSilences,
+		ListPersesDashboards,
+		GetPersesDashboard,
+		GetDashboardPanels,
+		FormatPanelsForUI,
 	}
 }
