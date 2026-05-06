@@ -13,6 +13,8 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/rhobs/obs-mcp/pkg/alertmanager"
+	"github.com/rhobs/obs-mcp/pkg/k8s"
+	"github.com/rhobs/obs-mcp/pkg/perses"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/resultutil"
 )
@@ -577,4 +579,179 @@ func GetSilencesHandler(ctx context.Context, amClient alertmanager.Loader, input
 	slog.Debug("GetSilencesHandler results", "results", output.Silences)
 
 	return resultutil.NewSuccessResult(output)
+}
+
+func ListDashboardsHandler(ctx context.Context) *resultutil.Result {
+	slog.Info("ListDashboardsHandler called")
+
+	dashboards, err := k8s.ListDashboards(ctx, "", "")
+	if err != nil {
+		return resultutil.NewErrorResult(fmt.Errorf("failed to list dashboards: %w", err))
+	}
+
+	infos := make([]DashboardInfo, 0, len(dashboards))
+	for _, d := range dashboards {
+		info := DashboardInfo{
+			Name:      d.Name,
+			Namespace: d.Namespace,
+			Labels:    d.Labels,
+		}
+		if d.Annotations != nil {
+			if desc, ok := d.Annotations[k8s.MCPHelpAnnotation]; ok {
+				info.Description = desc
+			}
+		}
+		infos = append(infos, info)
+	}
+
+	slog.Info("ListDashboardsHandler executed successfully", "dashboardCount", len(infos))
+
+	return resultutil.NewSuccessResult(ListDashboardsOutput{Dashboards: infos})
+}
+
+func GetDashboardHandler(ctx context.Context, input GetDashboardInput) *resultutil.Result {
+	slog.Info("GetDashboardHandler called")
+
+	spec, err := k8s.GetDashboard(ctx, input.Namespace, input.Name)
+	if err != nil {
+		return resultutil.NewErrorResult(fmt.Errorf("failed to get Dashboard: %w", err))
+	}
+
+	slog.Info("GetDashboardHandler executed successfully", "name", input.Name, "namespace", input.Namespace)
+
+	return resultutil.NewSuccessResult(GetDashboardOutput{
+		Name:      input.Name,
+		Namespace: input.Namespace,
+		Spec:      spec,
+	})
+}
+
+func GetDashboardPanelsHandler(ctx context.Context, input GetDashboardPanelsInput) *resultutil.Result {
+	slog.Info("GetDashboardPanelsHandler called")
+
+	panelIDs := splitByComma(input.PanelIDs)
+
+	spec, err := k8s.GetDashboard(ctx, input.Namespace, input.Name)
+	if err != nil {
+		return resultutil.NewErrorResult(fmt.Errorf("failed to get dashboard: %w", err))
+	}
+
+	panels := perses.ExtractPanels(input.Name, input.Namespace, spec, false, panelIDs)
+
+	duration := "1h"
+	if d, ok := spec["duration"].(string); ok {
+		duration = d
+	}
+
+	slog.Info("GetDashboardPanelsHandler executed successfully",
+		"name", input.Name, "namespace", input.Namespace,
+		"requested", len(panelIDs), "returned", len(panels))
+
+	return resultutil.NewSuccessResult(GetDashboardPanelsOutput{
+		Name:      input.Name,
+		Namespace: input.Namespace,
+		Duration:  duration,
+		Panels:    panels,
+	})
+}
+
+func FormatPanelsForUIHandler(ctx context.Context, input FormatPanelsForUIInput) *resultutil.Result {
+	slog.Info("FormatPanelsForUIHandler called")
+
+	panelIDs := splitByComma(input.PanelIDs)
+
+	spec, err := k8s.GetDashboard(ctx, input.Namespace, input.Name)
+	if err != nil {
+		return resultutil.NewErrorResult(fmt.Errorf("failed to get Dashboard: %w", err))
+	}
+
+	panels := perses.ExtractPanels(input.Name, input.Namespace, spec, true, panelIDs)
+	widgets := convertPanelsToDashboardWidgets(panels)
+
+	slog.Info("FormatPanelsForUIHandler executed successfully",
+		"dashboard", input.Name, "namespace", input.Namespace,
+		"requestedPanels", len(panelIDs), "formattedWidgets", len(widgets))
+
+	return resultutil.NewSuccessResult(FormatPanelsForUIOutput{Widgets: widgets})
+}
+
+func splitByComma(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var parts []string
+	for part := range strings.SplitSeq(s, ",") {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			parts = append(parts, trimmed)
+		}
+	}
+	return parts
+}
+
+func convertPanelsToDashboardWidgets(panels []*perses.DashboardPanel) []perses.DashboardWidget {
+	widgets := make([]perses.DashboardWidget, 0, len(panels))
+
+	for _, panel := range panels {
+		step := panel.Step
+		if step == "" {
+			step = "15s"
+		}
+		duration := panel.Duration
+		if duration == "" {
+			duration = "1h"
+		}
+
+		breakpoint := "lg"
+		if panel.Position != nil {
+			breakpoint = inferBreakpointFromWidth(panel.Position.W)
+		}
+
+		widget := perses.DashboardWidget{
+			ID:            panel.ID,
+			ComponentType: mapChartTypeToComponent(panel.ChartType),
+			Breakpoint:    breakpoint,
+			Props: perses.DashboardWidgetProps{
+				Query:    panel.Query,
+				Duration: duration,
+				Start:    panel.Start,
+				End:      panel.End,
+				Step:     step,
+			},
+		}
+
+		if panel.Position != nil {
+			widget.Position = *panel.Position
+		}
+
+		widgets = append(widgets, widget)
+	}
+
+	return widgets
+}
+
+func mapChartTypeToComponent(chartType string) string {
+	switch chartType {
+	case "TimeSeriesChart":
+		return "PersesTimeSeries"
+	case "PieChart", "StatChart":
+		return "PersesPieChart"
+	case "Table":
+		return "PersesTable"
+	default:
+		return "PersesTimeSeries"
+	}
+}
+
+func inferBreakpointFromWidth(width int) string {
+	switch {
+	case width >= 18:
+		return "xl"
+	case width >= 12:
+		return "lg"
+	case width >= 6:
+		return "md"
+	default:
+		return "sm"
+	}
 }
