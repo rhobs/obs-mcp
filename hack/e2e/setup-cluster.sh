@@ -67,18 +67,6 @@ kubectl -n monitoring rollout status statefulset/prometheus-k8s --timeout=5m
 echo "==> Waiting for Alertmanager to be ready..."
 kubectl -n monitoring rollout status statefulset/alertmanager-main --timeout=5m
 
-echo "==> Setting up MinIO, OTEL collector, Tempo and example traces"
-# simple retry loop to catch issues where the operator pod is deployed, but the webhook is not ready yet
-for i in $(seq 1 3); do
-    kubectl apply -f "${SCRIPT_DIR}/manifests/tracing" && break
-    echo "    Retrying in 10s... (attempt $i/3)"
-    sleep 10
-done
-kubectl -n obs-mcp-tracing wait --for=condition=Ready tempostack/tempo1 --timeout=5m
-kubectl -n obs-mcp-tracing wait --for=condition=Ready tempostack/tempo2 --timeout=5m
-kubectl -n obs-mcp-tracing rollout status statefulset/tempo-tempo1-ingester --timeout=5m
-kubectl -n obs-mcp-tracing rollout status statefulset/tempo-tempo2-ingester --timeout=5m
-
 echo "==> Cluster setup complete!"
 echo "    Run 'make test-e2e-deploy' to build and deploy obs-mcp"
 echo "    Run 'make test-e2e' to run E2E tests"

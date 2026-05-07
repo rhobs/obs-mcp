@@ -687,20 +687,26 @@ func TestTempoListInstances(t *testing.T) {
 	}
 
 	if resp.Error != nil {
-		t.Errorf("MCP error: %s", resp.Error.Message)
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Fatalf("tempo_list_instances returned an error result: %s", resultJSON)
 	}
 
 	structured := resp.Result["structuredContent"].(map[string]any)
 	instances := structured["instances"].([]any)
 	require.ElementsMatch(t, []any{
-		map[string]any{"kind": "TempoStack", "tempoNamespace": "obs-mcp-tracing", "tempoName": "tempo1", "multitenancy": false, "status": "Ready"},
-		map[string]any{"kind": "TempoStack", "tempoNamespace": "obs-mcp-tracing", "tempoName": "tempo2", "multitenancy": false, "status": "Ready"},
+		map[string]any{"kind": "TempoStack", "tempoNamespace": "tracing", "tempoName": "tempo1", "multitenancy": false, "status": "Ready"},
+		map[string]any{"kind": "TempoStack", "tempoNamespace": "tracing", "tempoName": "tempo2", "multitenancy": false, "status": "Ready"},
 	}, instances)
+
+	t.Log("tempo_list_instances returned successfully")
 }
 
 func TestTempoSearchTags(t *testing.T) {
 	resp, err := mcpClient.CallTool(t, 23, "tempo_search_tags", map[string]any{
-		"tempoNamespace": "obs-mcp-tracing",
+		"tempoNamespace": "tracing",
 		"tempoName":      "tempo1",
 	})
 	if err != nil {
@@ -709,6 +715,10 @@ func TestTempoSearchTags(t *testing.T) {
 
 	if resp.Error != nil {
 		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Fatalf("tempo_search_tags returned an error result: %s", resultJSON)
 	}
 
 	structured := resp.Result["structuredContent"].(map[string]any)
@@ -731,4 +741,6 @@ func TestTempoSearchTags(t *testing.T) {
 		}
 	}
 	require.True(t, found, "expected service.name tag in resource scope")
+
+	t.Log("tempo_search_tags returned successfully")
 }

@@ -27,6 +27,8 @@ spec:
             - :8085
             - --auth-mode
             - serviceaccount
+            - --toolsets
+            - metrics,traces
           env:
             - name: PROMETHEUS_URL
               value: "https://thanos-querier.openshift-monitoring.svc.cluster.local:9091/"
