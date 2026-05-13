@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
+	model "github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
 )
@@ -158,7 +159,7 @@ func (g *Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.AP
 		// Check for explicit __name__ label query
 		if g.DisallowExplicitNameLabel && vs.Name == "" {
 			for _, m := range vs.LabelMatchers {
-				if m.Name == labels.MetricName {
+				if m.Name == model.MetricNameLabel {
 					unsafeReason = &GuardrailViolation{
 						Guardrail: GuardrailDisallowExplicitNameLabel,
 						Message:   "query uses explicit __name__ label matcher, which is disallowed",
@@ -172,7 +173,7 @@ func (g *Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.AP
 		if g.RequireLabelMatcher {
 			hasNonNameMatcher := false
 			for _, m := range vs.LabelMatchers {
-				if m.Name != labels.MetricName {
+				if m.Name != model.MetricNameLabel {
 					hasNonNameMatcher = true
 					break
 				}
@@ -287,7 +288,7 @@ func ExtractMetricNames(query string) ([]string, error) {
 			}
 			// Also check for __name__ label matchers
 			for _, m := range vs.LabelMatchers {
-				if m.Name == labels.MetricName && m.Type == labels.MatchEqual {
+				if m.Name == model.MetricNameLabel && m.Type == labels.MatchEqual {
 					metricNames[m.Value] = true
 				}
 			}
