@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestHealthEndpoint(t *testing.T) {
@@ -676,4 +678,69 @@ func TestGetAlertsEmptyFilter(t *testing.T) {
 
 	// Should succeed but may return empty alerts array
 	t.Log("Query for non-existent alert handled correctly")
+}
+
+func TestTempoListInstances(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 22, "tempo_list_instances", map[string]any{})
+	if err != nil {
+		t.Fatalf("Failed to call tempo_list_instances: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Fatalf("tempo_list_instances returned an error result: %s", resultJSON)
+	}
+
+	structured := resp.Result["structuredContent"].(map[string]any)
+	instances := structured["instances"].([]any)
+	require.ElementsMatch(t, []any{
+		map[string]any{"kind": "TempoStack", "tempoNamespace": "tracing", "tempoName": "tempo1", "multitenancy": false, "status": "Ready"},
+		map[string]any{"kind": "TempoStack", "tempoNamespace": "tracing", "tempoName": "tempo2", "multitenancy": false, "status": "Ready"},
+	}, instances)
+
+	t.Log("tempo_list_instances returned successfully")
+}
+
+func TestTempoSearchTags(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 23, "tempo_search_tags", map[string]any{
+		"tempoNamespace": "tracing",
+		"tempoName":      "tempo1",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call tempo_search_tags: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Fatalf("tempo_search_tags returned an error result: %s", resultJSON)
+	}
+
+	structured := resp.Result["structuredContent"].(map[string]any)
+	scopes := structured["scopes"].([]any)
+	require.NotEmpty(t, scopes, "expected at least one scope in search tags response")
+
+	// Verify that service.name is present in the resource scope
+	var found bool
+	for _, s := range scopes {
+		scope := s.(map[string]any)
+		if scope["name"] == "resource" {
+			tags := scope["tags"].([]any)
+			for _, tag := range tags {
+				if tag == "service.name" {
+					found = true
+					break
+				}
+			}
+			break
+		}
+	}
+	require.True(t, found, "expected service.name tag in resource scope")
+
+	t.Log("tempo_search_tags returned successfully")
 }

@@ -32,6 +32,8 @@ spec:
             - --insecure
             - --log-level
             - debug
+            - --toolsets
+            - metrics,traces
           env:
             - name: PROMETHEUS_URL
               valueFrom:
