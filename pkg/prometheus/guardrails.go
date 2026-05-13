@@ -142,7 +142,7 @@ func (g *Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.AP
 		return false, fmt.Errorf("cannot verify cardinality without TSDB client")
 	}
 
-	expr, err := parser.ParseExpr(query)
+	expr, err := parser.NewParser(parser.Options{}).ParseExpr(query)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse query: %w", err)
 	}
@@ -274,7 +274,7 @@ func (g *Guardrails) IsSafeQuery(ctx context.Context, query string, client v1.AP
 }
 
 func ExtractMetricNames(query string) ([]string, error) {
-	expr, err := parser.ParseExpr(query)
+	expr, err := parser.NewParser(parser.Options{}).ParseExpr(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse query: %w", err)
 	}
@@ -304,7 +304,7 @@ func ExtractMetricNames(query string) ([]string, error) {
 
 // ExtractBlanketRegexLabels extracts label names that use blanket regex patterns (.* or .+).
 func ExtractBlanketRegexLabels(query string) ([]string, error) {
-	expr, err := parser.ParseExpr(query)
+	expr, err := parser.NewParser(parser.Options{}).ParseExpr(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse query: %w", err)
 	}
