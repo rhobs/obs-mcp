@@ -1,0 +1,216 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tracing
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/name: minio
+  name: minio
+  namespace: tracing
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: tracing
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: minio
+    spec:
+      containers:
+        - command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /storage/tempo1 && \
+              mkdir -p /storage/tempo2 && \
+              minio server /storage
+          env:
+            - name: MINIO_ACCESS_KEY
+              value: tempo
+            - name: MINIO_SECRET_KEY
+              value: supersecret
+          image: docker.io/minio/minio
+          name: minio
+          ports:
+            - containerPort: 9000
+          volumeMounts:
+            - mountPath: /storage
+              name: storage
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: minio
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: tracing
+spec:
+  ports:
+    - port: 9000
+      protocol: TCP
+      targetPort: 9000
+  selector:
+    app.kubernetes.io/name: minio
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-tempo1
+  namespace: tracing
+stringData:
+  endpoint: http://minio:9000
+  bucket: tempo1
+  access_key_id: tempo
+  access_key_secret: supersecret
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-tempo2
+  namespace: tracing
+stringData:
+  endpoint: http://minio:9000
+  bucket: tempo2
+  access_key_id: tempo
+  access_key_secret: supersecret
+type: Opaque
+---
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel
+  namespace: tracing
+spec:
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      jaeger:
+        protocols:
+          thrift_compact:
+            endpoint: 0.0.0.0:6831
+    processors:
+      k8sattributes: {}
+    exporters:
+      # Send via Tempo gateway (supported on OpenShift). Plain distributor OTLP is not.
+      otlp:
+        endpoint: tempo-tempo1-gateway.tracing.svc.cluster.local:8090
+        tls:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp, jaeger]
+          processors: [k8sattributes]
+          exporters: [otlp]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tracing-otel-collector
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces", "pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tracing-otel-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tracing-otel-collector
+subjects:
+  - kind: ServiceAccount
+    name: otel-collector
+    namespace: tracing
+---
+apiVersion: tempo.grafana.com/v1alpha1
+kind: TempoStack
+metadata:
+  name: tempo1
+  namespace: tracing
+spec:
+  storage:
+    secret:
+      name: minio-tempo1
+    type: s3
+  storageSize: 1Gi
+  observability:
+    tracing:
+      otlp_http_endpoint: http://otel-collector.tracing:4318
+      sampling_fraction: "1"
+  template:
+    gateway:
+      enabled: true
+    queryFrontend:
+      jaegerQuery:
+        enabled: true
+---
+apiVersion: tempo.grafana.com/v1alpha1
+kind: TempoStack
+metadata:
+  name: tempo2
+  namespace: tracing
+spec:
+  storage:
+    secret:
+      name: minio-tempo2
+    type: s3
+  storageSize: 1Gi
+  template:
+    gateway:
+      enabled: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: k6-tracing
+  name: k6-tracing
+  namespace: tracing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: k6-tracing
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k6-tracing
+    spec:
+      containers:
+        - name: k6-tracing
+          image: ghcr.io/grafana/xk6-client-tracing:v0.0.5
+          env:
+            - name: ENDPOINT
+              value: otel-collector.tracing:4317

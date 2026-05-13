@@ -242,9 +242,13 @@ test-e2e-full: test-e2e-setup test-e2e-deploy test-e2e test-e2e-teardown ## Run 
 # Step registry:  https://github.com/openshift/release/blob/main/ci-operator/step-registry/rhobs/obs-mcp-e2e-tests/rhobs-obs-mcp-e2e-tests-commands.sh
 .PHONY: test-e2e-openshift-deploy
 test-e2e-openshift-deploy: ## Deploy obs-mcp to OpenShift (uses IMAGE env var from CI)
+	chmod +x hack/e2e/wait-for-traces.sh
 	oc apply -f manifests/openshift_e2e/
 	oc set image deployment/obs-mcp -n obs-mcp obs-mcp=$(IMAGE)
 	oc -n obs-mcp rollout status deployment/obs-mcp --timeout=3m
+	oc -n tracing rollout status statefulset/tempo-tempo1-ingester --timeout=5m
+	oc -n tracing rollout status statefulset/tempo-tempo2-ingester --timeout=5m
+	./hack/e2e/wait-for-traces.sh tracing http://tempo-tempo1-query-frontend.tracing:3200
 
 .PHONY: test-e2e-openshift
 test-e2e-openshift: ## Run OpenShift route discovery E2E tests (requires oc login)
