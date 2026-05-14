@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.2.0] - 2026-05-14
+
+### Added
+
+- Traces toolset for [Grafana Tempo](https://grafana.com/docs/tempo/latest/): `tempo_list_instances`, `tempo_get_trace_by_id`, `tempo_search_traces`, `tempo_search_tags`, and `tempo_search_tag_values` ([#29](https://github.com/rhobs/obs-mcp/pull/29))
+
+### Changed
+
+- Bump `prometheus/prometheus` and adapt PromQL parsing and metric-name label checks for the updated parser API ([#98](https://github.com/rhobs/obs-mcp/pull/98))
+- Improve auto-generated `TOOLS.md`: GFM-safe tables, compact rows, types legend (`[!NOTE]`), and clearer intro for all backends
+
 ## [v0.1.4] - 2026-05-06
 
 ### Added
