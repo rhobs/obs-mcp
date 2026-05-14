@@ -110,7 +110,7 @@ Quick start:
 
 ```bash
 make run-mcpchecker-eval                          # run all tasks in parallel (1 run each)
-make run-mcpchecker-eval CATEGORY=queries          # run by category (metrics, labels, queries, alerts)
+make run-mcpchecker-eval CATEGORY=queries          # run by category (metrics, labels, queries, alerts, traces)
 make run-mcpchecker-eval TASK=cpu-usage             # single task, verbose
 make run-mcpchecker-eval RUNS=3                     # multiple runs for consistency testing
 ```

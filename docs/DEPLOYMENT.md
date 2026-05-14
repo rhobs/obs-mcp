@@ -4,7 +4,7 @@ This guide covers authentication modes and deploying obs-mcp on Kubernetes/OpenS
 
 ## Authentication Modes
 
-The `--auth-mode` flag controls how obs-mcp authenticates to Prometheus/Thanos:
+The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Prometheus/Thanos** and, when the **traces** toolset is enabled, for **Tempo** gateways:
 
 | Mode             | Token Source                                                                   | Use Case                                              |
 |------------------|--------------------------------------------------------------------------------|-------------------------------------------------------|
@@ -84,3 +84,12 @@ obs-mcp includes query guardrails that prevent expensive or unsafe PromQL querie
   ```
 
 - **Prometheus**: All guardrails work with any supported Prometheus version.
+
+## Traces (Tempo) toolset
+
+Optional MCP tools query [Grafana Tempo](https://grafana.com/docs/tempo/latest/) instances on the same Kubernetes or OpenShift cluster (see [TOOLS.md](../TOOLS.md) for tool names).
+
+- **Enable:** pass `--toolsets metrics,traces`. The default is `metrics` only, so Tempo tools are hidden until `traces` is included. Example `Deployment` manifests under `manifests/kubernetes/` and `manifests/openshift/` already enable both.
+- **Discovery:** the server lists `TempoStack` / `TempoMonolithic` resources (Grafana Tempo Operator). The workload `ServiceAccount` must be allowed to `get`, `list`, and `watch` those resources in API group `tempo.grafana.com` (see RBAC in the example manifests).
+- **Routes:** use `--tempo.use-route` when Tempo should be reached via an OpenShift `Route` instead of in-cluster service DNS.
+- **Local stack:** for an optional OpenShift tracing demo (Tempo, tenants, OTel), see [`hack/tempo_multitenancy_openshift/README.md`](../hack/tempo_multitenancy_openshift/README.md).
