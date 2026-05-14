@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `prometheus/prometheus` and adapt PromQL parsing and metric-name label checks for the updated parser API ([#98](https://github.com/rhobs/obs-mcp/pull/98))
 - Improve auto-generated `TOOLS.md`: GFM-safe tables, compact rows, types legend (`[!NOTE]`), and clearer intro for all backends
 
+### Fixed
+
+- Bump `github.com/go-openapi/runtime` to v0.30.0 (and related `go-openapi/*` modules via `go mod tidy`) so release builds no longer fail when resolving `github.com/go-openapi/testify/v2` test dependencies.
+
 ## [v0.1.4] - 2026-05-06
 
 ### Added
