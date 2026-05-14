@@ -3,7 +3,10 @@
 
 # Available Tools
 
-This MCP server exposes the following tools for interacting with Prometheus/Thanos:
+This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager, and Tempo:
+
+> [!NOTE]
+> **Types in the tables** follow JSON Schema: `object` is a JSON object (string keys with JSON values); `object[]` is an array of those objects. Scalar types use their usual names (`string`, `number`, `boolean`, and so on). When a field has no explicit schema type (for example a Go `any` payload), this document shows `object` as shorthand for "structured JSON," not a guarantee that only objects are returned at runtime.
 
 ## `list_metrics`
 
@@ -19,14 +22,14 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Parameters:**
 
-| Parameter    | Type     | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| :----------- | :------- | :------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name_regex` | `string` | ✅        | Regex pattern to filter metric names. IMPORTANT: Metric names are typically prefixed (e.g., 'prometheus_tsdb_head_series'). Use wildcards to match substrings: '.*tsdb.*' matches any metric containing 'tsdb', while 'tsdb' only matches the exact string 'tsdb'. Examples: 'http_.*' (starts with http_), '.*memory.*' (contains memory), 'node_.*' (starts with node_). This parameter is required. Don't pass in blanket regex like '.*' or '.+'. |
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `name_regex` | `string` | ✅ | Regex pattern to filter metric names. IMPORTANT: Metric names are typically prefixed (e.g., 'prometheus_tsdb_head_series'). Use wildcards to match substrings: '.*tsdb.*' matches any metric containing 'tsdb', while 'tsdb' only matches the exact string 'tsdb'. Examples: 'http_.*' (starts with http_), '.*memory.*' (contains memory), 'node_.*' (starts with node_). This parameter is required. Don't pass in blanket regex like '.*' or '.+'. |
 
 **Output Schema:**
 
-| Field     | Type       | Description                        |
-| :-------- | :--------- | :--------------------------------- |
+| Field | Type | Description |
+| :--- | :--- | :--- |
 | `metrics` | `string[]` | List of all available metric names |
 
 ---
@@ -43,18 +46,18 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Parameters:**
 
-| Parameter | Type     | Required | Description                                                                       |
-| :-------- | :------- | :------: | :-------------------------------------------------------------------------------- |
-| `query`   | `string` | ✅        | PromQL query string using metric names verified via list_metrics                  |
-| `time`    | `string` |          | Evaluation time as RFC3339 or Unix timestamp. Omit or use 'NOW' for current time. |
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `query` | `string` | ✅ | PromQL query string using metric names verified via list_metrics |
+| `time` | `string` |  | Evaluation time as RFC3339 or Unix timestamp. Omit or use 'NOW' for current time. |
 
 **Output Schema:**
 
-| Field        | Type       | Description                                               |
-| :----------- | :--------- | :-------------------------------------------------------- |
-| `result`     | `object[]` | The query results as an array of instant values           |
-| `resultType` | `string`   | The type of result returned (e.g. vector, scalar, string) |
-| `warnings`   | `string[]` | Any warnings generated during query execution             |
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `result` | `object[]` | The query results as an array of instant values |
+| `resultType` | `string` | The type of result returned (e.g. vector, scalar, string) |
+| `warnings` | `string[]` | Any warnings generated during query execution |
 
 ---
 
@@ -71,25 +74,25 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Parameters:**
 
-| Parameter  | Type     | Required | Description                                                                                                          |
-| :--------- | :------- | :------: | :------------------------------------------------------------------------------------------------------------------- |
-| `query`    | `string` | ✅        | PromQL query string using metric names verified via list_metrics                                                     |
-| `step`     | `string` | ✅        | Query resolution step width (e.g., '15s', '1m', '1h'). Choose based on time range: shorter ranges use smaller steps. |
-| `duration` | `string` |          | Duration to look back from now (e.g., '1h', '30m', '1d', '2w') (optional)                                            |
-| `end`      | `string` |          | End time as RFC3339 or Unix timestamp (optional). Use `NOW` for current time.                                        |
-| `start`    | `string` |          | Start time as RFC3339 or Unix timestamp (optional)                                                                   |
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `query` | `string` | ✅ | PromQL query string using metric names verified via list_metrics |
+| `step` | `string` | ✅ | Query resolution step width (e.g., '15s', '1m', '1h'). Choose based on time range: shorter ranges use smaller steps. |
+| `duration` | `string` |  | Duration to look back from now (e.g., '1h', '30m', '1d', '2w') (optional) |
+| `end` | `string` |  | End time as RFC3339 or Unix timestamp (optional). Use `NOW` for current time. |
+| `start` | `string` |  | Start time as RFC3339 or Unix timestamp (optional) |
 
 > [!NOTE]
 > Parameters with patterns must match: `^\d+[smhdwy]$`
 
 **Output Schema:**
 
-| Field        | Type       | Description                                                              |
-| :----------- | :--------- | :----------------------------------------------------------------------- |
-| `result`     | `object[]` | The query results as an array of time series                             |
-| `resultType` | `string`   | The type of result returned: matrix or vector or scalar                  |
-| `summary`    | `object[]` | Summary statistics for each time series (when summarize flag is enabled) |
-| `warnings`   | `string[]` | Any warnings generated during query execution                            |
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `result` | `object[]` | The query results as an array of time series |
+| `resultType` | `string` | The type of result returned: matrix or vector or scalar |
+| `summary` | `object[]` | Summary statistics for each time series (when summarize flag is enabled) |
+| `warnings` | `string[]` | Any warnings generated during query execution |
 
 ---
 
@@ -105,15 +108,15 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Parameters:**
 
-| Parameter     | Type     | Required | Description                                                                                                                                                        |
-| :------------ | :------- | :------: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `query`       | `string` | ✅        | PromQL query string using metric names verified via list_metrics                                                                                                   |
-| `step`        | `string` | ✅        | Query resolution step width (e.g., '15s', '1m', '1h'). Choose based on time range: shorter ranges use smaller steps.                                               |
-| `description` | `string` |          | Explanation of the chart's meaning or context (e.g., 'Shows the rate of HTTP 5xx errors per second, broken down by pod'). Displayed below the title when provided. |
-| `duration`    | `string` |          | Duration to look back from now (e.g., '1h', '30m', '1d', '2w') (optional)                                                                                          |
-| `end`         | `string` |          | End time as RFC3339 or Unix timestamp (optional). Use `NOW` for current time.                                                                                      |
-| `start`       | `string` |          | Start time as RFC3339 or Unix timestamp (optional)                                                                                                                 |
-| `title`       | `string` |          | Human-readable chart title describing what the query shows (e.g., 'API Error Rate Over Last Hour'). Displayed above the chart when provided.                       |
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `query` | `string` | ✅ | PromQL query string using metric names verified via list_metrics |
+| `step` | `string` | ✅ | Query resolution step width (e.g., '15s', '1m', '1h'). Choose based on time range: shorter ranges use smaller steps. |
+| `description` | `string` |  | Explanation of the chart's meaning or context (e.g., 'Shows the rate of HTTP 5xx errors per second, broken down by pod'). Displayed below the title when provided. |
+| `duration` | `string` |  | Duration to look back from now (e.g., '1h', '30m', '1d', '2w') (optional) |
+| `end` | `string` |  | End time as RFC3339 or Unix timestamp (optional). Use `NOW` for current time. |
+| `start` | `string` |  | Start time as RFC3339 or Unix timestamp (optional) |
+| `title` | `string` |  | Human-readable chart title describing what the query shows (e.g., 'API Error Rate Over Last Hour'). Displayed above the chart when provided. |
 
 > [!NOTE]
 > Parameters with patterns must match: `^\d+[smhdwy]$`
@@ -131,16 +134,16 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Parameters:**
 
-| Parameter | Type     | Required | Description                                                                                    |
-| :-------- | :------- | :------: | :--------------------------------------------------------------------------------------------- |
-| `end`     | `string` |          | End time for label discovery as RFC3339 or Unix timestamp (optional, defaults to now)          |
-| `metric`  | `string` |          | Metric name (from list_metrics) to get label names for. Leave empty for all metrics.           |
-| `start`   | `string` |          | Start time for label discovery as RFC3339 or Unix timestamp (optional, defaults to 1 hour ago) |
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `end` | `string` |  | End time for label discovery as RFC3339 or Unix timestamp (optional, defaults to now) |
+| `metric` | `string` |  | Metric name (from list_metrics) to get label names for. Leave empty for all metrics. |
+| `start` | `string` |  | Start time for label discovery as RFC3339 or Unix timestamp (optional, defaults to 1 hour ago) |
 
 **Output Schema:**
 
-| Field    | Type       | Description                                                           |
-| :------- | :--------- | :-------------------------------------------------------------------- |
+| Field | Type | Description |
+| :--- | :--- | :--- |
 | `labels` | `string[]` | List of label names available for the specified metric or all metrics |
 
 ---
@@ -156,17 +159,17 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Parameters:**
 
-| Parameter | Type     | Required | Description                                                                                          |
-| :-------- | :------- | :------: | :--------------------------------------------------------------------------------------------------- |
-| `label`   | `string` | ✅        | Label name (from get_label_names) to get values for                                                  |
-| `end`     | `string` |          | End time for label value discovery as RFC3339 or Unix timestamp (optional, defaults to now)          |
-| `metric`  | `string` |          | Metric name (from list_metrics) to scope the label values to. Leave empty for all metrics.           |
-| `start`   | `string` |          | Start time for label value discovery as RFC3339 or Unix timestamp (optional, defaults to 1 hour ago) |
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `label` | `string` | ✅ | Label name (from get_label_names) to get values for |
+| `end` | `string` |  | End time for label value discovery as RFC3339 or Unix timestamp (optional, defaults to now) |
+| `metric` | `string` |  | Metric name (from list_metrics) to scope the label values to. Leave empty for all metrics. |
+| `start` | `string` |  | Start time for label value discovery as RFC3339 or Unix timestamp (optional, defaults to 1 hour ago) |
 
 **Output Schema:**
 
-| Field    | Type       | Description                                   |
-| :------- | :--------- | :-------------------------------------------- |
+| Field | Type | Description |
+| :--- | :--- | :--- |
 | `values` | `string[]` | List of unique values for the specified label |
 
 ---
@@ -183,18 +186,18 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Parameters:**
 
-| Parameter | Type     | Required | Description                                                                                     |
-| :-------- | :------- | :------: | :---------------------------------------------------------------------------------------------- |
-| `matches` | `string` | ✅        | PromQL series selector using metric names from list_metrics                                     |
-| `end`     | `string` |          | End time for series discovery as RFC3339 or Unix timestamp (optional, defaults to now)          |
-| `start`   | `string` |          | Start time for series discovery as RFC3339 or Unix timestamp (optional, defaults to 1 hour ago) |
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `matches` | `string` | ✅ | PromQL series selector using metric names from list_metrics |
+| `end` | `string` |  | End time for series discovery as RFC3339 or Unix timestamp (optional, defaults to now) |
+| `start` | `string` |  | Start time for series discovery as RFC3339 or Unix timestamp (optional, defaults to 1 hour ago) |
 
 **Output Schema:**
 
-| Field         | Type       | Description                                                                              |
-| :------------ | :--------- | :--------------------------------------------------------------------------------------- |
-| `cardinality` | `integer`  | Total number of series matching the selector                                             |
-| `series`      | `object[]` | List of time series matching the selector, each series is a map of label names to values |
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `cardinality` | `integer` | Total number of series matching the selector |
+| `series` | `object[]` | List of time series matching the selector, each series is a map of label names to values |
 
 ---
 
@@ -211,19 +214,19 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Parameters:**
 
-| Parameter     | Type      | Required | Description                                                           |
-| :------------ | :-------- | :------: | :-------------------------------------------------------------------- |
-| `active`      | `boolean` |          | Filter for active alerts only (true/false, optional)                  |
-| `filter`      | `string`  |          | Label matchers to filter alerts (e.g., 'alertname=HighCPU', optional) |
-| `inhibited`   | `boolean` |          | Filter for inhibited alerts only (true/false, optional)               |
-| `receiver`    | `string`  |          | Receiver name to filter alerts (optional)                             |
-| `silenced`    | `boolean` |          | Filter for silenced alerts only (true/false, optional)                |
-| `unprocessed` | `boolean` |          | Filter for unprocessed alerts only (true/false, optional)             |
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `active` | `boolean` |  | Filter for active alerts only (true/false, optional) |
+| `filter` | `string` |  | Label matchers to filter alerts (e.g., 'alertname=HighCPU', optional) |
+| `inhibited` | `boolean` |  | Filter for inhibited alerts only (true/false, optional) |
+| `receiver` | `string` |  | Receiver name to filter alerts (optional) |
+| `silenced` | `boolean` |  | Filter for silenced alerts only (true/false, optional) |
+| `unprocessed` | `boolean` |  | Filter for unprocessed alerts only (true/false, optional) |
 
 **Output Schema:**
 
-| Field    | Type       | Description                      |
-| :------- | :--------- | :------------------------------- |
+| Field | Type | Description |
+| :--- | :--- | :--- |
 | `alerts` | `object[]` | List of alerts from Alertmanager |
 
 ---
@@ -240,14 +243,14 @@ This MCP server exposes the following tools for interacting with Prometheus/Than
 
 **Parameters:**
 
-| Parameter | Type     | Required | Description                                                             |
-| :-------- | :------- | :------: | :---------------------------------------------------------------------- |
-| `filter`  | `string` |          | Label matchers to filter silences (e.g., 'alertname=HighCPU', optional) |
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `filter` | `string` |  | Label matchers to filter silences (e.g., 'alertname=HighCPU', optional) |
 
 **Output Schema:**
 
-| Field      | Type       | Description                        |
-| :--------- | :--------- | :--------------------------------- |
+| Field | Type | Description |
+| :--- | :--- | :--- |
 | `silences` | `object[]` | List of silences from Alertmanager |
 
 ---
@@ -259,14 +262,14 @@ Call this tool first to discover available Tempo instances before using other Te
 as the returned namespace, name, and tenant values are required parameters for all other Tempo tools.
 Always print the output of this tool in a table.
 
-|                |      |
-| :------------- | :--- |
+|  |  |
+| :--- | :--- |
 | **Parameters** | None |
 
 **Output Schema:**
 
-| Field       | Type       | Description                       |
-| :---------- | :--------- | :-------------------------------- |
+| Field | Type | Description |
+| :--- | :--- | :--- |
 | `instances` | `object[]` | List of available Tempo instances |
 
 ---
@@ -279,22 +282,20 @@ Use this tool when you already have a specific trace ID, e.g. from search result
 
 **Parameters:**
 
-| Parameter        | Type     | Required | Description                                                                                                                                           |
-| :--------------- | :------- | :------: | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tempoName`      | `string` | ✅        | The name of the Tempo instance to query. Use tempo_list_instances to discover available instance names.                                               |
-| `tempoNamespace` | `string` | ✅        | The Kubernetes namespace where the Tempo instance is deployed. Use tempo_list_instances to discover available namespaces.                             |
-| `traceid`        | `string` | ✅        | The trace ID to retrieve, e.g. "26dad4a0e2b0dd9a440dd5ff203a24a4".                                                                                    |
-| `end`            | `string` |          | Optional end of the time range in RFC 3339 format, e.g. "2025-01-02T00:00:00Z".
-Narrows the time range to improve query performance.                  |
-| `start`          | `string` |          | Optional start of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".
-Narrows the time range to improve query performance.                |
-| `tenant`         | `string` |          | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance. |
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `tempoName` | `string` | ✅ | The name of the Tempo instance to query. Use tempo_list_instances to discover available instance names. |
+| `tempoNamespace` | `string` | ✅ | The Kubernetes namespace where the Tempo instance is deployed. Use tempo_list_instances to discover available namespaces. |
+| `traceid` | `string` | ✅ | The trace ID to retrieve, e.g. "26dad4a0e2b0dd9a440dd5ff203a24a4". |
+| `end` | `string` |  | Optional end of the time range in RFC 3339 format, e.g. "2025-01-02T00:00:00Z".<br>Narrows the time range to improve query performance. |
+| `start` | `string` |  | Optional start of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".<br>Narrows the time range to improve query performance. |
+| `tenant` | `string` |  | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance. |
 
 **Output Schema:**
 
-| Field   | Type | Description                                    |
-| :------ | :--- | :--------------------------------------------- |
-| `trace` | ``   | The trace data with services, scopes and spans |
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `trace` | `object` | The trace data with services, scopes and spans |
 
 ---
 
@@ -305,46 +306,16 @@ Use this tool to find traces matching specific criteria such as service name, HT
 
 **Parameters:**
 
-| Parameter        | Type     | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| :--------------- | :------- | :------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `query`          | `string` | ✅        | A TraceQL query expression. Format:
-query: "{ <filters joined by &&> }"
-
-Filters:
-- service name:     resource.service.name="<value>" (string, use quotes)
-- HTTP status code: span.http.response.status_code=<code> (number, no quotes)
-- duration:         duration><value like 100ms, 2s, 5m> (no quotes)
-- error status:     status=error (keyword, NO quotes — do NOT write status="error")
-
-IMPORTANT: status values (error, ok, unset) are keywords, NOT strings. Write status=error, NEVER status="error".
-
-Operators: =, !=, >, <, >=, <=
-
-Common attributes:
-- resource.service.name (service name)
-- span.http.response.status_code (HTTP response code)
-- span.http.request.method (HTTP method like GET, POST)
-- span.url.full (request URL)
-- duration (trace duration, e.g. 100ms, 2s)
-- status (trace status: ok, error, unset)
-
-IMPORTANT: Always wrap filters in curly braces { }.
-Do NOT use SQL, PromQL, or Lucene syntax.
-Do NOT omit the "resource." or "span." prefix from attribute names
-
-If unsure which attributes to filter on, start with {} to return all traces, then use tempo_search_tags to discover available attributes.
-   |
-| `tempoName`      | `string` | ✅        | The name of the Tempo instance to query. Use tempo_list_instances to discover available instance names.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `tempoNamespace` | `string` | ✅        | The Kubernetes namespace where the Tempo instance is deployed. Use tempo_list_instances to discover available namespaces.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `end`            | `string` |          | End of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".
-Use "NOW" for current time.
-Both start and end should be provided to search the full time range; if omitted, only a small window of recent data is searched.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `limit`          | `number` |          | Maximum number of traces to return. Defaults to the server-side limit if not specified.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `spss`           | `number` |          | Maximum number of matching spans to return per trace.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `start`          | `string` |          | Start of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".
-Use "NOW" for current time.
-Both start and end should be provided to search the full time range; if omitted, only a small window of recent data is searched.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `tenant`         | `string` |          | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `query` | `string` | ✅ | A TraceQL query expression. Format:<br>query: "{ <filters joined by &&> }"<br><br>Filters:<br>- service name:     resource.service.name="<value>" (string, use quotes)<br>- HTTP status code: span.http.response.status_code=<code> (number, no quotes)<br>- duration:         duration><value like 100ms, 2s, 5m> (no quotes)<br>- error status:     status=error (keyword, NO quotes — do NOT write status="error")<br><br>IMPORTANT: status values (error, ok, unset) are keywords, NOT strings. Write status=error, NEVER status="error".<br><br>Operators: =, !=, >, <, >=, <=<br><br>Common attributes:<br>- resource.service.name (service name)<br>- span.http.response.status_code (HTTP response code)<br>- span.http.request.method (HTTP method like GET, POST)<br>- span.url.full (request URL)<br>- duration (trace duration, e.g. 100ms, 2s)<br>- status (trace status: ok, error, unset)<br><br>IMPORTANT: Always wrap filters in curly braces { }.<br>Do NOT use SQL, PromQL, or Lucene syntax.<br>Do NOT omit the "resource." or "span." prefix from attribute names<br><br>If unsure which attributes to filter on, start with {} to return all traces, then use tempo_search_tags to discover available attributes. |
+| `tempoName` | `string` | ✅ | The name of the Tempo instance to query. Use tempo_list_instances to discover available instance names. |
+| `tempoNamespace` | `string` | ✅ | The Kubernetes namespace where the Tempo instance is deployed. Use tempo_list_instances to discover available namespaces. |
+| `end` | `string` |  | End of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".<br>Use "NOW" for current time.<br>Both start and end should be provided to search the full time range; if omitted, only a small window of recent data is searched. |
+| `limit` | `number` |  | Maximum number of traces to return. Defaults to the server-side limit if not specified. |
+| `spss` | `number` |  | Maximum number of matching spans to return per trace. |
+| `start` | `string` |  | Start of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".<br>Use "NOW" for current time.<br>Both start and end should be provided to search the full time range; if omitted, only a small window of recent data is searched. |
+| `tenant` | `string` |  | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance. |
 
 ---
 
@@ -357,22 +328,17 @@ To use these in TraceQL queries, prefix them with their scope, e.g. "resource.se
 
 **Parameters:**
 
-| Parameter        | Type     | Required | Description                                                                                                                                                                                                                                                                     |
-| :--------------- | :------- | :------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `tempoName`      | `string` | ✅        | The name of the Tempo instance to query. Use tempo_list_instances to discover available instance names.                                                                                                                                                                         |
-| `tempoNamespace` | `string` | ✅        | The Kubernetes namespace where the Tempo instance is deployed. Use tempo_list_instances to discover available namespaces.                                                                                                                                                       |
-| `end`            | `string` |          | Optional end of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing tags.                                                                                                                                       |
-| `limit`          | `number` |          | Maximum number of tag names to return per scope.                                                                                                                                                                                                                                |
-| `maxStaleValues` | `number` |          | Maximum number of consecutive blocks without new tag names before the search stops early. Higher values are more thorough but slower.                                                                                                                                           |
-| `query`          | `string` |          | Optional TraceQL query to filter which traces are considered when listing tags,
-e.g. '{ resource.service.name="payment-service" }' to only show tags present in traces from the 'payment-service' service.                                                                      |
-| `scope`          | `string` |          | Filter tags to a specific scope. One of:
-"resource" (service-level attributes like service.name),
-"span" (individual span attributes like http.response.status_code),
-"intrinsic" (built-in fields like duration, status, name).
-If omitted, tags from all scopes are returned. |
-| `start`          | `string` |          | Optional start of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing tags.                                                                                                                                     |
-| `tenant`         | `string` |          | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance.                                                                                                                           |
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `tempoName` | `string` | ✅ | The name of the Tempo instance to query. Use tempo_list_instances to discover available instance names. |
+| `tempoNamespace` | `string` | ✅ | The Kubernetes namespace where the Tempo instance is deployed. Use tempo_list_instances to discover available namespaces. |
+| `end` | `string` |  | Optional end of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing tags. |
+| `limit` | `number` |  | Maximum number of tag names to return per scope. |
+| `maxStaleValues` | `number` |  | Maximum number of consecutive blocks without new tag names before the search stops early. Higher values are more thorough but slower. |
+| `query` | `string` |  | Optional TraceQL query to filter which traces are considered when listing tags,<br>e.g. '{ resource.service.name="payment-service" }' to only show tags present in traces from the 'payment-service' service. |
+| `scope` | `string` |  | Filter tags to a specific scope. One of:<br>"resource" (service-level attributes like service.name),<br>"span" (individual span attributes like http.response.status_code),<br>"intrinsic" (built-in fields like duration, status, name).<br>If omitted, tags from all scopes are returned. |
+| `start` | `string` |  | Optional start of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing tags. |
+| `tenant` | `string` |  | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance. |
 
 ---
 
@@ -384,23 +350,21 @@ This is useful for building accurate TraceQL queries with tempo_search_traces.
 
 **Parameters:**
 
-| Parameter        | Type     | Required | Description                                                                                                                                                                                          |
-| :--------------- | :------- | :------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tag`            | `string` | ✅        | The fully qualified tag name to get values for, including its scope prefix, e.g. "resource.service.name" or "span.http.response.status_code".
-Use tempo_search_tags to discover available tag names. |
-| `tempoName`      | `string` | ✅        | The name of the Tempo instance to query. Use tempo_list_instances to discover available instance names.                                                                                              |
-| `tempoNamespace` | `string` | ✅        | The Kubernetes namespace where the Tempo instance is deployed. Use tempo_list_instances to discover available namespaces.                                                                            |
-| `end`            | `string` |          | Optional end of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing values.                                                          |
-| `limit`          | `number` |          | Maximum number of tag values to return.                                                                                                                                                              |
-| `maxStaleValues` | `number` |          | Maximum number of consecutive blocks without new values before the search stops early. Higher values are more thorough but slower.                                                                   |
-| `query`          | `string` |          | Optional TraceQL query to filter which traces are considered when listing values,
-e.g. '{ resource.service.name="payment-service" }' to only show tag values from the 'payment-service' service.     |
-| `start`          | `string` |          | Optional start of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing values.                                                        |
-| `tenant`         | `string` |          | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance.                                                |
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `tag` | `string` | ✅ | The fully qualified tag name to get values for, including its scope prefix, e.g. "resource.service.name" or "span.http.response.status_code".<br>Use tempo_search_tags to discover available tag names. |
+| `tempoName` | `string` | ✅ | The name of the Tempo instance to query. Use tempo_list_instances to discover available instance names. |
+| `tempoNamespace` | `string` | ✅ | The Kubernetes namespace where the Tempo instance is deployed. Use tempo_list_instances to discover available namespaces. |
+| `end` | `string` |  | Optional end of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing values. |
+| `limit` | `number` |  | Maximum number of tag values to return. |
+| `maxStaleValues` | `number` |  | Maximum number of consecutive blocks without new values before the search stops early. Higher values are more thorough but slower. |
+| `query` | `string` |  | Optional TraceQL query to filter which traces are considered when listing values,<br>e.g. '{ resource.service.name="payment-service" }' to only show tag values from the 'payment-service' service. |
+| `start` | `string` |  | Optional start of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing values. |
+| `tenant` | `string` |  | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance. |
 
 **Output Schema:**
 
-| Field       | Type | Description                                       |
-| :---------- | :--- | :------------------------------------------------ |
-| `tagValues` | ``   | Known values for the specified tag, keyed by type |
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `tagValues` | `object` | Known values for the specified tag, keyed by type |
 

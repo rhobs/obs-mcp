@@ -24,7 +24,7 @@ func main() {
 	for i := range tools {
 		fmt.Printf("    - %s\n", tools[i].Name)
 	}
-	fmt.Println("\n💡 Reminder: When adding a new tool, register it in pkg/mcp/tools.go AllTools()")
+	fmt.Println("\n💡 Reminder: When adding a new tool, register it in pkg/tools/definitions.go (or add it to AllTools() in pkg/traces for Tempo); pkg/mcp/tools.go AllTools() merges them.")
 }
 
 type fieldInfo struct {
@@ -97,6 +97,9 @@ func (p *Property) getDisplayType() string {
 		// For object arrays, just return "object[]"
 		return "object[]"
 	}
+	if baseType == "" {
+		return "object"
+	}
 	return baseType
 }
 
@@ -155,59 +158,72 @@ func extractOutputSchema(tool *mcplib.Tool) []fieldInfo {
 	return extractFieldsFromSchema(schema, false) // sort by name only
 }
 
-// formatTable generates a formatted markdown table with aligned columns
+// sanitizeTableCell makes cell content safe for a single-line GFM table row:
+// newlines would otherwise break the table; pipe characters would split columns.
+func sanitizeTableCell(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\r", "\n")
+	s = strings.ReplaceAll(s, "\n", "<br>")
+	s = strings.ReplaceAll(s, "|", "&#124;")
+	return s
+}
+
+// formatTable writes a compact GFM markdown table (no fixed-width padding).
+// Padding every cell to the widest description made each row as long as the
+// longest row in the file and hurt readability and diffs.
 func formatTable(headers, alignments []string, rows [][]string) string {
 	if len(headers) == 0 || len(rows) == 0 {
 		return ""
 	}
 
-	// Calculate max width for each column
-	widths := make([]int, len(headers))
-	for i, h := range headers {
-		widths[i] = len(h)
+	sanitizedHeaders := make([]string, len(headers))
+	for i := range headers {
+		sanitizedHeaders[i] = sanitizeTableCell(headers[i])
 	}
-	for _, row := range rows {
-		for i, cell := range row {
-			if i < len(widths) && len(cell) > widths[i] {
-				widths[i] = len(cell)
+	sanitizedRows := make([][]string, len(rows))
+	for ri, row := range rows {
+		sanitizedRows[ri] = make([]string, len(headers))
+		for ci := range headers {
+			cell := ""
+			if ci < len(row) {
+				cell = row[ci]
 			}
+			sanitizedRows[ri][ci] = sanitizeTableCell(cell)
 		}
 	}
 
 	var sb strings.Builder
 
-	// Header row
 	sb.WriteString("|")
-	for i, h := range headers {
-		sb.WriteString(fmt.Sprintf(" %-*s |", widths[i], h))
+	for _, h := range sanitizedHeaders {
+		sb.WriteString(" ")
+		sb.WriteString(h)
+		sb.WriteString(" |")
 	}
-	sb.WriteString("\n")
-
-	// Separator row with alignment
-	sb.WriteString("|")
-	for i, w := range widths {
-		align := "l" // default left
+	sb.WriteString("\n|")
+	for i := range sanitizedHeaders {
+		align := "l"
 		if i < len(alignments) {
 			align = alignments[i]
 		}
 		switch align {
-		case "c": // center
-			sb.WriteString(fmt.Sprintf(" :%s: |", strings.Repeat("-", w-2)))
-		case "r": // right
-			sb.WriteString(fmt.Sprintf(" %s: |", strings.Repeat("-", w-1)))
-		default: // left
-			sb.WriteString(fmt.Sprintf(" :%s |", strings.Repeat("-", w-1)))
+		case "c":
+			sb.WriteString(" :---: |")
+		case "r":
+			sb.WriteString(" ---: |")
+		default:
+			sb.WriteString(" :--- |")
 		}
 	}
 	sb.WriteString("\n")
 
-	// Data rows
-	for _, row := range rows {
+	for _, row := range sanitizedRows {
 		sb.WriteString("|")
-		for i, cell := range row {
-			if i < len(widths) {
-				sb.WriteString(fmt.Sprintf(" %-*s |", widths[i], cell))
-			}
+		for _, cell := range row {
+			sb.WriteString(" ")
+			sb.WriteString(cell)
+			sb.WriteString(" |")
 		}
 		sb.WriteString("\n")
 	}
@@ -222,7 +238,9 @@ func generateMarkdown(tools []mcplib.Tool, filename string) error {
 	sb.WriteString("<!-- Run 'make generate-tools-doc' to regenerate. -->\n\n")
 
 	sb.WriteString("# Available Tools\n\n")
-	sb.WriteString("This MCP server exposes the following tools for interacting with Prometheus/Thanos:\n\n")
+	sb.WriteString("This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager, and Tempo:\n\n")
+	sb.WriteString("> [!NOTE]\n")
+	sb.WriteString("> **Types in the tables** follow JSON Schema: `object` is a JSON object (string keys with JSON values); `object[]` is an array of those objects. Scalar types use their usual names (`string`, `number`, `boolean`, and so on). When a field has no explicit schema type (for example a Go `any` payload), this document shows `object` as shorthand for \"structured JSON,\" not a guarantee that only objects are returned at runtime.\n\n")
 
 	for i := range tools {
 		tool := &tools[i]
