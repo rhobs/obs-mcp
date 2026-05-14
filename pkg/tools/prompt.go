@@ -18,11 +18,13 @@ If the user mentions a specific alert by name, use get_alerts with a filter to r
 - Always pass in a name_regex param to it with a best guess of what the metric would be named like.
 - Search the returned list to find the exact metric name that exists
 
-**STEP 2: Call get_label_names for the metric you found**
+**STEP 2 (optional): Call get_label_names for the metric you found**
 - Discover available labels for filtering (namespace, pod, service, etc.)
+- Skip if you can write an aggregated query directly (e.g., sum by, topk)
 
-**STEP 3: Call get_label_values if you need specific filter values**
+**STEP 3 (optional): Call get_label_values if you need specific filter values**
 - Find exact label values (e.g., actual namespace names, pod names)
+- Skip if using aggregation functions that group across all values
 
 **STEP 4: Execute your query using the EXACT metric name from Step 1**
 - Use execute_instant_query for current state questions
@@ -39,7 +41,18 @@ If the user mentions a specific alert by name, use get_alerts with a filter to r
 ## Query Type Selection
 
 - **execute_instant_query**: Current values, point-in-time snapshots, "right now" questions
-- **execute_range_query**: Trends over time, rate calculations, historical analysis`
+- **execute_range_query**: Trends over time, rate calculations, historical analysis
+
+## QUERY EFFICIENCY
+
+Write PromQL that answers the question in as few queries as possible. Do NOT query one entity at a time (e.g., one query per pod, per namespace, or per node). Instead, use PromQL aggregation to get all results in a single query.
+
+- Use topk/bottomk to find top or bottom N entities
+- Use sum by, avg by to group results by label
+- Use rate/increase for per-second or total-change calculations
+- Combine them: topk(5, sum by (pod) (rate(metric[5m])))
+
+AIM for 1-3 queries per question. If you are making more than 5 query tool calls for a single question, you are likely querying individual entities instead of using aggregation.`
 
 	ListMetricsPrompt = `MANDATORY FIRST STEP: List all available metric names in Prometheus.
 
@@ -75,7 +88,8 @@ WHEN TO USE:
 - Point-in-time snapshots: "How many pods are running?"
 - Latest values: "Which pods are in Pending state?"
 
-The 'query' parameter MUST use metric names that were returned by list_metrics.`
+The 'query' parameter MUST use metric names that were returned by list_metrics.
+Use aggregation functions (topk, sum by, avg by) to answer in a single query instead of querying individual entities.`
 
 	ExecuteRangeQueryPrompt = `Execute a PromQL range query to get time-series data over a period.
 
@@ -90,7 +104,8 @@ TIME PARAMETERS:
 - 'duration': Look back from now (e.g., "5m", "1h", "24h")
 - 'step': Data point resolution (e.g., "1m" for 1-hour duration, "5m" for 24-hour duration)
 
-The 'query' parameter MUST use metric names that were returned by list_metrics.`
+The 'query' parameter MUST use metric names that were returned by list_metrics.
+Use aggregation functions (topk, sum by, rate, increase) to answer in a single query instead of querying individual entities.`
 
 	ShowTimeseriesPrompt = `Display the results as an interactive timeseries chart.
 
