@@ -1,0 +1,22 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "list-dashboards"
+  difficulty: easy
+  parallel: true
+  runs: 1
+  labels:
+    category: dashboards
+    suite: observability
+    toolType: perses
+  description: |
+    Tests if the agent can discover and use the list_perses_dashboards tool to
+    retrieve available dashboards from the cluster.
+spec:
+  verify:
+    - llmJudge:
+        contains: "sample-dashboard"
+        reason: "Verify the agent listed dashboards and found the sample-dashboard"
+  prompt:
+    inline: |
+      What dashboards are available in the cluster? List them with their namespaces.
