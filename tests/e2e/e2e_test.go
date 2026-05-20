@@ -744,3 +744,182 @@ func TestTempoSearchTags(t *testing.T) {
 
 	t.Log("tempo_search_tags returned successfully")
 }
+
+func TestTempoSearchTraces(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 40, "tempo_search_traces", map[string]any{
+		"tempoNamespace": "tracing",
+		"tempoName":      "tempo1",
+		"query":          "{}",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call tempo_search_traces: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Fatalf("tempo_search_traces returned an error result: %s", resultJSON)
+	}
+
+	structured, ok := resp.Result["structuredContent"].(map[string]any)
+	require.True(t, ok, "expected structuredContent in result")
+	traces, ok := structured["traces"].([]any)
+	require.True(t, ok, "expected traces field in structured content")
+	require.NotEmpty(t, traces, "expected at least one trace; was trace data ingested before this test ran?")
+
+	t.Logf("tempo_search_traces returned %d traces", len(traces))
+}
+
+func TestTempoSearchTraces_EmptyQuery(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 41, "tempo_search_traces", map[string]any{
+		"tempoNamespace": "tracing",
+		"tempoName":      "tempo1",
+		"query":          "",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call tempo_search_traces: %v", err)
+	}
+	if resp.Error != nil {
+		t.Logf("Correctly returned MCP error for empty query: %s", resp.Error.Message)
+		return
+	}
+	// Empty query must be rejected with isError:true.
+	if resp.Result != nil {
+		if isError, ok := resp.Result["isError"].(bool); ok && isError {
+			t.Log("Correctly returned error for empty query")
+			return
+		}
+	}
+	t.Error("Expected isError:true for empty query parameter")
+}
+
+func TestTempoGetTraceByID(t *testing.T) {
+	// First retrieve a real trace ID from the search tool.
+	searchResp, err := mcpClient.CallTool(t, 42, "tempo_search_traces", map[string]any{
+		"tempoNamespace": "tracing",
+		"tempoName":      "tempo1",
+		"query":          "{}",
+		"limit":          1,
+	})
+	if err != nil {
+		t.Fatalf("Failed to call tempo_search_traces: %v", err)
+	}
+	if searchResp.Error != nil {
+		t.Fatalf("MCP error during trace search: %s", searchResp.Error.Message)
+	}
+
+	structured, ok := searchResp.Result["structuredContent"].(map[string]any)
+	if !ok {
+		t.Skip("No structuredContent in search response; skipping tempo_get_trace_by_id test")
+	}
+	traces, ok := structured["traces"].([]any)
+	if !ok || len(traces) == 0 {
+		t.Skip("No traces available; skipping tempo_get_trace_by_id test")
+	}
+
+	firstTrace := traces[0].(map[string]any)
+	traceID, ok := firstTrace["traceID"].(string)
+	require.True(t, ok, "expected traceID field in first trace")
+	require.NotEmpty(t, traceID, "expected non-empty traceID")
+
+	t.Logf("Fetching trace %s", traceID)
+
+	// Now fetch that trace by ID.
+	resp, err := mcpClient.CallTool(t, 43, "tempo_get_trace_by_id", map[string]any{
+		"tempoNamespace": "tracing",
+		"tempoName":      "tempo1",
+		"traceid":        traceID,
+	})
+	if err != nil {
+		t.Fatalf("Failed to call tempo_get_trace_by_id: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Fatalf("tempo_get_trace_by_id returned an error result: %s", resultJSON)
+	}
+
+	traceStructured, ok := resp.Result["structuredContent"].(map[string]any)
+	require.True(t, ok, "expected structuredContent in result")
+	require.NotNil(t, traceStructured["trace"], "expected trace field in response")
+
+	t.Logf("tempo_get_trace_by_id returned trace %s successfully", traceID)
+}
+
+func TestTempoGetTraceByID_InvalidID(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 44, "tempo_get_trace_by_id", map[string]any{
+		"tempoNamespace": "tracing",
+		"tempoName":      "tempo1",
+		"traceid":        "00000000000000000000000000000000",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call tempo_get_trace_by_id: %v", err)
+	}
+	// A non-existent trace ID must result in isError:true (404 from Tempo backend).
+	if resp.Result != nil {
+		if isError, ok := resp.Result["isError"].(bool); ok && isError {
+			t.Log("Correctly returned error for non-existent trace ID")
+			return
+		}
+	}
+	if resp.Error != nil {
+		t.Logf("Correctly returned MCP error for non-existent trace ID: %s", resp.Error.Message)
+		return
+	}
+	t.Error("Expected error for non-existent trace ID")
+}
+
+func TestTempoSearchTagValues(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 45, "tempo_search_tag_values", map[string]any{
+		"tempoNamespace": "tracing",
+		"tempoName":      "tempo1",
+		"tag":            "resource.service.name",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call tempo_search_tag_values: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Fatalf("tempo_search_tag_values returned an error result: %s", resultJSON)
+	}
+
+	structured, ok := resp.Result["structuredContent"].(map[string]any)
+	require.True(t, ok, "expected structuredContent in result")
+	tagValues, ok := structured["tagValues"].(map[string]any)
+	require.True(t, ok, "expected tagValues field in structured content")
+
+	// Should contain at least one string value for service.name.
+	stringValues, ok := tagValues["string"].([]any)
+	require.True(t, ok, "expected string key in tagValues")
+	require.NotEmpty(t, stringValues, "expected at least one service name value")
+
+	t.Logf("tempo_search_tag_values returned %d service name values", len(stringValues))
+}
+
+func TestTempoSearchTagValues_MissingTag(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 46, "tempo_search_tag_values", map[string]any{
+		"tempoNamespace": "tracing",
+		"tempoName":      "tempo1",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call tempo_search_tag_values: %v", err)
+	}
+	if resp.Error != nil {
+		t.Logf("Correctly returned MCP error for missing tag: %s", resp.Error.Message)
+		return
+	}
+	// Missing required 'tag' param must return isError:true.
+	if resp.Result != nil {
+		if isError, ok := resp.Result["isError"].(bool); ok && isError {
+			t.Log("Correctly returned error for missing tag parameter")
+			return
+		}
+	}
+	t.Error("Expected isError:true for missing tag parameter")
+}
