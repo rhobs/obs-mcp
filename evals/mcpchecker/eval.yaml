@@ -471,3 +471,71 @@ config:
             tool: otelcol_validate_config
         minToolCalls: 1
         maxToolCalls: 3
+
+    # Logs (Loki) — requires --toolsets logs on obs-mcp; see evals/mcpchecker/README.md
+    - path: tasks/logs/loki-backend-reachability.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: loki_list_instances
+        minToolCalls: 1
+        maxToolCalls: 3
+
+    - path: tasks/logs/loki-list-instances.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: loki_list_instances
+        minToolCalls: 1
+        maxToolCalls: 3
+
+    - path: tasks/logs/loki-label-names.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: loki_list_instances
+          - server: obs
+            tool: loki_label_names
+        callOrder:
+          - type: tool
+            server: obs
+            name: loki_list_instances
+          - type: tool
+            server: obs
+            name: loki_label_names
+        minToolCalls: 2
+        maxToolCalls: 6
+
+    - path: tasks/logs/loki-label-values.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: loki_list_instances
+          - server: obs
+            tool: loki_label_values
+        callOrder:
+          - type: tool
+            server: obs
+            name: loki_list_instances
+          - type: tool
+            server: obs
+            name: loki_label_values
+        minToolCalls: 2
+        maxToolCalls: 6
+
+    - path: tasks/logs/loki-query-network-flows.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: loki_list_instances
+          - server: obs
+            tool: loki_query_range
+        callOrder:
+          - type: tool
+            server: obs
+            name: loki_list_instances
+          - type: tool
+            server: obs
+            name: loki_query_range
+        minToolCalls: 2
+        maxToolCalls: 8

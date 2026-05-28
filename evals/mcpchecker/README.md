@@ -35,14 +35,14 @@ For Anthropic, Gemini, or custom endpoints, see [Using a Different Agent](#using
 
 ```bash
 make run                              # default: metrics toolset
-make run TOOLSETS=metrics,traces,otelcol     # enable traces and otelcol tasks
+make run TOOLSETS=metrics,logs,traces,otelcol     # enable all optional toolsets
 ```
 
 On OpenShift <= 4.21 (Thanos Querier backend), disable guardrails since Thanos does not support the TSDB stats endpoint required by cardinality guardrails. Note that the `high-cardinality-rejection` task will not pass without guardrails:
 
 ```bash
 make run-no-guardrails                                  # default: metrics toolset
-make run-no-guardrails TOOLSETS=metrics,traces,otelcol  # enable traces and otelcol tasks
+make run-no-guardrails TOOLSETS=metrics,logs,traces,otelcol  # enable all optional toolsets
 ```
 
 This uses the default `kubeconfig` auth mode with route auto-discovery. See [Backend Setup](#backend-setup) for other options (Kind cluster, OpenShift). Update `mcp-config.yaml` if obs-mcp is not at `http://localhost:9100/mcp`.
@@ -66,8 +66,7 @@ make run-mcpchecker-eval TASK=backend-reachability
 From the repo root using Makefile targets:
 
 ```bash
-make run-mcpchecker-eval                           # all tasks in parallel (1 run each)
-make run-mcpchecker-eval CATEGORY=metrics          # run by category (metrics, labels, queries, alerts, traces, otelcol)
+make run-mcpchecker-eval CATEGORY=metrics          # run by category (metrics, labels, queries, alerts, traces, logs, otelcol)
 make run-mcpchecker-eval TASK=cpu-usage            # single task, verbose
 make run-mcpchecker-eval RUNS=3                    # all tasks, 3 runs each for consistency testing
 make run-mcpchecker-eval CATEGORY=alerts RUNS=3    # category with multiple runs
@@ -222,9 +221,10 @@ Tasks are organized by category under `tasks/`:
 | `tasks/queries/`   | PromQL queries and multi-step diagnostics             |
 | `tasks/alerts/`    | Alertmanager alerts, investigation, silences          |
 | `tasks/traces/`    | Tempo trace search and latency investigation          |
+| `tasks/logs/`      | LokiStack discovery, labels, and LogQL queries        |
 | `tasks/otelcol/`   | OpenTelemetry Collector components, schemas, configs  |
 
-Each task YAML defines the prompt, expected tools, call bounds, and LLM judge criteria. All tasks include `labels` for filtering with `--label-selector` (e.g. `category=metrics`, `category=alerts`).
+Each task YAML defines the prompt, expected tools, call bounds, and LLM judge criteria. All tasks include `labels` for filtering with `--label-selector` (e.g. `category=metrics`, `category=alerts`, `category=logs`).
 
 ## Adding New Tasks
 
