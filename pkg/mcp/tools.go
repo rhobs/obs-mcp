@@ -3,6 +3,7 @@ package mcp
 import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 	"github.com/rhobs/obs-mcp/pkg/traces"
 )
@@ -11,6 +12,7 @@ import (
 // When adding a new tool, add it to pkg/tools/definitions.go to keep both MCP and Toolset in sync, as well as docs.
 func AllTools() []mcp.Tool {
 	toolDefs := append(tools.AllTools(), traces.AllTools()...)
+	toolDefs = append(toolDefs, otelcol.AllTools()...)
 	mcpTools := make([]mcp.Tool, len(toolDefs))
 
 	for i, toolDef := range toolDefs {

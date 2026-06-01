@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/rhobs/obs-mcp/pkg/k8s"
+	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 	"github.com/rhobs/obs-mcp/pkg/traces"
@@ -27,9 +28,10 @@ type Toolset string
 const (
 	ToolsetMetrics Toolset = "metrics"
 	ToolsetTraces  Toolset = "traces"
+	ToolsetOtelcol Toolset = "otelcol"
 )
 
-var AllToolsets = []string{string(ToolsetMetrics), string(ToolsetTraces)}
+var AllToolsets = []string{string(ToolsetMetrics), string(ToolsetTraces), string(ToolsetOtelcol)}
 
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
@@ -41,6 +43,7 @@ type ObsMCPOptions struct {
 	Guardrails             *prometheus.Guardrails
 	FullRangeQueryResponse bool
 	Tempo                  *traces.Config
+	Otelcol                *otelcol.Config
 }
 
 const (
@@ -63,6 +66,9 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 	}
 	if slices.Contains(opts.Toolsets, ToolsetTraces) {
 		instructions = append(instructions, traces.ServerPrompt)
+	}
+	if slices.Contains(opts.Toolsets, ToolsetOtelcol) {
+		instructions = append(instructions, otelcol.ServerPrompt)
 	}
 
 	serverOpts := &mcp.ServerOptions{
@@ -114,6 +120,17 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		mcp.AddTool(mcpServer, traces.SearchTagsTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Tempo, tempoToolset.SearchTagsHandler))
 		mcp.AddTool(mcpServer, traces.SearchTagValuesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Tempo, tempoToolset.SearchTagValuesHandler))
 	}
+
+	if slices.Contains(opts.Toolsets, ToolsetOtelcol) {
+		if opts.Otelcol == nil {
+			return errors.New("configuration for otelcol toolset is missing")
+		}
+		mcp.AddTool(mcpServer, otelcol.ListComponents.ToMCPTool(), otelcol.ToMCPHandler[otelcol.ListComponentsInput, otelcol.ListComponentsOutput](opts.Otelcol, otelcol.BuildListComponentsInput, otelcol.ListComponentsHandler))
+		mcp.AddTool(mcpServer, otelcol.GetComponentSchema.ToMCPTool(), otelcol.ToMCPHandler[otelcol.GetComponentSchemaInput, otelcol.GetComponentSchemaOutput](opts.Otelcol, otelcol.BuildGetComponentSchemaInput, otelcol.GetComponentSchemaHandler))
+		mcp.AddTool(mcpServer, otelcol.ValidateConfig.ToMCPTool(), otelcol.ToMCPHandler[otelcol.ValidateConfigInput, otelcol.ValidateConfigOutput](opts.Otelcol, otelcol.BuildValidateConfigInput, otelcol.ValidateConfigHandler))
+		mcp.AddTool(mcpServer, otelcol.GetVersions.ToMCPTool(), otelcol.ToMCPHandler[otelcol.GetVersionsInput, otelcol.GetVersionsOutput](opts.Otelcol, otelcol.BuildGetVersionsInput, otelcol.GetVersionsHandler))
+	}
+
 	return nil
 }
 

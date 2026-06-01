@@ -5,7 +5,7 @@
 [![e2e](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml)
 [![docs](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml)
 
-obs-mcp is a [mcp](https://modelcontextprotocol.io/introduction) server so LLMs can query [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/), [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/), and (optionally) [Grafana Tempo](https://grafana.com/docs/tempo/latest/) in Kubernetes. Enable the traces toolset with `--toolsets metrics,traces` when Tempo is configured.
+obs-mcp is a [mcp](https://modelcontextprotocol.io/introduction) server so LLMs can query [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/), [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/), and (optionally) [Grafana Tempo](https://grafana.com/docs/tempo/latest/) in Kubernetes. It can also assist with [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration. Enable additional toolsets with `--toolsets` (e.g., `--toolsets metrics,traces,otelcol`).
 
 > [!NOTE]
 > This project is moved from [jhadvig/genie-plugin](https://github.com/jhadvig/genie-plugin/tree/main/obs-mcp) preserving the history of commits.
@@ -148,7 +148,11 @@ You can test the MCP server using curl. The server uses `JSON-RPC 2.0` over `HTT
 **List available tools:**
 
 > [!NOTE]
-> The default `--toolsets` value is `metrics` only. Tempo tools appear only when you start the server with `traces` included (for example `--toolsets metrics,traces`).
+> The default `--toolsets` value is `metrics` only. Additional toolsets:
+> - `traces` - Tempo tracing tools (requires Tempo configuration)
+> - `otelcol` - OpenTelemetry Collector configuration assistance (no external dependencies)
+>
+> Example: `--toolsets metrics,traces,otelcol`
 
 ```shell
 curl -X POST http://localhost:9100/mcp \

@@ -10,12 +10,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/prometheus/common/promslog"
-
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/prometheus/common/promslog"
 
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	mcpserver "github.com/rhobs/obs-mcp/pkg/mcp"
+	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/toolset/config"
 	"github.com/rhobs/obs-mcp/pkg/traces"
@@ -144,6 +144,7 @@ func main() {
 			Insecure: *insecure,
 			UseRoute: *tempoUseRoute,
 		},
+		Otelcol: otelcol.NewDefaultConfig(),
 	}
 
 	// Create MCP server

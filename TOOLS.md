@@ -368,3 +368,91 @@ This is useful for building accurate TraceQL queries with tempo_search_traces.
 | :--- | :--- | :--- |
 | `tagValues` | `object` | Known values for the specified tag, keyed by type |
 
+---
+
+## `otelcol_list_components`
+
+> List available OpenTelemetry Collector components (receivers, processors, exporters, extensions, connectors) for a given version.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `version` | `string` |  | Collector version (e.g., 'v0.100.0'). Defaults to latest available. |
+
+**Output Schema:**
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `components` | `object` | Map of component type to component names |
+| `connectors` | `string[]` | List of available connector component names |
+| `exporters` | `string[]` | List of available exporter component names |
+| `extensions` | `string[]` | List of available extension component names |
+| `processors` | `string[]` | List of available processor component names |
+| `receivers` | `string[]` | List of available receiver component names |
+| `version` | `string` | The OpenTelemetry Collector version |
+
+---
+
+## `otelcol_get_component_schema`
+
+> Get the JSON schema for an OpenTelemetry Collector component's configuration options.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `component_name` | `string` | ✅ | Component name from otelcol_list_components (e.g., 'otlp', 'batch', 'debug') |
+| `component_type` | `string` | ✅ | Component type: receiver, processor, exporter, extension, connector |
+| `version` | `string` |  | Collector version (e.g., 'v0.100.0'). Defaults to latest available. |
+
+**Output Schema:**
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `name` | `string` | The component name |
+| `schema` | `object` | The JSON schema for the component configuration |
+| `type` | `string` | The component type (receiver, processor, exporter, extension, connector) |
+| `version` | `string` | The OpenTelemetry Collector version |
+
+---
+
+## `otelcol_validate_config`
+
+> Validate an OpenTelemetry Collector component configuration against its JSON schema.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `component_name` | `string` | ✅ | Component name from otelcol_list_components (e.g., 'otlp', 'batch', 'debug') |
+| `component_type` | `string` | ✅ | Component type: receiver, processor, exporter, extension, connector |
+| `config` | `string` | ✅ | Configuration to validate as YAML or JSON string |
+| `format` | `string` |  | Config format: 'yaml' (default) or 'json' |
+| `version` | `string` |  | Collector version (e.g., 'v0.100.0'). Defaults to latest available. |
+
+**Output Schema:**
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `errors` | `object[]` | List of validation errors if invalid |
+| `valid` | `boolean` | Whether the configuration is valid |
+| `version` | `string` | The OpenTelemetry Collector version used for validation |
+
+---
+
+## `otelcol_get_versions`
+
+> List available OpenTelemetry Collector versions and identify the latest.
+
+|  |  |
+| :--- | :--- |
+| **Parameters** | None |
+
+**Output Schema:**
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `latest_version` | `string` | The latest available version |
+| `versions` | `string[]` | List of available OpenTelemetry Collector versions |
+

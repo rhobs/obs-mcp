@@ -430,3 +430,44 @@ config:
             name: tempo_search_traces
         minToolCalls: 2
         maxToolCalls: 5
+
+    # OpenTelemetry Collector
+    - path: tasks/otelcol/get-versions.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: otelcol_get_versions
+        minToolCalls: 1
+        maxToolCalls: 3
+
+    - path: tasks/otelcol/list-components.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: otelcol_list_components
+        minToolCalls: 1
+        maxToolCalls: 3
+
+    - path: tasks/otelcol/get-batch-processor-schema.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: otelcol_get_component_schema
+        minToolCalls: 1
+        maxToolCalls: 3
+
+    - path: tasks/otelcol/validate-batch-processor-config-invalid.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: otelcol_validate_config
+        minToolCalls: 1
+        maxToolCalls: 3
+
+    - path: tasks/otelcol/validate-batch-processor-config-valid.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: otelcol_validate_config
+        minToolCalls: 1
+        maxToolCalls: 3

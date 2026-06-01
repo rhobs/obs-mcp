@@ -34,13 +34,15 @@ For Anthropic, Gemini, or custom endpoints, see [Using a Different Agent](#using
 ### 1. Start obs-mcp locally
 
 ```bash
-make run
+make run                              # default: metrics toolset
+make run TOOLSETS=metrics,traces,otelcol     # enable traces and otelcol tasks
 ```
 
 On OpenShift <= 4.21 (Thanos Querier backend), disable guardrails since Thanos does not support the TSDB stats endpoint required by cardinality guardrails. Note that the `high-cardinality-rejection` task will not pass without guardrails:
 
 ```bash
-make run-no-guardrails
+make run-no-guardrails                                  # default: metrics toolset
+make run-no-guardrails TOOLSETS=metrics,traces,otelcol  # enable traces and otelcol tasks
 ```
 
 This uses the default `kubeconfig` auth mode with route auto-discovery. See [Backend Setup](#backend-setup) for other options (Kind cluster, OpenShift). Update `mcp-config.yaml` if obs-mcp is not at `http://localhost:9100/mcp`.
@@ -205,12 +207,13 @@ By default, the evals use `builtin.llm-agent` with `openai:gpt-5-nano`. To use a
 
 Tasks are organized by category under `tasks/`:
 
-| Directory          | Description                                  |
-|--------------------|----------------------------------------------|
-| `tasks/metrics/`   | Metric discovery and listing                 |
-| `tasks/labels/`    | Label names, values, and series              |
-| `tasks/queries/`   | PromQL queries and multi-step diagnostics    |
-| `tasks/alerts/`    | Alertmanager alerts, investigation, silences |
+| Directory          | Description                                           |
+|--------------------|-------------------------------------------------------|
+| `tasks/metrics/`   | Metric discovery and listing                          |
+| `tasks/labels/`    | Label names, values, and series                       |
+| `tasks/queries/`   | PromQL queries and multi-step diagnostics             |
+| `tasks/alerts/`    | Alertmanager alerts, investigation, silences          |
+| `tasks/otelcol/`   | OpenTelemetry Collector components, schemas, configs  |
 
 Each task YAML defines the prompt, expected tools, call bounds, and LLM judge criteria. All tasks include `labels` for filtering with `--label-selector` (e.g. `category=metrics`, `category=alerts`).
 
