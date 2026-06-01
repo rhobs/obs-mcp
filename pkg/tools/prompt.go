@@ -166,4 +166,55 @@ FILTERING:
 - Use 'filter' to apply label matchers to find specific silences
 
 Silences are used to temporarily mute alerts based on label matchers. This tool helps you understand what is currently silenced in your environment.`
+
+	ListPersesDashboardsPrompt = `List all PersesDashboard resources from the cluster.
+
+Start here when the user asks about existing dashboards or wants to visualize metrics from a dashboard.
+
+Returns dashboard summaries with name, namespace, labels, and descriptions.
+
+Use the descriptions to identify dashboards relevant to the user's question.
+
+In the case that there is insufficient information in the description, use get_perses_dashboard to fetch the full dashboard spec for more context. Doing so is an expensive operation, so only do this when necessary.
+
+Follow up with get_dashboard_panels to see what panels are available in the relevant dashboard(s), then pass the panel's PromQL query to show_timeseries for visualization.`
+
+	GetPersesDashboardPrompt = `Get a specific Dashboard by name and namespace. This tool is used to get the dashboard's panels and configuration.
+
+Use the list_perses_dashboards tool first to find available dashboards, then use this tool to get the full specification of a specific dashboard, if needed (to gather more context).
+
+The intended use of this tool is only to gather more context on one or more dashboards when the description from list_perses_dashboards is insufficient.
+
+Information about panels themselves should be gathered using get_dashboard_panels instead (e.g., looking at a "kind: Markdown" panel to gather more context).
+
+Returns the dashboard's full specification including panels, layouts, variables, and datasources in JSON format.
+
+For most use cases, you will want to follow up with get_dashboard_panels to extract panel metadata for selection.`
+
+	GetDashboardPanelsPrompt = `Get panel(s) information from a specific Dashboard.
+
+After finding a relevant dashboard (using list_perses_dashboards and conditionally, get_perses_dashboard), use this to see what panels it contains.
+
+Returns panel metadata including:
+- Panel IDs (format: 'panelName' or 'panelName-N' for multi-query panels)
+- Titles and descriptions
+- PromQL queries (may contain variables like $namespace)
+- Chart types (TimeSeriesChart, PieChart, Table)
+
+You can optionally provide specific panel IDs to fetch only those panels. This is useful when you remember panel IDs from earlier calls and want to re-fetch just their metadata without retrieving the entire dashboard's panels.
+
+Use this information to identify which panels answer the user's question, then pass the panel's PromQL query to show_timeseries for visualization.`
+
+	FormatPanelsForUIPrompt = `Format selected dashboard panels for UI rendering in DashboardWidget format.
+
+After choosing relevant panels, use this to prepare them for display.
+
+Returns an array of DashboardWidget objects ready for direct rendering, with:
+- id: Unique panel identifier
+- componentType: Perses component name (PersesTimeSeries, PersesPieChart, PersesTable)
+- position: Grid layout coordinates (x, y, w, h) in 24-column grid
+- breakpoint: Responsive grid breakpoint (xl/lg/md/sm) inferred from panel width
+- props: Component properties (query, duration, step, start, end)
+
+Panel IDs (fetched using get_dashboard_panels) must be provided to specify which panels to format.`
 )

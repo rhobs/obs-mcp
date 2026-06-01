@@ -396,6 +396,83 @@ config:
         minToolCalls: 2
         maxToolCalls: 15
 
+    # Dashboard discovery
+    - path: tasks/dashboards/list-dashboards.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_perses_dashboards
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    - path: tasks/dashboards/get-dashboard.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: get_perses_dashboard
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    # Dashboard panels
+    - path: tasks/dashboards/get-dashboard-panels.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_perses_dashboards
+          - server: obs
+            toolPattern: "(get_dashboard_panels|get_perses_dashboard)"
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_perses_dashboards
+          - type: tool
+            server: obs
+            name: get_dashboard_panels
+        minToolCalls: 2
+        maxToolCalls: 10
+
+    - path: tasks/dashboards/format-panels-for-ui.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_perses_dashboards
+          - server: obs
+            toolPattern: "(get_dashboard_panels|get_perses_dashboard)"
+          - server: obs
+            tool: format_panels_for_ui
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_perses_dashboards
+          - type: tool
+            server: obs
+            name: get_dashboard_panels
+          - type: tool
+            server: obs
+            name: format_panels_for_ui
+        minToolCalls: 3
+        maxToolCalls: 10
+
+    # Dashboard end-to-end with visualization (hard)
+    - path: tasks/dashboards/dashboard-to-visualization.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_perses_dashboards
+          - server: obs
+            tool: get_dashboard_panels
+          - server: obs
+            tool: show_timeseries
+        callOrder:
+          - type: tool
+            server: obs
+            name: list_perses_dashboards
+          - type: tool
+            server: obs
+            name: get_dashboard_panels
+        minToolCalls: 3
+        maxToolCalls: 35
+
     # Traces
     - path: tasks/traces/search-error-traces.yaml
       assertions:

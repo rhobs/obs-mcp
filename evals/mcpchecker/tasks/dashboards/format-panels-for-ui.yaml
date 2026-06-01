@@ -1,0 +1,27 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "format-panels-for-ui"
+  difficulty: medium
+  parallel: true
+  runs: 1
+  labels:
+    category: dashboards
+    suite: observability
+    toolType: perses
+  description: |
+    Tests the full dashboard visualization flow: list dashboards, get panels,
+    then format selected panels for UI rendering as DashboardWidget objects.
+spec:
+  verify:
+    - llmJudge:
+        contains: "componentType"
+        reason: "Verify the agent formatted panels into DashboardWidget format with componentType"
+    - llmJudge:
+        contains: "PersesTimeSeries"
+        reason: "Verify the formatted widgets use Perses component types"
+  prompt:
+    inline: |
+      I want to visualize CPU-related panels from an existing dashboard.
+      Find available dashboards, look at the panels in the first one,
+      then format the CPU-related panels for UI rendering.

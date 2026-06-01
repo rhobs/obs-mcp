@@ -1,0 +1,23 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "get-dashboard"
+  difficulty: easy
+  parallel: true
+  runs: 1
+  labels:
+    category: dashboards
+    suite: observability
+    toolType: perses
+  description: |
+    Tests if the agent can retrieve the full specification of a specific
+    PersesDashboard by name and namespace.
+spec:
+  verify:
+    - llmJudge:
+        contains: "CPU"
+        reason: "Verify the agent retrieved the dashboard spec and found CPU-related panels"
+  prompt:
+    inline: |
+      Get the full specification of the "sample-dashboard" dashboard in the "monitoring" namespace.
+      What panels does it define?

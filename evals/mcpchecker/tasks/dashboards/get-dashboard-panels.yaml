@@ -1,0 +1,26 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "get-dashboard-panels"
+  difficulty: medium
+  parallel: true
+  runs: 1
+  labels:
+    category: dashboards
+    suite: observability
+    toolType: perses
+  description: |
+    Tests the multi-step flow of listing dashboards, then extracting panel
+    metadata from a specific dashboard including panel IDs, queries, and chart types.
+spec:
+  verify:
+    - llmJudge:
+        contains: "PromQL"
+        reason: "Verify the agent extracted panel metadata including PromQL queries"
+    - llmJudge:
+        contains: "0_0"
+        reason: "Verify the agent found panel IDs from the dashboard"
+  prompt:
+    inline: |
+      Find available dashboards in the cluster, then show me what panels the
+      first dashboard has. Include their panel IDs, PromQL queries, and chart types.

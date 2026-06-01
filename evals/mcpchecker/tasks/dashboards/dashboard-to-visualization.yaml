@@ -1,0 +1,28 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "dashboard-to-visualization"
+  difficulty: hard
+  parallel: true
+  runs: 1
+  labels:
+    category: dashboards
+    suite: observability
+    toolType: perses
+  description: |
+    Tests the end-to-end flow where the agent uses dashboards as a starting point
+    to answer a user question by extracting PromQL from panels and using
+    show_timeseries for visualization.
+spec:
+  verify:
+    - llmJudge:
+        contains: "CPU"
+        reason: "Verify the agent found CPU-related information from dashboards"
+    - llmJudge:
+        contains: "show_timeseries"
+        reason: "Verify the agent used show_timeseries to visualize the data"
+  prompt:
+    inline: |
+      I want to see CPU utilization trends for the cluster. Check if there are
+      any existing dashboards that already have CPU panels, and use their queries
+      to visualize the data with show_timeseries.
