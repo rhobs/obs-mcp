@@ -3,8 +3,13 @@
 .DEFAULT_GOAL := run
 
 CONTAINER_CLI ?= docker
-IMAGE ?= ghcr.io/rhobs/obs-mcp
+IMAGE_NAME ?= ghcr.io/rhobs/obs-mcp
 TAG ?= $(shell git rev-parse --short HEAD)
+IMAGE_REF ?= $(IMAGE_NAME):$(TAG)
+IMAGE ?= $(IMAGE_REF)
+ifneq ($(findstring $(origin IMAGE),environment command line),)
+$(warning IMAGE is deprecated, use IMAGE_REF instead)
+endif
 TOOLS_DIR := hack/tools
 MCPCHECKER_VERSION ?= 0.0.16
 
@@ -51,7 +56,7 @@ GO_VERSION := $(shell awk '/^go /{print $$2}' go.mod | cut -d. -f1,2)
 
 .PHONY: container
 container: build-linux ## Build obs-mcp container image
-	$(CONTAINER_CLI) build --build-arg GOLANG_BUILDER=$(GO_VERSION) --load -f Containerfile -t $(IMAGE):$(TAG) .
+	$(CONTAINER_CLI) build --build-arg GOLANG_BUILDER=$(GO_VERSION) --load -f Containerfile -t $(IMAGE_REF) .
 
 .PHONY: format
 format: ## Format all code
@@ -139,32 +144,22 @@ inspect: ## Start obs-mcp + MCP Inspector via compose (port-forward Prometheus/A
 
 # E2E Testing
 KIND_CLUSTER_NAME ?= obs-mcp-e2e
+export KIND_CLUSTER_NAME
+export CONTAINER_CLI
+export IMAGE_REF
 
+E2E_PROFILE ?= kind
 .PHONY: test-e2e-setup
 test-e2e-setup: ## Setup Kind cluster with kube-prometheus for E2E tests
-	chmod +x hack/e2e/setup-cluster.sh
-	CLUSTER_NAME=$(KIND_CLUSTER_NAME) ./hack/e2e/setup-cluster.sh
+	./hack/e2e/setup.sh provision prereqs --profile $(E2E_PROFILE)
 
-.PHONY: test-e2e-images
-test-e2e-images: container ## Build and load obs-mcp image into Kind cluster
-ifeq ($(CONTAINER_CLI),podman)
-	mkdir -p tmp
-	$(CONTAINER_CLI) save --quiet -o tmp/obs-mcp.tar $(IMAGE):$(TAG)
-	kind load image-archive --name $(KIND_CLUSTER_NAME) tmp/obs-mcp.tar
-	rm -f tmp/obs-mcp.tar
-else
-	kind load docker-image --name $(KIND_CLUSTER_NAME) $(IMAGE):$(TAG)
-endif
+.PHONY: test-e2e-setup-extras
+test-e2e-setup-extras: ## Add more sources for the signals
+	./hack/e2e/setup.sh extras --profile $(E2E_PROFILE)
 
 .PHONY: test-e2e-deploy
-test-e2e-deploy: test-e2e-images ## Deploy obs-mcp to Kind cluster
-	kubectl apply -f manifests/kubernetes/
-	kubectl set image deployment/obs-mcp -n obs-mcp obs-mcp=$(IMAGE):$(TAG)
-	kubectl apply -f hack/e2e/manifests/network_policy_to_access_prometheus.yaml
-	kubectl -n obs-mcp rollout status deployment/obs-mcp --timeout=3m
-	kubectl -n tracing rollout status statefulset/tempo-tempo1-ingester --timeout=5m
-	kubectl -n tracing rollout status statefulset/tempo-tempo2-ingester --timeout=5m
-	./hack/e2e/wait-for-traces.sh tracing http://tempo-tempo1-query-frontend.tracing:3200
+test-e2e-deploy: container ## Build and deploy obs-mcp to Kind cluster
+	./hack/e2e/setup.sh upload deploy --profile $(E2E_PROFILE)
 
 .PHONY: test-e2e
 test-e2e: ## Run E2E tests (requires cluster to be running)
@@ -172,8 +167,23 @@ test-e2e: ## Run E2E tests (requires cluster to be running)
 
 .PHONY: test-e2e-teardown
 test-e2e-teardown: ## Teardown E2E test cluster
-	chmod +x hack/e2e/teardown-cluster.sh
-	CLUSTER_NAME=$(KIND_CLUSTER_NAME) ./hack/e2e/teardown-cluster.sh
+	./hack/e2e/setup down --profile $(E2E_PROFILE)
+
+.PHONY: test-e2e-full
+test-e2e-full: test-e2e-setup test-e2e-deploy test-e2e test-e2e-teardown ## Run full E2E test cycle (setup, test, teardown)
+
+# OpenShift E2E Testing
+# In CI, deploy-obs-mcp step calls test-e2e-openshift-deploy, then the step registry runs test-e2e && test-e2e-openshift.
+# CI config:      https://github.com/openshift/release/blob/main/ci-operator/config/rhobs/obs-mcp/rhobs-obs-mcp-main.yaml
+# Step registry:  https://github.com/openshift/release/blob/main/ci-operator/step-registry/rhobs/obs-mcp-e2e-tests/rhobs-obs-mcp-e2e-tests-commands.sh
+.PHONY: test-e2e-openshift-deploy
+test-e2e-openshift-deploy: ## Deploy obs-mcp to OpenShift (uses IMAGE env var from CI)
+	# We use IMAGE until we update the CI job to pass IMAGE_REF instead.
+	IMAGE_REF="$(IMAGE)" ./hack/e2e/setup.sh prereqs extras deploy --profile openshift
+
+.PHONY: test-e2e-openshift
+test-e2e-openshift: ## Run OpenShift route discovery E2E tests (requires oc login)
+	go test -mod=mod -v -tags=e2e,openshift -timeout=5m ./tests/e2e/...
 
 MCPCHECKER_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 MCPCHECKER_ARCH := $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
@@ -203,63 +213,3 @@ else
 	cd $(MCPCHECKER_EVAL_DIR) && $(TOOLS_BIN_DIR)/mcpchecker check eval.yaml --runs $(RUNS) --parallel 4
 endif
 
-.PHONY: deploy-kube-state-metrics
-deploy-kube-state-metrics: ## Deploy kube-state-metrics from kube-prometheus (for mcpchecker evals)
-	@if [ ! -d "tmp/kube-prometheus" ]; then \
-		echo "Error: tmp/kube-prometheus not found. Run 'make test-e2e-setup' first."; exit 1; \
-	fi
-	@echo "==> Installing kube-state-metrics..."
-	@for f in tmp/kube-prometheus/manifests/kubeStateMetrics-*.yaml; do \
-		kubectl apply -f "$$f"; \
-	done
-	kubectl -n monitoring rollout status deployment/kube-state-metrics --timeout=3m
-
-.PHONY: deploy-node-exporter
-deploy-node-exporter: ## Deploy node-exporter from kube-prometheus (for mcpchecker evals)
-	@if [ ! -d "tmp/kube-prometheus" ]; then \
-		echo "Error: tmp/kube-prometheus not found. Run 'make test-e2e-setup' first."; exit 1; \
-	fi
-	@echo "==> Installing node-exporter..."
-	@for f in tmp/kube-prometheus/manifests/nodeExporter-*.yaml; do \
-		kubectl apply -f "$$f"; \
-	done
-	kubectl -n monitoring rollout status daemonset/node-exporter --timeout=3m
-
-.PHONY: deploy-kubelet-servicemonitors
-deploy-kubelet-servicemonitors: ## Deploy kubelet/cAdvisor scrape configs from kube-prometheus (for container_* metrics)
-	@if [ ! -d "tmp/kube-prometheus" ]; then \
-		echo "Error: tmp/kube-prometheus not found. Run 'make test-e2e-setup' first."; exit 1; \
-	fi
-	@echo "==> Installing kubelet/cAdvisor ServiceMonitors..."
-	@for f in tmp/kube-prometheus/manifests/kubernetesControlPlane-*.yaml; do \
-		kubectl apply -f "$$f"; \
-	done
-
-.PHONY: deploy-more-kube-prom-targets
-deploy-more-kube-prom-targets: deploy-kube-state-metrics deploy-node-exporter deploy-kubelet-servicemonitors ## Deploy additional kube-prometheus scrape targets (kube-state-metrics, node-exporter, kubelet)
-
-.PHONY: test-e2e-full
-test-e2e-full: test-e2e-setup test-e2e-deploy test-e2e test-e2e-teardown ## Run full E2E test cycle (setup, test, teardown)
-
-# OpenShift E2E Testing
-# In CI, deploy-obs-mcp step calls test-e2e-openshift-deploy, then the step registry runs test-e2e && test-e2e-openshift.
-# CI config:      https://github.com/openshift/release/blob/main/ci-operator/config/rhobs/obs-mcp/rhobs-obs-mcp-main.yaml
-# Step registry:  https://github.com/openshift/release/blob/main/ci-operator/step-registry/rhobs/obs-mcp-e2e-tests/rhobs-obs-mcp-e2e-tests-commands.sh
-.PHONY: test-e2e-openshift-deploy
-test-e2e-openshift-deploy: ## Deploy obs-mcp to OpenShift (uses IMAGE env var from CI)
-	oc apply -f manifests/openshift_e2e/00_operators.yaml
-	oc -n openshift-opentelemetry-operator wait --for=create deployment/opentelemetry-operator-controller-manager --timeout=10m
-	oc -n openshift-opentelemetry-operator rollout status deployment/opentelemetry-operator-controller-manager --timeout=5m
-	oc -n openshift-tempo-operator wait --for=create deployment/tempo-operator-controller --timeout=10m
-	oc -n openshift-tempo-operator rollout status deployment/tempo-operator-controller --timeout=5m
-
-	oc apply -f manifests/openshift_e2e/
-	oc set image deployment/obs-mcp -n obs-mcp obs-mcp=$(IMAGE)
-	oc -n obs-mcp rollout status deployment/obs-mcp --timeout=3m
-	oc -n tracing rollout status statefulset/tempo-tempo1-ingester --timeout=5m
-	oc -n tracing rollout status statefulset/tempo-tempo2-ingester --timeout=5m
-	./hack/e2e/wait-for-traces.sh tracing http://tempo-tempo1-query-frontend.tracing:3200
-
-.PHONY: test-e2e-openshift
-test-e2e-openshift: ## Run OpenShift route discovery E2E tests (requires oc login)
-	go test -mod=mod -v -tags=e2e,openshift -timeout=5m ./tests/e2e/...

@@ -138,43 +138,51 @@ mcpchecker diff baseline-out.json current-out.json
 
 ## Backend Setup
 
-### Kind cluster — obs-mcp deployed in-cluster
+### Kind cluster
 
-Reuses the e2e setup:
+1. Deploy the prerequisites
 
 ```bash
-make test-e2e-setup                        # create Kind cluster with kube-prometheus
-make deploy-more-kube-prom-targets         # deploy kube-state-metrics, node-exporter, kubelet scrape configs
-make test-e2e-deploy                       # build and deploy obs-mcp
-kubectl port-forward -n obs-mcp svc/obs-mcp 9100:9100 &
+make test-e2e-setup
+make test-e2e-setup-extras
+```
 
+2. a) deploy in-cluster
+
+``` bash
+make test-e2e-deploy
+kubectl port-forward -n obs-mcp svc/obs-mcp 9100:9100 &
+```
+
+2. b) run locally
+
+``` bash
+kubectl port-forward -n monitoring svc/prometheus-k8s 9090:9090 &
+kubectl port-forward -n monitoring svc/alertmanager-main 9093:9093 &
+PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 AUTH_MODE=header make run
+```
+
+3. run evals
+
+``` bash
 export OPENAI_API_KEY="sk-..."
 
 make run-mcpchecker-eval                   # run all tasks in parallel
 make run-mcpchecker-eval TASK=cpu-usage    # single task, verbose
 ```
 
-### Kind cluster — obs-mcp running locally
 
+### OpenShift 
+
+1. Deploy the prerequisites
 ```bash
-make test-e2e-setup                        # create Kind cluster with kube-prometheus (skip if already running)
-make deploy-more-kube-prom-targets         # deploy kube-state-metrics, node-exporter, kubelet scrape configs
-kubectl port-forward -n monitoring svc/prometheus-k8s 9090:9090 &
-kubectl port-forward -n monitoring svc/alertmanager-main 9093:9093 &
-PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 AUTH_MODE=header make run
-
-# In another terminal:
-export OPENAI_API_KEY="sk-..."
-
-make run-mcpchecker-eval                   # all tasks
-make run-mcpchecker-eval TASK=cpu-usage    # single task, verbose
+E2E_PROFILE=openshift make test-e2e-setup
+E2E_PROFILE=openshift make test-e2e-setup-extras
 ```
 
-### OpenShift
+2. run locally
 
-Start obs-mcp locally in one terminal, run evals in another:
-
-```bash
+``` bash
 make run                          # via route auto-discovery (OpenShift >= 4.22)
 # or
 make run-openshift-pf-prometheus  # via port-forward
@@ -188,10 +196,12 @@ make run-no-guardrails
 ./obs-mcp --listen :9100 --auth-mode kubeconfig --guardrails require-label-matcher,disallow-blanket-regex
 ```
 
-```bash
+3. run evals
+
+``` bash
 export OPENAI_API_KEY="sk-..."
 
-make run-mcpchecker-eval                   # all tasks
+make run-mcpchecker-eval                   # run all tasks in parallel
 make run-mcpchecker-eval TASK=cpu-usage    # single task, verbose
 ```
 
