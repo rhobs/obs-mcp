@@ -199,7 +199,7 @@ phase_prereqs() {
     if has_stack tempo; then
         case ${PROFILE} in
             openshift)
-                _run $KUBECTL apply -f "${ROOT_DIR}/manifests/openshift/prereqs/01_tracing_operators.yaml"
+                _run $KUBECTL apply -f "${ROOT_DIR}/manifests/tempo/prereqs/openshift/"
                 step "Installing OpenTelemetry operator"
                 _wait_rollout openshift-opentelemetry-operator deployment/opentelemetry-operator-controller-manager 10m
 
@@ -252,11 +252,8 @@ phase_extras() {
     if has_stack tempo; then
         step "Deploying sample tracing app"
         case ${PROFILE} in
-            openshift)
-                _run $KUBECTL apply -f "${ROOT_DIR}/manifests/openshift/prereqs/02_tracing.yaml"
-            ;;
-            *)
-                _run $KUBECTL apply -f "${ROOT_DIR}/manifests/kubernetes/prereqs/01_tracing.yaml"
+            openshift)  _run $KUBECTL apply -k "${ROOT_DIR}/manifests/tempo/extras/openshift" ;;
+            *)          _run $KUBECTL apply -k "${ROOT_DIR}/manifests/tempo/extras/kubernetes" ;;
         esac
         _wait_rollout tracing statefulset/tempo-tempo1-ingester 5m
         _wait_rollout tracing statefulset/tempo-tempo2-ingester 5m
@@ -358,16 +355,65 @@ phase_deploy() {
 
     step "Deploying obs-mcp"
 
+    # Compute toolsets from enabled stacks
+    _toolsets_parts=(otelcol)
+    has_stack prometheus && _toolsets_parts+=(metrics)
+    has_stack tempo      && _toolsets_parts+=(traces)
+    _toolsets=$(IFS=,; echo "${_toolsets_parts[*]}")
+
+    # Build a temporary kustomize overlay to inject runtime values (toolsets, image)
+    # in a single apply so no post-apply mutations are needed.
+    # The overlay is created inside the deploy tree so that the relative resource
+    # path (../kubernetes or ../openshift) resolves correctly — kustomize forbids
+    # absolute paths in resources.
     case ${PROFILE} in
-        openshift)
-            _run $KUBECTL apply -f "${ROOT_DIR}/manifests/openshift/*.yaml"
-            ;;
-        *)
-            _run $KUBECTL apply -f "${ROOT_DIR}/manifests/kubernetes/*.yaml"
-            _run $KUBECTL apply -f "${ROOT_DIR}/manifests/kubernetes/prereqs/02_prometheus_network_policy.yaml"
+        openshift) _profile=openshift ;;
+        *)         _profile=kubernetes ;;
     esac
+    _overlay="${ROOT_DIR}/manifests/core/deploy/overlay"
+    mkdir -p "${_overlay}"
+    cat > "${_overlay}/kustomization.yaml" <<EOF
+resources:
+  - ../${_profile}
+patches:
+  - patch: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: obs-mcp-config
+        namespace: obs-mcp
+      data:
+        toolsets: "${_toolsets}"
+EOF
     if [ -n "${IMAGE_REF:-}" ]; then
-        _run $KUBECTL set image deployment/obs-mcp -n obs-mcp obs-mcp="${IMAGE_REF}"
+        cat >> "${_overlay}/kustomization.yaml" <<EOF
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: obs-mcp
+        namespace: obs-mcp
+      spec:
+        template:
+          spec:
+            containers:
+              - name: obs-mcp
+                image: "${IMAGE_REF}"
+EOF
+    fi
+    _run $KUBECTL apply -k "${_overlay}"
+
+    # Monitoring integration
+    if has_stack prometheus; then
+        case ${PROFILE} in
+            openshift)  _run $KUBECTL apply -f "${ROOT_DIR}/manifests/prometheus/deploy/openshift/" ;;
+            *)          _run $KUBECTL apply -f "${ROOT_DIR}/manifests/prometheus/deploy/kubernetes/" ;;
+        esac
+    fi
+
+    # Tempo tracing RBAC
+    if has_stack tempo; then
+        _run $KUBECTL apply -f "${ROOT_DIR}/manifests/tempo/deploy/"
     fi
 
     step "Waiting for obs-mcp rollout"

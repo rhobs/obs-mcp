@@ -28,13 +28,23 @@ spec:
             - --listen
             - ":9100"
             - --auth-mode
-            - serviceaccount
+            - $(AUTH_MODE)
             - --insecure
             - --log-level
             - debug
             - --toolsets
-            - metrics,traces,otelcol
+            - $(TOOLSETS)
           env:
+            - name: AUTH_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: obs-mcp-config
+                  key: auth-mode
+            - name: TOOLSETS
+              valueFrom:
+                configMapKeyRef:
+                  name: obs-mcp-config
+                  key: toolsets
             - name: PROMETHEUS_URL
               valueFrom:
                 configMapKeyRef:

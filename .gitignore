@@ -18,6 +18,7 @@ integration-tests/videos
 integration-tests/screenshots
 .vscode/*
 tmp/*
+manifests/core/deploy/overlay
 /vendor
 /.claude
 
