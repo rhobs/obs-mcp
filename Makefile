@@ -150,12 +150,8 @@ export IMAGE_REF
 
 E2E_PROFILE ?= kind
 .PHONY: test-e2e-setup
-test-e2e-setup: ## Setup Kind cluster with kube-prometheus for E2E tests
-	./hack/e2e/setup.sh provision prereqs --profile $(E2E_PROFILE)
-
-.PHONY: test-e2e-setup-extras
-test-e2e-setup-extras: ## Add more sources for the signals
-	./hack/e2e/setup.sh extras --profile $(E2E_PROFILE)
+test-e2e-setup: ## Setup the cluster for E2E tests
+	./hack/e2e/setup.sh $(if $(filter kind,$(E2E_PROFILE)),provision) prereqs extras --profile $(E2E_PROFILE)
 
 .PHONY: test-e2e-deploy
 test-e2e-deploy: container ## Build and deploy obs-mcp to the cluster
@@ -167,7 +163,7 @@ test-e2e: ## Run E2E tests (requires cluster to be running)
 
 .PHONY: test-e2e-teardown
 test-e2e-teardown: ## Teardown E2E test cluster
-	./hack/e2e/setup down --profile $(E2E_PROFILE)
+	./hack/e2e/setup.sh down --profile $(E2E_PROFILE)
 
 .PHONY: test-e2e-full
 test-e2e-full: test-e2e-setup test-e2e-deploy test-e2e test-e2e-teardown ## Run full E2E test cycle (setup, test, teardown)

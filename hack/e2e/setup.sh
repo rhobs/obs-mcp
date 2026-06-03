@@ -17,6 +17,16 @@ info()  { echo -e "    ${CYAN}i${NC} $1"; }
 warn()  { echo -e "    ${YELLOW}!${NC} $1"; }
 fail()  { echo -e "    ${RED}✗${NC} $1"; exit 1; }
 
+# Wait for a resource to be created by an operator, then wait for its rollout to complete.
+# Usage: _wait_rollout <namespace> <type/name> [timeout]
+_wait_rollout() {
+    local namespace="$1"
+    local resource="$2"
+    local timeout="${3:-5m}"
+    _run $KUBECTL -n "${namespace}" wait --for=create "${resource}" --timeout="${timeout}"
+    _run $KUBECTL -n "${namespace}" rollout status "${resource}" --timeout="${timeout}"
+}
+
 # Execute the command while capturing the output. Print the output to stderr on fail.
 _run() {
     local _out
@@ -124,6 +134,13 @@ info "Profile : ${PROFILE}"
 info "Stacks  : ${STACKS}"
 info "Phases  : ${PHASES[*]}"
 
+# Set the kubectl command based on profile
+if [ "${PROFILE}" == "openshift" ]; then
+    KUBECTL="oc"
+else
+    KUBECTL="kubectl"
+fi
+
 # ---------------------------------------------------------------------------
 # Phase implementations
 # ---------------------------------------------------------------------------
@@ -164,47 +181,45 @@ phase_prereqs() {
                 fi
 
                 step "Applying kube-prometheus CRDs and namespace setup"
-                _run kubectl apply --server-side -f "${KUBE_PROMETHEUS_DIR}/manifests/setup"
-                _run kubectl wait --for condition=Established --all CustomResourceDefinition --namespace=monitoring --timeout=5m
+                _run $KUBECTL apply --server-side -f "${KUBE_PROMETHEUS_DIR}/manifests/setup"
+                _run $KUBECTL wait --for condition=Established --all CustomResourceDefinition --namespace=monitoring --timeout=5m
 
                 step "Installing Prometheus"
-                _run kubectl apply -f "${KUBE_PROMETHEUS_DIR}/manifests/prometheusOperator-*.yaml";
-                _run kubectl apply -f "${KUBE_PROMETHEUS_DIR}/manifests/prometheus-*.yaml";
-                _run kubectl apply -f "${KUBE_PROMETHEUS_DIR}/manifests/alertmanager-*.yaml";
+                _run $KUBECTL apply -f "${KUBE_PROMETHEUS_DIR}/manifests/prometheusOperator-*.yaml";
+                _run $KUBECTL apply -f "${KUBE_PROMETHEUS_DIR}/manifests/prometheus-*.yaml";
+                _run $KUBECTL apply -f "${KUBE_PROMETHEUS_DIR}/manifests/alertmanager-*.yaml";
 
                 step "Waiting for deployments"
-                _run kubectl -n monitoring rollout status deployment/prometheus-operator --timeout=5m
-                _run kubectl -n monitoring rollout status statefulset/prometheus-k8s --timeout=5m
-                _run kubectl -n monitoring rollout status statefulset/alertmanager-main --timeout=5m
+                _wait_rollout monitoring deployment/prometheus-operator 5m
+                _wait_rollout monitoring statefulset/prometheus-k8s 5m
+                _wait_rollout monitoring statefulset/alertmanager-main 5m
         esac
     fi
 
     if has_stack tempo; then
         case ${PROFILE} in
             openshift)
-                _run oc apply -f "${ROOT_DIR}/manifests/openshift_e2e/prereqs/01_tracing_operators.yaml"
+                _run $KUBECTL apply -f "${ROOT_DIR}/manifests/openshift/prereqs/01_tracing_operators.yaml"
                 step "Installing OpenTelemetry operator"
-                _run oc -n openshift-opentelemetry-operator wait --for=create deployment/opentelemetry-operator-controller-manager --timeout=10m
-                _run oc -n openshift-opentelemetry-operator rollout status deployment/opentelemetry-operator-controller-manager --timeout=5m
+                _wait_rollout openshift-opentelemetry-operator deployment/opentelemetry-operator-controller-manager 10m
 
                 step "Installing Tempo operator"
-                _run oc -n openshift-tempo-operator wait --for=create deployment/tempo-operator-controller --timeout=10m
-                _run oc -n openshift-tempo-operator rollout status deployment/tempo-operator-controller --timeout=5m
+                _wait_rollout openshift-tempo-operator deployment/tempo-operator-controller 10m
             ;;
             *)
                 step "Installing Cert Manager"
-                _run kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.19.4/cert-manager.yaml
-                _run kubectl -n cert-manager rollout status deployment/cert-manager --timeout=5m
-                _run kubectl -n cert-manager rollout status deployment/cert-manager-cainjector --timeout=5m
-                _run kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=5m
+                _run $KUBECTL apply -f https://github.com/jetstack/cert-manager/releases/download/v1.19.4/cert-manager.yaml
+                _wait_rollout cert-manager deployment/cert-manager 5m
+                _wait_rollout cert-manager deployment/cert-manager-cainjector 5m
+                _wait_rollout cert-manager deployment/cert-manager-webhook 5m
 
                 step "Installing OpenTelemetry operator"
-                _run kubectl apply -f https://github.com/open-telemetry/opentelemetry-operator/releases/download/v0.146.0/opentelemetry-operator.yaml
-                _run kubectl -n opentelemetry-operator-system rollout status deployment/opentelemetry-operator-controller-manager --timeout=5m
+                _run $KUBECTL apply -f https://github.com/open-telemetry/opentelemetry-operator/releases/download/v0.146.0/opentelemetry-operator.yaml
+                _wait_rollout opentelemetry-operator-system deployment/opentelemetry-operator-controller-manager 5m
 
                 step "Installing Tempo operator"
-                _run kubectl apply -f https://github.com/grafana/tempo-operator/releases/download/v0.20.0/tempo-operator.yaml
-                _run kubectl -n tempo-operator-system rollout status deployment/tempo-operator-controller --timeout=5m
+                _run $KUBECTL apply -f https://github.com/grafana/tempo-operator/releases/download/v0.20.0/tempo-operator.yaml
+                _wait_rollout tempo-operator-system deployment/tempo-operator-controller 5m
         esac
     fi
 }
@@ -222,35 +237,36 @@ phase_extras() {
             fi
 
             step "Installing kube-state-metrics"
-            _run kubectl apply -f "${KUBE_PROMETHEUS_DIR}/manifests/kubeStateMetrics-*.yaml"
-            _run kubectl -n monitoring rollout status deployment/kube-state-metrics --timeout=3m
+            _run $KUBECTL apply -f "${KUBE_PROMETHEUS_DIR}/manifests/kubeStateMetrics-*.yaml"
+            _wait_rollout monitoring deployment/kube-state-metrics 3m
 
             step "Installing node-exporter"
-            _run kubectl apply -f "${KUBE_PROMETHEUS_DIR}/manifests/nodeExporter-*.yaml"
-            _run kubectl -n monitoring rollout status daemonset/node-exporter --timeout=3m
+            _run $KUBECTL apply -f "${KUBE_PROMETHEUS_DIR}/manifests/nodeExporter-*.yaml"
+            _wait_rollout monitoring daemonset/node-exporter 3m
 
             step "Installing kubelet/cAdvisor ServiceMonitors"
-            _run kubectl apply -f "${KUBE_PROMETHEUS_DIR}/manifests/kubernetesControlPlane-*.yaml"
+            _run $KUBECTL apply -f "${KUBE_PROMETHEUS_DIR}/manifests/kubernetesControlPlane-*.yaml"
         fi
     fi
 
     if has_stack tempo; then
-        step "Deploying sample traing app"
-        # TODO: check differences betwen openshift and kuberentes tempo prereqs
+        step "Deploying sample tracing app"
         case ${PROFILE} in
             openshift)
-                _run kubectl apply -f "${ROOT_DIR}/manifests/openshift_e2e/prereqs/02_tracing.yaml"
+                _run $KUBECTL apply -f "${ROOT_DIR}/manifests/openshift/prereqs/02_tracing.yaml"
             ;;
             *)
-                _run kubectl apply -f "${ROOT_DIR}/manifests/kubernetes/prereqs/01_tracing.yaml"
+                _run $KUBECTL apply -f "${ROOT_DIR}/manifests/kubernetes/prereqs/01_tracing.yaml"
         esac
-        _run kubectl -n tracing rollout status statefulset/tempo-tempo1-ingester --timeout=5m
-        _run kubectl -n tracing rollout status statefulset/tempo-tempo2-ingester --timeout=5m
+        _wait_rollout tracing statefulset/tempo-tempo1-ingester 5m
+        _wait_rollout tracing statefulset/tempo-tempo2-ingester 5m
 
         step "Waiting for traces to appear in Tempo"
+        # Just in case the some residual pod stayed there from last attempt.
+        $KUBECTL delete pods -n tracing curl-check 2>/dev/null || true
         for i in $(seq 1 20); do
             run_info "attempt ${i}"
-            output=$(kubectl run -n tracing curl-check --image=quay.io/curl/curl --rm -q --restart=Never -i -- \
+            output=$($KUBECTL run -n tracing curl-check --image=quay.io/curl/curl --rm -q --restart=Never -i -- \
                 curl -vvsf http://tempo-tempo1-query-frontend.tracing:3200/api/search 2>&1) || true
             if echo "$output" | grep -q '"traceID"'; then
                 break
@@ -298,7 +314,7 @@ phase_upload() {
             fi
 
             # Enable the default external route for the image registry (idempotent)
-            _run oc patch configs.imageregistry.operator.openshift.io/cluster \
+            _run $KUBECTL patch configs.imageregistry.operator.openshift.io/cluster \
                 --patch '{"spec":{"defaultRoute":true}}' --type=merge
 
             # Retrieve the external registry hostname
@@ -344,18 +360,18 @@ phase_deploy() {
 
     case ${PROFILE} in
         openshift)
-            _run oc apply -f "${ROOT_DIR}/manifests/openshift_e2e/*.yaml"
+            _run $KUBECTL apply -f "${ROOT_DIR}/manifests/openshift/*.yaml"
             ;;
         *)
-            _run kubectl apply -f "${ROOT_DIR}/manifests/kubernetes/*.yaml"
-            _run kubectl apply -f "${ROOT_DIR}/manifests/kubernetes/prereqs/02_prometheus_network_policy.yaml"
+            _run $KUBECTL apply -f "${ROOT_DIR}/manifests/kubernetes/*.yaml"
+            _run $KUBECTL apply -f "${ROOT_DIR}/manifests/kubernetes/prereqs/02_prometheus_network_policy.yaml"
     esac
     if [ -n "${IMAGE_REF:-}" ]; then
-        _run kubectl set image deployment/obs-mcp -n obs-mcp obs-mcp="${IMAGE_REF}"
+        _run $KUBECTL set image deployment/obs-mcp -n obs-mcp obs-mcp="${IMAGE_REF}"
     fi
 
     step "Waiting for obs-mcp rollout"
-    _run kubectl -n obs-mcp rollout status deployment/obs-mcp --timeout=3m
+    _wait_rollout obs-mcp deployment/obs-mcp 3m
 }
 
 phase_clean() {

@@ -144,7 +144,6 @@ mcpchecker diff baseline-out.json current-out.json
 
 ```bash
 make test-e2e-setup
-make test-e2e-setup-extras
 ```
 
 2. a) deploy in-cluster
@@ -177,7 +176,6 @@ make run-mcpchecker-eval TASK=cpu-usage    # single task, verbose
 1. Deploy the prerequisites
 ```bash
 E2E_PROFILE=openshift make test-e2e-setup
-E2E_PROFILE=openshift make test-e2e-setup-extras
 ```
 
 2. run locally
