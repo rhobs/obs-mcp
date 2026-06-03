@@ -54,7 +54,7 @@ func main() {
 		"Maximum allowed label value count for blanket regex (0 = always disallow blanket regex).\n"+
 			"Only takes effect if disallow-blanket-regex is enabled.")
 	var fullRangeQueryResponse = flag.Bool("full-range-query-response", false, "Return full data points for range queries")
-	var tempoUseRoute = flag.Bool("tempo.use-route", false, "Use Route instead of internal service DNS when connecting to Tempo API")
+	var tracesUseRoute = flag.Bool("traces.use-route", false, "Use Route instead of internal service DNS when connecting to Tempo API")
 	flag.Parse()
 
 	if *showVersion {
@@ -139,10 +139,10 @@ func main() {
 		Insecure:               *insecure,
 		Guardrails:             parsedGuardrails,
 		FullRangeQueryResponse: *fullRangeQueryResponse,
-		Tempo: &traces.Config{
+		Traces: &traces.Config{
 			AuthMode: config.AuthMode(parsedAuthMode),
 			Insecure: *insecure,
-			UseRoute: *tempoUseRoute,
+			UseRoute: *tracesUseRoute,
 		},
 		Otelcol: otelcol.NewDefaultConfig(),
 	}

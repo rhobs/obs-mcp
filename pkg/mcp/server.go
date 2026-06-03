@@ -42,7 +42,7 @@ type ObsMCPOptions struct {
 	Insecure               bool
 	Guardrails             *prometheus.Guardrails
 	FullRangeQueryResponse bool
-	Tempo                  *traces.Config
+	Traces                 *traces.Config
 	Otelcol                *otelcol.Config
 }
 
@@ -98,7 +98,7 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	}
 
 	if slices.Contains(opts.Toolsets, ToolsetTraces) {
-		if opts.Tempo == nil {
+		if opts.Traces == nil {
 			return errors.New("configuration for traces toolset is missing")
 		}
 
@@ -114,11 +114,11 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		if err != nil {
 			return err
 		}
-		mcp.AddTool(mcpServer, traces.ListInstancesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Tempo, tempoToolset.ListInstancesHandler))
-		mcp.AddTool(mcpServer, traces.GetTraceByIDTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Tempo, tempoToolset.GetTraceByIDHandler))
-		mcp.AddTool(mcpServer, traces.SearchTracesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Tempo, tempoToolset.SearchTracesHandler))
-		mcp.AddTool(mcpServer, traces.SearchTagsTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Tempo, tempoToolset.SearchTagsHandler))
-		mcp.AddTool(mcpServer, traces.SearchTagValuesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Tempo, tempoToolset.SearchTagValuesHandler))
+		mcp.AddTool(mcpServer, traces.ListInstancesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.ListInstancesHandler))
+		mcp.AddTool(mcpServer, traces.GetTraceByIDTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.GetTraceByIDHandler))
+		mcp.AddTool(mcpServer, traces.SearchTracesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.SearchTracesHandler))
+		mcp.AddTool(mcpServer, traces.SearchTagsTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.SearchTagsHandler))
+		mcp.AddTool(mcpServer, traces.SearchTagValuesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.SearchTagValuesHandler))
 	}
 
 	if slices.Contains(opts.Toolsets, ToolsetOtelcol) {

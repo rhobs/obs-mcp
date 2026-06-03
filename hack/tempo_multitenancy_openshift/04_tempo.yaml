@@ -24,6 +24,8 @@ spec:
   template:
     gateway:
       enabled: true
+      ingress:
+        type: route
     queryFrontend:
       jaegerQuery:
         enabled: true
