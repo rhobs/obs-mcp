@@ -30,7 +30,7 @@ spec:
             - --log-level
             - debug
             - --toolsets
-            - metrics,traces
+            - metrics,traces,otelcol
           env:
             - name: PROMETHEUS_URL
               valueFrom:

@@ -923,3 +923,7 @@ func TestTempoSearchTagValues_MissingTag(t *testing.T) {
 	}
 	t.Error("Expected isError:true for missing tag parameter")
 }
+
+func TestOtelcolToolset(t *testing.T) {
+	runOtelcolToolsetTests(t, mcpClient)
+}

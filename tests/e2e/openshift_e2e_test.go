@@ -132,3 +132,11 @@ func TestOpenShiftMetricsPresent(t *testing.T) {
 	}
 	t.Logf("OpenShift metric %q confirmed present", metric)
 }
+
+func TestOtelcolToolset(t *testing.T) {
+	mcpURL := os.Getenv("OBS_MCP_URL")
+	if mcpURL == "" {
+		t.Skip("OBS_MCP_URL not set; skipping (set OBS_MCP_URL to run against a deployed or local obs-mcp)")
+	}
+	runOtelcolToolsetTests(t, NewMCPClient(mcpURL))
+}
