@@ -881,16 +881,16 @@ func TestGetSilencesHandler_AllSilences(t *testing.T) {
 					Silence: models.Silence{
 						Matchers: models.Matchers{
 							&models.Matcher{
-								Name:    ptrString("alertname"),
-								Value:   ptrString("HighCPU"),
-								IsRegex: ptrBool(false),
-								IsEqual: ptrBool(true),
+								Name:    new("alertname"),
+								Value:   new("HighCPU"),
+								IsRegex: new(false),
+								IsEqual: new(true),
 							},
 						},
 						StartsAt:  &now,
 						EndsAt:    &now,
-						CreatedBy: ptrString("admin"),
-						Comment:   ptrString("Maintenance window"),
+						CreatedBy: new("admin"),
+						Comment:   new("Maintenance window"),
 					},
 				},
 			}, nil
@@ -928,16 +928,16 @@ func TestGetSilencesHandler_WithFilter(t *testing.T) {
 					Silence: models.Silence{
 						Matchers: models.Matchers{
 							&models.Matcher{
-								Name:    ptrString("alertname"),
-								Value:   ptrString("HighCPU"),
-								IsRegex: ptrBool(false),
-								IsEqual: ptrBool(true),
+								Name:    new("alertname"),
+								Value:   new("HighCPU"),
+								IsRegex: new(false),
+								IsEqual: new(true),
 							},
 						},
 						StartsAt:  &now,
 						EndsAt:    &now,
-						CreatedBy: ptrString("admin"),
-						Comment:   ptrString("Planned maintenance"),
+						CreatedBy: new("admin"),
+						Comment:   new("Planned maintenance"),
 					},
 				},
 			}, nil
@@ -1137,13 +1137,4 @@ func TestGetSilencesHandler_ClientError(t *testing.T) {
 	if err.Error() != "failed to get silences: connection refused" {
 		t.Errorf("expected error message 'failed to get silences: connection refused', got %q", err.Error())
 	}
-}
-
-// Helper functions to create pointers
-func ptrString(s string) *string {
-	return &s
-}
-
-func ptrBool(b bool) *bool {
-	return &b
 }

@@ -195,14 +195,14 @@ func TestGetSilences(t *testing.T) {
 				Silence: models.Silence{
 					Matchers: models.Matchers{
 						&models.Matcher{
-							Name:    ptrString("alertname"),
-							Value:   ptrString("HighCPU"),
-							IsRegex: ptrBool(false),
-							IsEqual: ptrBool(true),
+							Name:    new("alertname"),
+							Value:   new("HighCPU"),
+							IsRegex: new(false),
+							IsEqual: new(true),
 						},
 					},
-					CreatedBy: ptrString("admin"),
-					Comment:   ptrString("Maintenance window"),
+					CreatedBy: new("admin"),
+					Comment:   new("Maintenance window"),
 				},
 			},
 		}
@@ -237,14 +237,14 @@ func TestGetSilences(t *testing.T) {
 				Silence: models.Silence{
 					Matchers: models.Matchers{
 						&models.Matcher{
-							Name:    ptrString("alertname"),
-							Value:   ptrString("HighCPU"),
-							IsRegex: ptrBool(false),
-							IsEqual: ptrBool(true),
+							Name:    new("alertname"),
+							Value:   new("HighCPU"),
+							IsRegex: new(false),
+							IsEqual: new(true),
 						},
 					},
-					CreatedBy: ptrString("admin"),
-					Comment:   ptrString("Planned maintenance"),
+					CreatedBy: new("admin"),
+					Comment:   new("Planned maintenance"),
 				},
 			},
 		}
@@ -284,13 +284,4 @@ func TestGetSilences(t *testing.T) {
 			t.Errorf("expected 0 silences, got %d", len(silences))
 		}
 	})
-}
-
-// Helper functions to create pointers
-func ptrString(s string) *string {
-	return &s
-}
-
-func ptrBool(b bool) *bool {
-	return &b
 }
