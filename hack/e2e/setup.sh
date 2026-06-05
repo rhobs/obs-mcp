@@ -43,6 +43,16 @@ _run() {
     fi
 }
 
+# Can't use realpath --relative-base for macos compatibility.
+_relativepath() {
+    local _abs
+    _abs="$(realpath "$1")"
+    if [[ "${_abs}" == "${PWD}" ]]; then
+        echo "."
+    else
+        echo "${_abs#"${PWD}"/}"
+    fi
+}
 # ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
@@ -55,8 +65,9 @@ SUPPORTED_PROFILES=(kind k8s openshift)
 SUPPORTED_STACKS=(prometheus tempo)
 
 KUBE_PROMETHEUS_VERSION="${KUBE_PROMETHEUS_VERSION:-release-0.16}"
-# Using relative-to to have cleaner output (skipping unnecessary absolute paths)
-ROOT_DIR="$(realpath "${SCRIPT_DIR}/../.."  --relative-base .)"
+
+# Preferring relative paths to have cleaner output.
+ROOT_DIR="$(_relativepath "${SCRIPT_DIR}/../..")"
 KUBE_PROMETHEUS_DIR="${ROOT_DIR}/tmp/kube-prometheus"
 CONTAINER_CLI="${CONTAINER_CLI:-docker}"
 
@@ -151,7 +162,10 @@ phase_provision() {
         kind)
             step "Creating Kind cluster '${KIND_CLUSTER_NAME}'"
             if kind get clusters 2>/dev/null | grep -q "^${KIND_CLUSTER_NAME}$"; then
-                info "Cluster '${KIND_CLUSTER_NAME}' already exists, skipping creation"
+                info "Cluster '${KIND_CLUSTER_NAME}' already exists. Reusing."
+                if [[ "$($KUBECTL config current-context)" != "kind-${KIND_CLUSTER_NAME}" ]]; then
+                    _run $KUBECTL config use-context "kind-${KIND_CLUSTER_NAME}"
+                fi
             else
                 _run kind create cluster --name "${KIND_CLUSTER_NAME}" \
                     --config "${SCRIPT_DIR}/kind-config.yaml" --wait 5m
