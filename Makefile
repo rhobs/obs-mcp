@@ -81,6 +81,13 @@ setup: check-tools ## Install dependencies for all components
 	go mod download
 	cd $(TOOLS_DIR) && go mod download
 
+.PHONY: update-go-deps
+update-go-deps: ## Upgrade root Go module dependencies to latest and tidy
+	@echo "==> Upgrading root module dependencies..."
+	go get -u ./...
+	go mod tidy
+	@echo "✓ Done. Run 'make test-unit' to verify."
+
 .PHONY: generate-tools-doc
 generate-tools-doc: ## Generate TOOLS.md from tool definitions
 	go run ./cmd/generate-tools-doc/main.go

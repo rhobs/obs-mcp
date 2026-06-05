@@ -4,20 +4,16 @@ description: Common setup for E2E tests
 runs:
     using: "composite"
     steps:
-        - name: Import environment variables from file
-          run: cat ".github/env" >> "$GITHUB_ENV"
-          shell: bash
-
         - name: Install Go
           uses: actions/setup-go@v6
           with:
-              go-version: "${{ env.golang-version }}"
+              go-version-file: go.mod
               check-latest: true
 
         - name: Install Kind
           uses: helm/kind-action@v1.13.0
           with:
-              version: ${{ env.kind-version }}
+              version: v0.30.0
               install_only: true
 
         - name: Start kind cluster and setup environment
