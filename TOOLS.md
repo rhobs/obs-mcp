@@ -3,7 +3,7 @@
 
 # Available Tools
 
-This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager, and Tempo:
+This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager, Tempo, and OpenTelemetry Collector configuration:
 
 > [!NOTE]
 > **Types in the tables** follow JSON Schema: `object` is a JSON object (string keys with JSON values); `object[]` is an array of those objects. Scalar types use their usual names (`string`, `number`, `boolean`, and so on). When a field has no explicit schema type (for example a Go `any` payload), this document shows `object` as shorthand for "structured JSON," not a guarantee that only objects are returned at runtime.

@@ -72,6 +72,8 @@ comma-separated list via `--stacks` (default: `prometheus,tempo`):
 
 The enabled stacks determine which `manifests/` subtrees are applied and which `--toolsets`
 value is passed to the obs-mcp deployment — no manual editing of manifests is needed.
+When deploying via `hack/e2e/setup.sh`, the `otelcol` toolset is always included (it has no
+external backend dependency); stack selection adds `metrics` and/or `traces` on top.
 
 **Phases** express what work to perform. The two top-level aliases cover the common cases:
 
@@ -148,7 +150,14 @@ obs-mcp includes query guardrails that prevent expensive or unsafe PromQL querie
 
 Optional MCP tools query [Grafana Tempo](https://grafana.com/docs/tempo/latest/) instances on the same Kubernetes or OpenShift cluster (see [TOOLS.md](../TOOLS.md) for tool names).
 
-- **Enable:** pass `--toolsets metrics,traces`. The default is `metrics` only, so Tempo tools are hidden until `traces` is included. Example `Deployment` manifests under `manifests/core/deploy/` already enable both.
+- **Enable:** pass `--toolsets metrics,traces`. The default is `metrics` only, so Tempo tools are hidden until `traces` is included. Example `Deployment` manifests under `manifests/core/deploy/` enable `metrics`, `traces`, and `otelcol`.
 - **Discovery:** the server lists `TempoStack` / `TempoMonolithic` resources (Grafana Tempo Operator). The workload `ServiceAccount` must be allowed to `get`, `list`, and `watch` those resources in API group `tempo.grafana.com` (see RBAC in the example manifests).
-- **Routes:** use `--tempo.use-route` when Tempo should be reached via an OpenShift `Route` instead of in-cluster service DNS.
+- **Routes:** use `--traces.use-route` when Tempo should be reached via an OpenShift `Route` instead of in-cluster service DNS.
 - **Local stack:** for an optional OpenShift tracing demo (Tempo, tenants, OTel), see [`hack/tempo_multitenancy_openshift/README.md`](../hack/tempo_multitenancy_openshift/README.md).
+
+## OpenTelemetry Collector (`otelcol`) toolset
+
+Optional MCP tools assist with [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration: listing components, fetching JSON schemas, validating configs, and listing supported versions (see [TOOLS.md](../TOOLS.md) for tool names).
+
+- **Enable:** pass `--toolsets otelcol` or include it alongside other toolsets (e.g. `--toolsets metrics,traces,otelcol`). The default is `metrics` only. Example `Deployment` manifests under `manifests/core/deploy/` already enable all three toolsets.
+- **Dependencies:** none — component schemas are embedded in the binary; no cluster-side Collector instance is required.

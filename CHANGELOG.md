@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.0] - 2026-06-05
+
+### Added
+
+- `otelcol` toolset for [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration assistance: `otelcol_list_components`, `otelcol_get_component_schema`, `otelcol_validate_config`, and `otelcol_get_versions` ([#77](https://github.com/rhobs/obs-mcp/pull/77))
+- Comprehensive unit and e2e tests for the Tempo toolset ([#105](https://github.com/rhobs/obs-mcp/pull/105))
+- otelcol smoke test in the e2e suite ([#114](https://github.com/rhobs/obs-mcp/pull/114))
+- `make update-go-deps` Makefile target for Go dependency maintenance ([#115](https://github.com/rhobs/obs-mcp/pull/115))
+
+### Changed
+
+- Rename CLI flag `-tempo.use-route` to `-traces.use-route` ([#111](https://github.com/rhobs/obs-mcp/pull/111))
+- Consolidate e2e cluster setup in `hack/e2e/setup.sh` and unify Kubernetes/OpenShift deployment manifests ([#112](https://github.com/rhobs/obs-mcp/pull/112))
+- Bump Go to 1.26 and upgrade module dependencies ([#115](https://github.com/rhobs/obs-mcp/pull/115))
+- Bump Kind to v0.32.0 for Kubernetes 1.36 e2e tests ([#116](https://github.com/rhobs/obs-mcp/pull/116))
+
+### Fixed
+
+- Flatten `AdditionalFields` directly into tool `Meta` metadata ([#110](https://github.com/rhobs/obs-mcp/pull/110))
+
 ## [v0.2.0] - 2026-05-14
 
 ### Added
