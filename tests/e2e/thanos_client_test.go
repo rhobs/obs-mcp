@@ -1,4 +1,4 @@
-//go:build e2e && !openshift
+//go:build e2e
 
 package e2e
 

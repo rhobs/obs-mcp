@@ -102,14 +102,8 @@ func TestRouteDiscovery_URLsAreReachable(t *testing.T) {
 
 // TestOpenShiftMetricsPresent verifies that obs-mcp can query an OpenShift-specific
 // metric, confirming it is wired to OpenShift in-cluster monitoring.
-// Skipped when OBS_MCP_URL is not set.
 func TestOpenShiftMetricsPresent(t *testing.T) {
-	mcpURL := os.Getenv("OBS_MCP_URL")
-	if mcpURL == "" {
-		t.Skip("OBS_MCP_URL not set; skipping (set OBS_MCP_URL to run against a deployed or local obs-mcp)")
-	}
-
-	client := NewMCPClient(mcpURL)
+	client := mcpClient
 	const metric = "cluster_monitoring_operator_reconcile_attempts_total"
 
 	resp, err := client.CallTool(t, 1, "list_metrics", map[string]any{

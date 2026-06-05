@@ -15,13 +15,6 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 )
 
-// TestMain for the OpenShift test suite. Route discovery tests call pkg/k8s
-// directly. TestOpenShiftMetricsPresent connects to obs-mcp only when
-// OBS_MCP_URL is set; it skips otherwise.
-func TestMain(m *testing.M) {
-	os.Exit(m.Run())
-}
-
 // authenticatedHTTPClient returns an HTTP client that sends a bearer token on
 // every request and skips TLS verification for OpenShift ingress certs.
 //

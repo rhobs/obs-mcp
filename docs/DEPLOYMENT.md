@@ -35,12 +35,71 @@ The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Promethe
 
 ## Deploying on a Cluster
 
-Example manifests are provided in the `manifests/` directory:
+Example manifests are provided in the `manifests/` directory, organised by stack:
 
-- `manifests/openshift/` - Example for OpenShift with Thanos Querier
-- `manifests/kubernetes/` - Example for Kubernetes
+- `manifests/core/deploy/kubernetes/` — Core MCP server for Kubernetes (apply with `kubectl apply -k`)
+- `manifests/core/deploy/openshift/` — Core MCP server for OpenShift (apply with `kubectl apply -k`)
+- `manifests/prometheus/deploy/kubernetes/` — NetworkPolicies for kube-prometheus access
+- `manifests/prometheus/deploy/openshift/` — RBAC for OpenShift monitoring access
+- `manifests/tempo/deploy/` — Tracing RBAC (platform-independent)
 
 These are **reference examples** that you'll need to customize for your environment.
+
+### Using a helper script
+
+`hack/e2e/setup.sh` automates cluster setup for E2E testing and development. It accepts a
+**profile**, a set of **stacks**, and a **phase expression**:
+
+```bash
+hack/e2e/setup.sh [PHASE_EXP] [--profile PROFILE] [--stacks STACKS]
+```
+
+**Profiles** select the target cluster type:
+
+| Profile    | Description |
+|------------|-------------|
+| `kind`     | Local [Kind](https://kind.sigs.k8s.io/) cluster (default). Provisions and unprovisions the cluster automatically. |
+| `k8s`      | Generic upstream Kubernetes cluster (must already exist). |
+| `openshift`| OpenShift cluster (must already exist). Uses `oc` instead of `kubectl`. |
+
+**Stacks** are optional observability backends that obs-mcp connects to. Pass a
+comma-separated list via `--stacks` (default: `prometheus,tempo`):
+
+| Stack        | What it installs | Toolset enabled |
+|--------------|------------------|-----------------|
+| `prometheus` | kube-prometheus (k8s) or uses the built-in OpenShift monitoring stack | `metrics` |
+| `tempo`      | Tempo + OpenTelemetry operators and a sample tracing app | `traces` |
+
+The enabled stacks determine which `manifests/` subtrees are applied and which `--toolsets`
+value is passed to the obs-mcp deployment — no manual editing of manifests is needed.
+
+**Phases** express what work to perform. The two top-level aliases cover the common cases:
+
+| Alias | Expands to |
+|-------|------------|
+| `up` (default) | `provision` (kind only) → `prereqs` → `extras` → `upload` → `deploy` |
+| `down` | `clean` → `unprovision` (kind only) |
+
+Individual phases can be named explicitly (space-separated) to re-run just part of the
+sequence, e.g. `hack/e2e/setup.sh deploy --profile kind`:
+
+| Phase        | Description |
+|--------------|-------------|
+| `provision`  | Creates the Kind cluster (kind profile only). |
+| `prereqs`    | Installs cluster-wide operators and CRDs needed by the enabled stacks (cert-manager, Tempo/OTel operators, kube-prometheus CRDs). |
+| `extras`     | Adds sources of observability signal for better e2e testing. |
+| `upload`     | Builds/loads or pushes the obs-mcp container image into the cluster. |
+| `deploy`     | Deploys the obs-mcp to the cluster. |
+| `clean`      | Removes temporary artefacts. |
+| `unprovision`| Deletes the Kind cluster (kind profile only). |
+
+**Manifests directory structure** mirrors the phases and stacks:
+
+```
+manifests/
+├── core/$PHASE/{base,kubernetes,openshift}/    # common manifests for obs-mcp
+└── $STACK/$PHASE/{base,kubernetes,openshift}/  # stack-specific manifests
+```
 
 ### Key Configuration
 
@@ -89,7 +148,7 @@ obs-mcp includes query guardrails that prevent expensive or unsafe PromQL querie
 
 Optional MCP tools query [Grafana Tempo](https://grafana.com/docs/tempo/latest/) instances on the same Kubernetes or OpenShift cluster (see [TOOLS.md](../TOOLS.md) for tool names).
 
-- **Enable:** pass `--toolsets metrics,traces`. The default is `metrics` only, so Tempo tools are hidden until `traces` is included. Example `Deployment` manifests under `manifests/kubernetes/` and `manifests/openshift/` already enable both.
+- **Enable:** pass `--toolsets metrics,traces`. The default is `metrics` only, so Tempo tools are hidden until `traces` is included. Example `Deployment` manifests under `manifests/core/deploy/` already enable both.
 - **Discovery:** the server lists `TempoStack` / `TempoMonolithic` resources (Grafana Tempo Operator). The workload `ServiceAccount` must be allowed to `get`, `list`, and `watch` those resources in API group `tempo.grafana.com` (see RBAC in the example manifests).
 - **Routes:** use `--tempo.use-route` when Tempo should be reached via an OpenShift `Route` instead of in-cluster service DNS.
 - **Local stack:** for an optional OpenShift tracing demo (Tempo, tenants, OTel), see [`hack/tempo_multitenancy_openshift/README.md`](../hack/tempo_multitenancy_openshift/README.md).
