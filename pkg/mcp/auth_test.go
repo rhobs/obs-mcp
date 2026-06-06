@@ -2,10 +2,12 @@ package mcp
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+	"sync"
 	"testing"
 
 	promapi "github.com/prometheus/client_golang/api"
@@ -80,5 +82,34 @@ func TestCreateHeaderAPIConfig(t *testing.T) {
 	// Verify the test header is still present
 	if capturedRequest.Header.Get("X-Test") != "test-value" {
 		t.Error("expected X-Test header to be preserved")
+	}
+}
+
+func TestCreateAPIConfigWithToken_DoesNotMutateGlobalTransport(t *testing.T) {
+	originalTransport := promapi.DefaultRoundTripper
+	defer func() {
+		promapi.DefaultRoundTripper = originalTransport
+	}()
+
+	baseTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: false},
+	}
+	promapi.DefaultRoundTripper = baseTransport
+
+	var wg sync.WaitGroup
+	for range 10 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := createAPIConfigWithToken("https://prometheus.example.com", "token", true)
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	if baseTransport.TLSClientConfig.InsecureSkipVerify {
+		t.Error("global DefaultRoundTripper was mutated; expected it to remain unchanged")
 	}
 }
