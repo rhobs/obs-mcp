@@ -39,7 +39,7 @@ With `--auth-mode header`, set `PROMETHEUS_URL` and `ALERTMANAGER_URL` if you al
 
 ## Install test resources
 
-Apply base resources first (project, OperatorGroup, MinIO, log generator). The verify script creates the Loki Operator Subscription using the package's default channel, then applies the `LokiStack` CR after CRDs are installed:
+Apply base resources first (project, OperatorGroup, MinIO, log generator). The verify script creates the Loki Operator Subscription using the newest `stable-*` channel from the package manifest (for example `stable-6.5`), then applies the `LokiStack` CR after CRDs are installed:
 
 ```bash
 oc apply -f hack/loki_multitenancy_openshift/install/
@@ -67,7 +67,7 @@ Environment overrides:
 - `LOKI_OPERATOR_CHANNEL` (default: newest `stable-*` from `packagemanifest/loki-operator`, e.g. `stable-6.5`)
 - `LOKI_OPERATOR_NS` (default: `openshift-loki-operator`)
 - `LOKI_OPERATOR_CATALOG` (default: `redhat-operators`)
-- `LOKI_OPERATOR_SOURCE_NAMESPACE` (default: auto-detected, usually `openshift-marketplace`)
+- `LOKI_OPERATOR_SOURCE_NAMESPACE` (default: `openshift-marketplace`)
 
 ### NetObserv flow logs and RBAC
 

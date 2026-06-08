@@ -40,7 +40,8 @@ spec:
               value: loki
             - name: MINIO_SECRET_KEY
               value: supersecret
-          image: docker.io/minio/minio
+          # Pinned for reproducible hack deployments (MinIO RELEASE.2024-12-13 security fix).
+          image: docker.io/minio/minio:RELEASE.2024-12-13T22-19-12Z
           name: minio
           ports:
             - containerPort: 9000
@@ -91,7 +92,8 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: mc
-          image: docker.io/minio/mc
+          # Pinned to match the MinIO server release used above.
+          image: docker.io/minio/mc:RELEASE.2024-12-13T22-19-12Z
           command: ["/bin/sh", "-c"]
           env:
             - name: MC_CONFIG_DIR

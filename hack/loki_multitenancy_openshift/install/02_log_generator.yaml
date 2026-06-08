@@ -16,6 +16,17 @@ spec:
       containers:
         - name: logger
           image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
           command: ["/bin/sh", "-c"]
           env:
             - name: TENANT_ID

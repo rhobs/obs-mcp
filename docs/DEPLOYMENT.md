@@ -172,5 +172,5 @@ Optional MCP tools query [Loki](https://grafana.com/oss/loki/) log APIs (see [TO
 - **Enable:** pass `--toolsets metrics,logs` (or `metrics,logs,traces`).
 - **Configuration:** provide Loki URL with `--loki-url` or `LOKI_URL`, or discover LokiStack instances via the Loki Operator.
 - **Discovery:** use `loki_list_instances` to list `LokiStack` CRs (`loki.grafana.com/v1`) and then pass `lokiNamespace` + `lokiName` to query tools.
-- **Routes:** use `--loki.use-route` to resolve LokiStack gateway Route (`<name>-gateway-http`) instead of in-cluster service DNS.
+- **Routes:** use `--loki.use-route` to resolve the OpenShift Route named `<name>` that targets Service `<name>-gateway-http`, instead of in-cluster service DNS.
 - **Auth:** uses the same `--auth-mode` token strategy as metrics/traces.

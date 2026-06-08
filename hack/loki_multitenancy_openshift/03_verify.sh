@@ -16,6 +16,13 @@ LOKI_OPERATOR_NS="${LOKI_OPERATOR_NS:-openshift-loki-operator}"
 LOKI_OPERATOR_CATALOG="${LOKI_OPERATOR_CATALOG:-}"
 LOKI_OPERATOR_SOURCE_NAMESPACE="${LOKI_OPERATOR_SOURCE_NAMESPACE:-}"
 LOKI_OPERATOR_CHANNEL="${LOKI_OPERATOR_CHANNEL:-}"
+CURL_CONNECT_TIMEOUT="${CURL_CONNECT_TIMEOUT:-5}"
+CURL_HEALTH_MAX_TIME="${CURL_HEALTH_MAX_TIME:-10}"
+CURL_MCP_MAX_TIME="${CURL_MCP_MAX_TIME:-120}"
+LOG_GENERATOR_MAX_ATTEMPTS="${LOG_GENERATOR_MAX_ATTEMPTS:-15}"
+LOG_GENERATOR_SLEEP="${LOG_GENERATOR_SLEEP:-4}"
+LOKI_QUERY_MAX_ATTEMPTS="${LOKI_QUERY_MAX_ATTEMPTS:-12}"
+LOKI_QUERY_SLEEP="${LOKI_QUERY_SLEEP:-5}"
 
 echo "==> Ensuring Loki Operator subscription"
 PACKAGE_MANIFEST_JSON="$(oc get packagemanifest -n openshift-marketplace loki-operator -o json 2>/dev/null || true)"
@@ -147,8 +154,19 @@ fi
 echo "==> Checking generator rollout"
 oc -n "${LOKI_NS}" rollout status deployment/obs-mcp-log-generator --timeout=2m
 
-echo "==> Waiting for a few log lines"
-sleep 10
+echo "==> Waiting for log generator output"
+for attempt in $(seq 1 "${LOG_GENERATOR_MAX_ATTEMPTS}"); do
+  if oc logs -n "${LOKI_NS}" deployment/obs-mcp-log-generator --tail=20 2>/dev/null | grep -q obs-mcp-loki-hack; then
+    echo "OK: log generator is producing lines (attempt ${attempt}/${LOG_GENERATOR_MAX_ATTEMPTS})"
+    break
+  fi
+  if [[ "${attempt}" -eq "${LOG_GENERATOR_MAX_ATTEMPTS}" ]]; then
+    echo "ERROR: log generator did not produce expected lines after ${LOG_GENERATOR_MAX_ATTEMPTS} attempts"
+    exit 1
+  fi
+  echo "    Attempt ${attempt}/${LOG_GENERATOR_MAX_ATTEMPTS}: no log lines yet, retrying in ${LOG_GENERATOR_SLEEP}s..."
+  sleep "${LOG_GENERATOR_SLEEP}"
+done
 
 mcp_health_url="${MCP_URL%/mcp}/health"
 if [[ "${MCP_URL}" != */mcp ]]; then
@@ -156,7 +174,7 @@ if [[ "${MCP_URL}" != */mcp ]]; then
 fi
 
 echo "==> Checking obs-mcp health at ${mcp_health_url}"
-if ! curl -sf "${mcp_health_url}" >/dev/null; then
+if ! curl -sf --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_HEALTH_MAX_TIME}" "${mcp_health_url}" >/dev/null; then
   echo "ERROR: obs-mcp is not reachable."
   echo "Start it in another terminal, for example:"
   echo "  go run ./cmd/obs-mcp --listen 127.0.0.1:9100 --toolsets logs --auth-mode kubeconfig --insecure --loki.use-route"
@@ -180,7 +198,8 @@ mcp_parse_sse() {
 mcp_call_raw() {
   local payload="$1"
   local raw result
-  if ! raw="$(curl -sS -X POST "${MCP_URL}" \
+  if ! raw="$(curl -sS --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MCP_MAX_TIME}" \
+    -X POST "${MCP_URL}" \
     -H "Content-Type: application/json" \
     -H "Accept: application/json, text/event-stream" \
     -d "${payload}")"; then
@@ -251,18 +270,28 @@ QUERY_PAYLOAD="$(jq -nc \
   --arg query "${LOKI_QUERY}" \
   --arg duration "${VERIFY_DURATION}" \
   '{jsonrpc:"2.0",id:3,method:"tools/call",params:{name:"loki_query_range",arguments:{lokiNamespace:$ns,lokiName:$name,tenant:$tenant,query:$query,duration:$duration,limit:50}}}')"
-QUERY_RESULT="$(mcp_call_raw "${QUERY_PAYLOAD}")"
+QUERY_RESULT=""
+STREAM_COUNT=0
+for attempt in $(seq 1 "${LOKI_QUERY_MAX_ATTEMPTS}"); do
+  QUERY_RESULT="$(mcp_call_raw "${QUERY_PAYLOAD}")"
+  STREAM_COUNT="$(echo "${QUERY_RESULT}" | jq -r '.result.structuredContent.streams | length // 0')"
+  if [[ "${STREAM_COUNT}" != "0" ]]; then
+    echo "OK: query returned ${STREAM_COUNT} stream(s) (attempt ${attempt}/${LOKI_QUERY_MAX_ATTEMPTS})"
+    break
+  fi
+  if [[ "${attempt}" -lt "${LOKI_QUERY_MAX_ATTEMPTS}" ]]; then
+    echo "    Attempt ${attempt}/${LOKI_QUERY_MAX_ATTEMPTS}: query returned 0 streams, retrying in ${LOKI_QUERY_SLEEP}s..."
+    sleep "${LOKI_QUERY_SLEEP}"
+  fi
+done
 echo "${QUERY_RESULT}" | jq .
 
-STREAM_COUNT="$(echo "${QUERY_RESULT}" | jq -r '.result.structuredContent.streams | length // 0')"
 if [[ "${STREAM_COUNT}" == "0" ]]; then
   echo "WARN: query returned 0 streams."
   echo "      - NetObserv flow logs use SrcK8S_Namespace/DstK8S_Namespace, not kubernetes_namespace_name."
   echo "      - Set NETOBSERV_NS to the namespace you filter in the UI (default: netobserv)."
   echo "      - Ensure FlowCollector exports to this LokiStack and your user can view ${NETOBSERV_NS}."
   echo "      - Try: LOKI_QUERY='{K8S_FlowLayer=\"app\"}' VERIFY_DURATION=1h $0"
-else
-  echo "OK: query returned ${STREAM_COUNT} stream(s)"
 fi
 
 echo "==> Verification complete"
