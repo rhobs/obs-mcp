@@ -15,12 +15,12 @@ spec:
   prompt:
     inline: |
       Query NetObserv network flow logs from the last hour where the source or
-      destination namespace is netobserv. Use LokiStack obs-mcp-loki in namespace
+      destination namespace is obs-mcp-loki. Use LokiStack obs-mcp-loki in namespace
       obs-mcp-loki with tenant network.
   verify:
     - llmJudge:
         contains: "SrcK8S_Namespace"
-        reason: "Verify the agent used NetObserv indexed namespace labels in LogQL"
+        reason: "Verify the agent used obs-mcp-loki indexed namespace labels in LogQL"
     - llmJudge:
         contains: "network"
         reason: "Verify the agent used tenant network for the openshift-network LokiStack"

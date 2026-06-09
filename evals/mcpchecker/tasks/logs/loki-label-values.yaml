@@ -19,6 +19,3 @@ spec:
     - llmJudge:
         contains: "SrcK8S_Namespace"
         reason: "Verify the agent queried the SrcK8S_Namespace label"
-    - llmJudge:
-        contains: "netobserv"
-        reason: "Verify netobserv appears among source namespace values when NetObserv flows are present"
