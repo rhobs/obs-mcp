@@ -11,10 +11,11 @@ ifneq ($(findstring $(origin IMAGE),environment command line),)
 $(warning IMAGE is deprecated, use IMAGE_REF instead)
 endif
 TOOLS_DIR := hack/tools
-MCPCHECKER_VERSION ?= 0.0.16
+MCPCHECKER_VERSION ?= 0.0.18
 
 ROOT_DIR := $(shell pwd)
 TOOLS_BIN_DIR := $(ROOT_DIR)/tmp/bin
+MCPCHECKER := $(TOOLS_BIN_DIR)/mcpchecker
 
 .PHONY: help
 help: ## Show this help message
@@ -191,7 +192,7 @@ test-e2e-openshift: ## Run OpenShift route discovery E2E tests (requires oc logi
 MCPCHECKER_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 MCPCHECKER_ARCH := $(shell uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
 
-$(TOOLS_BIN_DIR)/mcpchecker: | $(TOOLS_BIN_DIR)
+$(MCPCHECKER): | $(TOOLS_BIN_DIR)
 	@echo "==> Installing mcpchecker v$(MCPCHECKER_VERSION) ($(MCPCHECKER_OS)/$(MCPCHECKER_ARCH))..."
 	@curl -fsSL -o $(TOOLS_BIN_DIR)/mcpchecker.zip \
 		https://github.com/mcpchecker/mcpchecker/releases/download/v$(MCPCHECKER_VERSION)/mcpchecker-$(MCPCHECKER_OS)-$(MCPCHECKER_ARCH).zip
@@ -208,14 +209,16 @@ RUNS ?= 1
 EVAL_CONFIG ?= eval.yaml
 
 .PHONY: run-mcpchecker-eval
-run-mcpchecker-eval: $(TOOLS_BIN_DIR)/mcpchecker ## Run mcpchecker eval (TASK=name, CATEGORY=..., EVAL_CONFIG=eval-logs.yaml, RUNS=3)
+run-mcpchecker-eval: $(MCPCHECKER) ## Run mcpchecker eval (TASK=name, CATEGORY=..., EVAL_CONFIG=eval-logs.yaml, RUNS=3)
 ifdef TASK
-	cd $(MCPCHECKER_EVAL_DIR) && $(TOOLS_BIN_DIR)/mcpchecker check $(EVAL_CONFIG) --run "$(TASK)" --runs $(RUNS) --verbose
+	cd $(MCPCHECKER_EVAL_DIR) && $(MCPCHECKER) check $(EVAL_CONFIG) --run "$(TASK)" --runs $(RUNS) --verbose
 else ifdef CATEGORY
-	cd $(MCPCHECKER_EVAL_DIR) && $(TOOLS_BIN_DIR)/mcpchecker check $(EVAL_CONFIG) --label-selector "category=$(CATEGORY)" --runs $(RUNS) --parallel 4
+	cd $(MCPCHECKER_EVAL_DIR) && $(MCPCHECKER) check $(EVAL_CONFIG) --label-selector "category=$(CATEGORY)" --runs $(RUNS) --parallel 4
 else
-	cd $(MCPCHECKER_EVAL_DIR) && $(TOOLS_BIN_DIR)/mcpchecker check $(EVAL_CONFIG) --runs $(RUNS) --parallel 4
+	cd $(MCPCHECKER_EVAL_DIR) && $(MCPCHECKER) check $(EVAL_CONFIG) --runs $(RUNS) --parallel 4
 endif
+	$(MCPCHECKER) result summary $(MCPCHECKER_EVAL_DIR)/mcpchecker-obs-mcp-tools-out.json
+
 
 # Loki evals and local smoke (OpenShift fixture via hack/e2e/setup.sh --stacks loki)
 LOKI_EVAL_HACK_DIR := hack/loki_multitenancy_openshift
