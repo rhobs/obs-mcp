@@ -1,5 +1,5 @@
-apiVersion: project.openshift.io/v1
-kind: Project
+apiVersion: v1
+kind: Namespace
 metadata:
   name: openshift-tempo-operator
 ---
@@ -24,9 +24,8 @@ spec:
   sourceNamespace: openshift-marketplace
 
 ---
-
-apiVersion: project.openshift.io/v1
-kind: Project
+apiVersion: v1
+kind: Namespace
 metadata:
   name: openshift-opentelemetry-operator
 ---
