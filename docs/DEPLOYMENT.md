@@ -157,29 +157,3 @@ obs-mcp includes query guardrails that prevent expensive or unsafe PromQL querie
   ```
 
 - **Prometheus**: All guardrails work with any supported Prometheus version.
-
-## Traces (Tempo) toolset
-
-Optional MCP tools query [Grafana Tempo](https://grafana.com/docs/tempo/latest/) instances on the same Kubernetes or OpenShift cluster (see [TOOLS.md](../TOOLS.md) for tool names).
-
-- **Enable:** pass `--toolsets metrics,traces`. The default is `metrics` only, so Tempo tools are hidden until `traces` is included. Example `Deployment` manifests under `manifests/core/deploy/` enable `metrics`, `traces`, and `otelcol`.
-- **Discovery:** the server lists `TempoStack` / `TempoMonolithic` resources (Grafana Tempo Operator). The workload `ServiceAccount` must be allowed to `get`, `list`, and `watch` those resources in API group `tempo.grafana.com` (see RBAC in the example manifests).
-- **Routes:** use `--traces.use-route` when Tempo should be reached via an OpenShift `Route` instead of in-cluster service DNS.
-- **Local stack:** for an optional OpenShift tracing demo (Tempo, tenants, OTel), see [`hack/tempo_multitenancy_openshift/README.md`](../hack/tempo_multitenancy_openshift/README.md).
-
-## OpenTelemetry Collector (`otelcol`) toolset
-
-Optional MCP tools assist with [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration: listing components, fetching JSON schemas, validating configs, and listing supported versions (see [TOOLS.md](../TOOLS.md) for tool names).
-
-- **Enable:** pass `--toolsets otelcol` or include it alongside other toolsets (e.g. `--toolsets metrics,logs,traces,otelcol`). The default is `metrics` only. Example `Deployment` manifests under `manifests/core/deploy/` already enable all four toolsets.
-- **Dependencies:** none — component schemas are embedded in the binary; no cluster-side Collector instance is required.
-
-## Logs (Loki) toolset
-
-Optional MCP tools query [Loki](https://grafana.com/oss/loki/) log APIs (see [TOOLS.md](../TOOLS.md) for tool names).
-
-- **Enable:** pass `--toolsets metrics,logs` (or `metrics,logs,traces`).
-- **Configuration:** provide Loki URL with `--loki-url` or `LOKI_URL`, or discover LokiStack instances via the Loki Operator.
-- **Discovery:** use `loki_list_instances` to list `LokiStack` CRs (`loki.grafana.com/v1`) and then pass `lokiNamespace` + `lokiName` to query tools.
-- **Routes:** use `--loki.use-route` to resolve the OpenShift Route named `<name>` that targets Service `<name>-gateway-http`, instead of in-cluster service DNS.
-- **Auth:** uses the same `--auth-mode` token strategy as metrics/traces.
