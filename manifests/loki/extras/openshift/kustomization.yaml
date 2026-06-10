@@ -4,5 +4,4 @@ resources:
   - 00_namespace.yaml
   - 01_minio.yaml
   - 01_log_generator.yaml
-  - 01_gateway_query_rbac.yaml
   - 02_lokistack.yaml

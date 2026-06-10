@@ -59,7 +59,7 @@ _relativepath() {
 
 PHASE_DEFAULT="up"
 PROFILE="kind"
-STACKS="prometheus,tempo"
+STACKS="prometheus,tempo,loki"
 SUPPORTED_PHASES=(provision prereqs extras upload deploy clean unprovision)
 SUPPORTED_PROFILES=(kind k8s openshift)
 SUPPORTED_STACKS=(prometheus tempo loki)
