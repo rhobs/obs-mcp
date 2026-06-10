@@ -178,7 +178,7 @@ test-e2e-deploy: container ## Build and deploy obs-mcp to the cluster
 
 .PHONY: test-e2e
 test-e2e: ## Run E2E tests (requires cluster to be running)
-	kubectl test -mod=mod -v -tags=e2e -timeout=10m ./tests/e2e/... -count=1   # count=1 to avoid caching
+	go test -mod=mod -v -tags=e2e -timeout=10m ./tests/e2e/... -count=1   # count=1 to avoid caching
 
 .PHONY: test-e2e-pf
 test-e2e-pf: ## Port-forward obs-mcp e2e deployment locally
