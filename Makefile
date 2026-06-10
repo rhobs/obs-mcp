@@ -147,7 +147,7 @@ run-openshift-pf-prometheus: build pf-alertmanager ## Port-forward prometheus-k8
 		./obs-mcp --listen $(LISTEN_ADDR) --auth-mode header --log-level $(LOG_LEVEL)
 
 .PHONY: run-pf-loki
-run-pf-loki: build ## Port-forward loki and start obs-mcp with headerauth
+run-pf-loki: build ## Port-forward loki and start obs-mcp with header auth
 	@echo "Port-forwarding loki-gateway:8080..."
 	@kubectl port-forward -n obs-mcp-loki svc/obs-mcp-loki-gateway-http 8080:8080 & \
 		PF_LOKI_PID=$$!; \
@@ -178,11 +178,11 @@ test-e2e-deploy: container ## Build and deploy obs-mcp to the cluster
 
 .PHONY: test-e2e
 test-e2e: ## Run E2E tests (requires cluster to be running)
-	go test -mod=mod -v -tags=e2e -timeout=10m ./tests/e2e/... -count=1   # count=1 to avoid caching
+	kubectl test -mod=mod -v -tags=e2e -timeout=10m ./tests/e2e/... -count=1   # count=1 to avoid caching
 
 .PHONY: test-e2e-pf
-test-e2e-pf: ## Port-forward obs-mcp deployment locally
-	oc port-forward -n obs-mcp svc/obs-mcp 9100:9100
+test-e2e-pf: ## Port-forward obs-mcp e2e deployment locally
+	kubectl port-forward -n obs-mcp svc/obs-mcp 9100:9100
 
 .PHONY: test-e2e-teardown
 test-e2e-teardown: ## Teardown E2E test cluster

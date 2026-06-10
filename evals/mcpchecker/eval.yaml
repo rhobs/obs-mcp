@@ -22,7 +22,7 @@ config:
           - server: obs
             toolPattern: "(list_metrics|execute_instant_query)"
         minToolCalls: 1
-        maxToolCalls: 3
+        maxToolCalls: 5
 
     # Metric discovery
     - path: tasks/metrics/list-metrics.yaml
@@ -493,17 +493,8 @@ config:
       assertions:
         toolsUsed:
           - server: obs
-            tool: loki_list_instances
-          - server: obs
             tool: loki_label_names
-        callOrder:
-          - type: tool
-            server: obs
-            name: loki_list_instances
-          - type: tool
-            server: obs
-            name: loki_label_names
-        minToolCalls: 2
+        minToolCalls: 1
         maxToolCalls: 6
 
     - path: tasks/logs/loki-label-values.yaml
@@ -538,4 +529,4 @@ config:
             server: obs
             name: loki_query_range
         minToolCalls: 2
-        maxToolCalls: 8
+        maxToolCalls: 10

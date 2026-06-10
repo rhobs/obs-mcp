@@ -6,8 +6,7 @@ Evaluations for obs-mcp using [mcpchecker](https://github.com/mcpchecker/mcpchec
 
 - [mcpchecker](https://github.com/mcpchecker/mcpchecker#install) installed (v0.0.16+) — run `make install-mcpchecker` from the repo root
 - **Metrics / alerts / traces / otelcol:** Kubernetes or OpenShift cluster with Prometheus and Alertmanager (see [Backend Setup](#backend-setup))
-- **Loki (`category=logs`):** OpenShift cluster with the test LokiStack from [`hack/loki_multitenancy_openshift/`](../../hack/loki_multitenancy_openshift/) — see [Loki evals](#loki-logs-evals-openshift). Provision with `hack/e2e/setup.sh --stacks loki` or `make setup-loki-evals`. For a **local smoke test** without OpenShift or an API key, use `make run-loki-local-smoke` ([docs](#loki-logs-local-smoke-docker))
-- **obs-mcp** running at `http://localhost:9100/mcp` before any mcpchecker run (`make run-loki-mcp-server` for Loki evals)
+- **obs-mcp** running at `http://localhost:9100/mcp` before any mcpchecker run
 
 ## Environment Variables
 
@@ -32,288 +31,52 @@ For Anthropic, Gemini, or custom endpoints, see [Using a Different Agent](#using
 
 ## Quick Start
 
-### 1. Start obs-mcp locally
+### Setup the cluster
+
+It's recommended to leverage the e2e test setup and making sure
+the tests are passing before dong the evaluation.
+
+The tests setup supports multiple profiles passed via `E2E_PROFILE` variable:
+- `kind` - provision an local kind cluster and deploy the workloads to it.
+- `kubernetes` - deploy the workloads to a remote Kubernetes cluster
+- `openshift` - deploy the workloads to a remote OpenShift cluster
 
 ```bash
-make run                              # default: metrics toolset
-make run TOOLSETS=metrics,logs,traces,otelcol     # enable all optional toolsets
+export E2E_PROFILE=kind
+# prepare the cluster prerequisites
+make test-e2e-setup
+# deploys obs-mcp to the cluster
+make test-e2e-deploy
+# (optional) run the e2e tests to check everything works
+make test-e2e
+# port forward the deployment locally
+make test-e2e-pf
 ```
 
-On OpenShift <= 4.21 (Thanos Querier backend), disable guardrails since Thanos does not support the TSDB stats endpoint required by cardinality guardrails. Note that the `high-cardinality-rejection` task will not pass without guardrails:
+### Run evals
 
-```bash
-make run-no-guardrails                                  # default: metrics toolset
-make run-no-guardrails TOOLSETS=metrics,logs,traces,otelcol  # enable all optional toolsets
+``` bash
+export OPENAI_API_KEY="sk-..."
+
+make run-mcpchecker-eval                       # run all tasks in parallel
+make run-mcpchecker-eval TASK=cpu-usage        # single task, verbose
+make run-mcpchecker-eval TASK="alert|silence"  # regex match
+make run-mcpchecker-eval CATEGORY=alerts       # all alert tasks
 ```
 
-This uses the default `kubeconfig` auth mode with route auto-discovery. See [Backend Setup](#backend-setup) for other options (Kind cluster, OpenShift). Update `mcp-config.yaml` if obs-mcp is not at `http://localhost:9100/mcp`.
-
-### 2. Set environment variables
-
-```bash
-export OPENAI_API_KEY="sk-..."   # used by both agent and LLM judge
-```
-
-### 3. Verify connectivity
-
-Run the smoke test first to confirm the metrics backend is reachable. This avoids wasting tokens on evals that will all fail due to connectivity issues:
-
-```bash
-make run-mcpchecker-eval TASK=backend-reachability
-```
-
-### 4. Run the evals
-
-From the repo root using Makefile targets:
-
-```bash
-make run-mcpchecker-eval CATEGORY=metrics          # run by category (metrics, labels, queries, alerts, traces, logs, otelcol)
-make run-mcpchecker-eval TASK=cpu-usage            # single task, verbose
-make run-mcpchecker-eval RUNS=3                    # all tasks, 3 runs each for consistency testing
-make run-mcpchecker-eval CATEGORY=alerts RUNS=3    # category with multiple runs
-```
-
-Or directly:
+### Additional mcpchecker tools
 
 ```bash
 cd evals/mcpchecker
-mcpchecker check eval.yaml
-```
-
-Run tasks in parallel (recommended — all tasks are marked `parallel: true`):
-
-```bash
-mcpchecker check eval.yaml --parallel 4
-```
-
-Override the MCP config file (e.g., to point at a different obs-mcp instance):
-
-```bash
-mcpchecker check eval.yaml --mcp-config-file /path/to/other-mcp-config.yaml
-```
-
-The Makefile defaults to `RUNS=1`. Override with `RUNS=N` for consistency testing:
-
-```bash
-make run-mcpchecker-eval TASK=cpu-usage RUNS=3
-```
-
-### Running a Single Task
-
-Use `TASK` to filter by name or `CATEGORY` to filter by category:
-
-```bash
-make run-mcpchecker-eval TASK=cpu-usage            # single task, verbose
-make run-mcpchecker-eval TASK="alert|silence"      # regex match
-make run-mcpchecker-eval CATEGORY=alerts           # all alert tasks
-```
-
-Or directly with `mcpchecker`:
-
-```bash
-mcpchecker check eval.yaml --run "cpu-usage" --verbose
-```
-
-Use `-l / --label-selector` to filter by task labels:
-
-```bash
-# Run only metric discovery tasks
-mcpchecker check eval.yaml --label-selector "category=metrics"
-
-# Run only alertmanager tasks
-mcpchecker check eval.yaml --label-selector "category=alerts"
-```
-
-### 4. View results
-
-```bash
 mcpchecker summary mcpchecker-obs-mcp-tools-out.json
 ```
 
 Compare results between runs:
 
 ```bash
+cd evals/mcpchecker
 mcpchecker diff baseline-out.json current-out.json
 ```
-
-## Backend Setup
-
-### Kind cluster
-
-1. Deploy the prerequisites
-
-```bash
-make test-e2e-setup
-```
-
-2. a) deploy in-cluster
-
-``` bash
-make test-e2e-deploy
-kubectl port-forward -n obs-mcp svc/obs-mcp 9100:9100 &
-```
-
-2. b) run locally
-
-``` bash
-kubectl port-forward -n monitoring svc/prometheus-k8s 9090:9090 &
-kubectl port-forward -n monitoring svc/alertmanager-main 9093:9093 &
-PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093 AUTH_MODE=header make run
-```
-
-3. run evals
-
-``` bash
-export OPENAI_API_KEY="sk-..."
-
-make run-mcpchecker-eval                   # run all tasks in parallel
-make run-mcpchecker-eval TASK=cpu-usage    # single task, verbose
-```
-
-
-### OpenShift 
-
-1. Deploy the prerequisites
-```bash
-E2E_PROFILE=openshift make test-e2e-setup
-```
-
-2. run locally
-
-``` bash
-make run                          # via route auto-discovery (OpenShift >= 4.22)
-# or
-make run-openshift-pf-prometheus  # via port-forward
-```
-
-On OpenShift <= 4.21, the default backend is Thanos Querier which does not support `/api/v1/status/tsdb` (required by the `max-metric-cardinality` and `max-label-cardinality` guardrails). Either disable all guardrails or keep only the static checks:
-
-```bash
-make run-no-guardrails
-# or selectively keep static guardrails:
-./obs-mcp --listen :9100 --auth-mode kubeconfig --guardrails require-label-matcher,disallow-blanket-regex
-```
-
-3. run evals
-
-``` bash
-export OPENAI_API_KEY="sk-..."
-
-make run-mcpchecker-eval                   # run all tasks in parallel
-make run-mcpchecker-eval TASK=cpu-usage    # single task, verbose
-```
-
-Update `mcp-config.yaml` if obs-mcp is not at `http://localhost:9100/mcp`.
-
-> **Note:** Once the obs-mcp container image is published or you build one yourself, evals can also run against an in-cluster deployment on OpenShift via `kubectl port-forward -n obs-mcp svc/obs-mcp 9100:9100`.
-
-## Loki (logs) local smoke (Docker, no OpenShift / no API key)
-
-To exercise `loki_label_names` and `loki_query_range` without a cluster or `OPENAI_API_KEY`:
-
-```bash
-make run-loki-local-smoke
-```
-
-Or step by step: `make setup-loki-local`, `make run-loki-mcp-local`, `make verify-loki-local`.
-
-This uses [plain Loki in Docker](../../hack/loki_local/README.md) and `--loki-url`. It does **not** run mcpchecker agent evals or `loki_list_instances` (those need LokiStack CRs on OpenShift).
-
-If port `3100` is already in use: `LOKI_LOCAL_PORT=3310 make run-loki-local-smoke`.
-
-## Loki (logs) evals (OpenShift)
-
-Loki tasks under `tasks/logs/` are **not** covered by the Kind + kube-prometheus setup above. They expect:
-
-- A **LokiStack** named `obs-mcp-loki` in namespace `obs-mcp-loki` (tenant `network` for NetObserv-style flow log labels)
-- **obs-mcp** listening on `http://127.0.0.1:9100/mcp` with the `logs` toolset enabled
-- Your **`oc` user** logged in (`--auth-mode kubeconfig`) with permission to list `LokiStack` CRs and query the gateway
-
-The repo ships a reproducible OpenShift test stack in [`hack/loki_multitenancy_openshift/`](../../hack/loki_multitenancy_openshift/README.md) (Loki Operator, MinIO, log generator, optional gateway RBAC).
-
-### One-command run (stack + server + evals)
-
-Requires `oc login`, `OPENAI_API_KEY`, and a cluster default StorageClass:
-
-```bash
-export OPENAI_API_KEY="sk-..."
-make run-loki-evals
-```
-
-This runs `setup-loki-evals`, starts obs-mcp in the background, runs `verify-loki-evals`, then mcpchecker on `eval-logs.yaml`. Target pass rate: **≥ 80%** tasks and assertions.
-
-### Step-by-step (recommended while iterating)
-
-**1. Deploy the Loki test stack** (10–20 min first time; no obs-mcp needed yet):
-
-```bash
-oc login …
-make setup-loki-evals
-# or: hack/e2e/setup.sh up --profile openshift --stacks loki
-```
-
-**2. Start obs-mcp** with the `logs` toolset (keep running, or use background target):
-
-```bash
-make run-loki-mcp-server LOKI_MCP_TOOLSETS=logs
-# foreground alternative:
-# make run TOOLSETS=logs LISTEN_ADDR=127.0.0.1:9100
-```
-
-If the LokiStack has no OpenShift Route, port-forward the gateway and disable route discovery:
-
-```bash
-oc port-forward -n obs-mcp-loki svc/obs-mcp-loki-gateway-http 8080:8080 &
-make run-loki-mcp-server LOKI_USE_ROUTE=false LOKI_URL=http://127.0.0.1:8080
-```
-
-**3. Verify connectivity** (no LLM tokens — exercises the same MCP tools as the eval tasks):
-
-```bash
-make verify-loki-evals
-```
-
-**4. Run mcpchecker**:
-
-```bash
-export OPENAI_API_KEY="sk-..."
-
-# smoke test
-make run-mcpchecker-eval TASK=loki-backend-reachability EVAL_CONFIG=eval-logs.yaml
-
-# all Loki tasks
-make run-mcpchecker-eval CATEGORY=logs EVAL_CONFIG=eval-logs.yaml
-```
-
-**5. Cleanup** when finished:
-
-```bash
-make teardown-loki-evals
-```
-
-### NetObserv flow log tasks
-
-Tasks like `loki-query-network-flows` and `loki-label-names` expect **NetObserv flow log labels** (`SrcK8S_Namespace`, `DstK8S_Namespace`) in tenant `network`. Options:
-
-- Point a real **FlowCollector** at LokiStack `obs-mcp-loki`, or
-- Rely on the hack **log generator** for basic smoke tests, and apply optional gateway RBAC:
-
-```bash
-oc apply -f hack/loki_multitenancy_openshift/install/02_gateway_query_rbac.yaml
-oc create clusterrolebinding "obs-mcp-loki-gateway-read-$(oc whoami | tr '@:' '-')" \
-  --clusterrole=obs-mcp-loki-gateway-read --user="$(oc whoami)"
-```
-
-Set `NETOBSERV_NS` when verifying if your flows live outside `netobserv` (see `03_verify.sh`).
-
-### Common failures
-
-| Symptom | Fix |
-|---------|-----|
-| `connection refused` on `:9100` | Start obs-mcp: `make run-loki-mcp-server` |
-| `loki_list_instances` empty / tool missing | Use `TOOLSETS=logs` (or `make run-loki-mcp-server`) |
-| Judge fails on `SrcK8S_Namespace` | Need NetObserv flow logs or adjust task prompts for your data |
-| `403` / empty Loki streams | Apply gateway RBAC above; check `oc auth can-i list pods -n netobserv` |
 
 ## Using a Different Agent
 
