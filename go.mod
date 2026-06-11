@@ -9,7 +9,7 @@ require (
 	github.com/go-openapi/runtime v0.32.3
 	github.com/go-openapi/strfmt v0.26.3
 	github.com/google/jsonschema-go v0.4.3
-	github.com/prometheus/alertmanager v0.32.1
+	github.com/prometheus/alertmanager v0.32.2
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.68.1
 	github.com/prometheus/prometheus v0.312.0
