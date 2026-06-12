@@ -400,6 +400,7 @@ phase_upload() {
             else
                 _run kind load docker-image --name "${KIND_CLUSTER_NAME}" "${IMAGE_REF}"
             fi
+            _run kubectl delete pod -l app=obs-mcp --ignore-not-found=true
             ;;
         openshift)
             step "Pushing obs-mcp image to OpenShift internal registry"

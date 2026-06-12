@@ -61,7 +61,7 @@ spec:
 
                 payload="{\"streams\":[{\"stream\":{\"app\":\"obs-mcp-log-generator\",\"level\":\"info\",\"SrcK8S_Namespace\":\"obs-mcp-loki\",\"DstK8S_Namespace\":\"obs-mcp-loki\"},\"values\":[${values}]}]}"
 
-                http_code=$(curl -s -o /tmp/push_resp -w '%{http_code}' \
+                http_code=$(curl -s --connect-timeout 10 --max-time 30 -o /tmp/push_resp -w '%{http_code}' \
                   -H "X-Scope-OrgID: ${TENANT_ID}" \
                   -H "Content-Type: application/json" \
                   -d "${payload}" \

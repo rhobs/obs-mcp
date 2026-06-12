@@ -3,9 +3,6 @@ kind: ClusterRole
 metadata:
   name: obs-mcp-lokistack-discovery
 rules:
-  - apiGroups: [""]
-    resources: ["namespaces", "pods"]
-    verbs: ["get", "list", "watch"]
   - apiGroups: ["loki.grafana.com"]
     resources: ["lokistacks"]
     verbs: ["get", "list", "watch"]

@@ -75,7 +75,7 @@ go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-b
 > **Example using explicit PROMETHEUS_URL:**
 >
   ```shell
-  PROMETHEUS_URL=https://thanos-querier.openshift-monitoring.svc.cluster.local:9091/ make run
+  PROMETHEUS_URL=https://thanos-querier.openshift-monitoring.svc:9091/ make run
   ```
 
 > [!IMPORTANT]
@@ -108,7 +108,7 @@ make test-e2e-setup
 This creates a Kind cluster with:
 
 - Prometheus Operator
-- Prometheus (accessible at `prometheus-k8s.monitoring.svc.cluster.local:9090`)
+- Prometheus (accessible at `prometheus-k8s.monitoring.svc:9090`)
 - Alertmanager
 
 #### Build and deploy obs-mcp

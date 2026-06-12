@@ -70,7 +70,7 @@ spec:
             - name: TENANT_ID
               value: network
             - name: LOKI_PUSH_URL
-              value: "https://obs-mcp-loki-gateway-http.obs-mcp-loki.svc.cluster.local:8080/api/logs/v1/network/loki/api/v1/push"
+              value: "https://obs-mcp-loki-gateway-http.obs-mcp-loki.svc:8080/api/logs/v1/network/loki/api/v1/push"
             - name: PUSH_INTERVAL
               value: "5"
             - name: BATCH_SIZE
@@ -97,7 +97,7 @@ spec:
                 payload="{\"streams\":[{\"stream\":{\"app\":\"obs-mcp-log-generator\",\"level\":\"info\",\"SrcK8S_Namespace\":\"obs-mcp-loki\",\"DstK8S_Namespace\":\"obs-mcp-loki\"},\"values\":[${values}]}]}"
 
                 token=$(cat /var/run/secrets/tokens/loki-token)
-                http_code=$(curl -sk -o /tmp/push_resp -w '%{http_code}' \
+                http_code=$(curl -sk --connect-timeout 10 --max-time 30 -o /tmp/push_resp -w '%{http_code}' \
                   -H "Authorization: Bearer ${token}" \
                   -H "Content-Type: application/json" \
                   --cacert /var/run/secrets/service-ca/service-ca.crt \
