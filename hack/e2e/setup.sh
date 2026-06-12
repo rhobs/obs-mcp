@@ -589,13 +589,16 @@ phase_run() {
 
     # -- Tempo --
     if has_stack tempo; then
+        _toolsets_parts+=(traces)
         case ${PROFILE} in
             openshift)
-                _toolsets_parts+=(traces)
                 _flags+=(--traces.use-route)
                 ;;
             *)
-                fail "Tempo requires OpenShift routes for local run (no --tempo-url flag). Disable the tempo stack or run with --profile openshift."
+                step "Port-forwarding Tempo query-frontend (tracing/tempo1)"
+                _run $KUBECTL port-forward -n tracing svc/tempo-tempo1-query-frontend 3200:3200 &
+                _pf_pids+=($!)
+                _flags+=(--traces.tempo-url http://localhost:3200)
                 ;;
         esac
     fi
