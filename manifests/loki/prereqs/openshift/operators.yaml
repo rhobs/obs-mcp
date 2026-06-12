@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-loki-operator
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-loki-operator
+  namespace: openshift-loki-operator
+spec:
+  upgradeStrategy: Default

@@ -29,6 +29,7 @@ var (
 const (
 	defaultPrometheusURL   = "http://localhost:9090"
 	defaultAlertmanagerURL = "http://localhost:9093"
+	defaultLokiURL         = "http://localhost:3100"
 )
 
 func main() {
@@ -54,7 +55,10 @@ func main() {
 		"Maximum allowed label value count for blanket regex (0 = always disallow blanket regex).\n"+
 			"Only takes effect if disallow-blanket-regex is enabled.")
 	var fullRangeQueryResponse = flag.Bool("full-range-query-response", false, "Return full data points for range queries")
+	var tempoURL = flag.String("traces.tempo-url", "", "Tempo API base URL (overrides TEMPO_URL when explicitly set)")
 	var tracesUseRoute = flag.Bool("traces.use-route", false, "Use Route instead of internal service DNS when connecting to Tempo API")
+	var lokiURL = flag.String("loki-url", "", "Loki API base URL (overrides LOKI_URL when explicitly set)")
+	var lokiUseRoute = flag.Bool("loki.use-route", false, "Use OpenShift Routes when discovering LokiStack endpoints")
 	flag.Parse()
 
 	if *showVersion {
@@ -76,6 +80,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Invalid metrics backend: %v", err)
 	}
+	parsedToolsets := parseToolsets(*toolsets)
 
 	// --metrics-backend only controls route discovery in kubeconfig mode.
 	// Fail fast if it's set in any other mode to avoid silent misconfiguration.
@@ -84,16 +89,32 @@ func main() {
 			"set PROMETHEUS_URL to point at your Thanos/Prometheus instance instead", parsedAuthMode)
 	}
 
-	// Determine metrics backend URL - pass the backend type
-	metricsBackendURL, metricsURLSource, err := determineMetricsBackendURL(parsedAuthMode, parsedMetricsBackend)
-	if err != nil {
-		log.Fatalf("%v", err)
+	metricsBackendURL := ""
+	metricsURLSource := ""
+	if slices.Contains(parsedToolsets, mcpserver.ToolsetMetrics) {
+		metricsBackendURL, metricsURLSource, err = determineMetricsBackendURL(parsedAuthMode, parsedMetricsBackend)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
 	}
 
-	// Determine Alertmanager URL
-	alertmanagerURL, alertmanagerURLSource, err := determineAlertmanagerURL(parsedAuthMode)
-	if err != nil {
-		log.Fatalf("%v", err)
+	alertmanagerURL := ""
+	alertmanagerURLSource := ""
+	if slices.Contains(parsedToolsets, mcpserver.ToolsetMetrics) {
+		alertmanagerURL, alertmanagerURLSource, err = determineAlertmanagerURL(parsedAuthMode)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+	}
+
+	// Determine Loki URL only when logs toolset is enabled.
+	lokiResolvedURL := ""
+	lokiURLSource := ""
+	if slices.Contains(parsedToolsets, mcpserver.ToolsetLogs) {
+		lokiResolvedURL, lokiURLSource, err = determineLokiURL(parsedAuthMode, *lokiURL, *lokiUseRoute)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
 	}
 
 	// Parse guardrails configuration
@@ -130,21 +151,31 @@ func main() {
 		}
 	}
 
+	// Determine Tempo URL only when traces toolset is enabled.
+	tempoResolvedURL := ""
+	tempoURLSource := ""
+	if slices.Contains(parsedToolsets, mcpserver.ToolsetTraces) {
+		tempoResolvedURL, tempoURLSource = determineTempoURL(*tempoURL)
+	}
+
 	// Create MCP options
 	opts := mcpserver.ObsMCPOptions{
-		Toolsets:               parseToolsets(*toolsets),
+		Toolsets:               parsedToolsets,
 		AuthMode:               parsedAuthMode,
 		MetricsBackendURL:      metricsBackendURL,
 		AlertmanagerURL:        alertmanagerURL,
+		LokiURL:                lokiResolvedURL,
 		Insecure:               *insecure,
 		Guardrails:             parsedGuardrails,
 		FullRangeQueryResponse: *fullRangeQueryResponse,
 		Traces: &traces.Config{
 			AuthMode: parsedAuthMode,
 			Insecure: *insecure,
+			TempoURL: tempoResolvedURL,
 			UseRoute: *tracesUseRoute,
 		},
-		Otelcol: otelcol.NewDefaultConfig(),
+		Otelcol:      otelcol.NewDefaultConfig(),
+		LokiUseRoute: *lokiUseRoute,
 	}
 
 	// Create MCP server
@@ -160,6 +191,10 @@ func main() {
 		"metrics_backend_url_source", metricsURLSource,
 		"alertmanager_url", opts.AlertmanagerURL,
 		"alertmanager_url_source", alertmanagerURLSource,
+		"loki_url", opts.LokiURL,
+		"loki_url_source", lokiURLSource,
+		"tempo_url", tempoResolvedURL,
+		"tempo_url_source", tempoURLSource,
 		"guardrails", opts.Guardrails,
 	)
 
@@ -252,6 +287,32 @@ func determineAlertmanagerURL(authMode auth.AuthMode) (url, source string, err e
 			"  Set it via environment variable or use --auth-mode kubeconfig for auto-discovery",
 		authMode,
 	)
+}
+
+func determineTempoURL(flagURL string) (url, source string) {
+	if flagURL != "" {
+		return flagURL, "--traces.tempo-url flag"
+	}
+	if tempoURL := os.Getenv("TEMPO_URL"); tempoURL != "" {
+		return tempoURL, "TEMPO_URL env var"
+	}
+	slog.Info("No Tempo URL configured; Tempo tools require tempoNamespace+tempoName discovery parameters or explicit Tempo URL")
+	return "", "unset"
+}
+
+func determineLokiURL(authMode auth.AuthMode, flagURL string, useRoute bool) (url, source string, err error) {
+	if flagURL != "" {
+		return flagURL, "--loki-url flag", nil
+	}
+	if lokiURL := os.Getenv("LOKI_URL"); lokiURL != "" {
+		return lokiURL, "LOKI_URL env var", nil
+	}
+	if authMode == auth.AuthModeKubeConfig && !useRoute {
+		slog.Warn("No Loki URL configured, falling back to default", "default", defaultLokiURL)
+		return defaultLokiURL, "default", nil
+	}
+	slog.Warn("No Loki URL configured; Loki tools require lokiNamespace+lokiName discovery parameters or explicit Loki URL")
+	return "", "unset", nil
 }
 
 // isFlagExplicitlySet reports whether the named flag was explicitly provided on

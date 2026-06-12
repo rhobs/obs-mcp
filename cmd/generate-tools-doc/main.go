@@ -24,7 +24,7 @@ func main() {
 	for i := range tools {
 		fmt.Printf("    - %s\n", tools[i].Name)
 	}
-	fmt.Println("\n💡 Reminder: When adding a new tool, register it in pkg/tools/definitions.go (or add it to AllTools() in pkg/traces for Tempo); pkg/mcp/tools.go AllTools() merges them.")
+	fmt.Println("\n💡 Reminder: When adding a new tool, register it in the relevant package AllTools() list (metrics, logs, traces); pkg/mcp/tools.go AllTools() merges them.")
 }
 
 type fieldInfo struct {
@@ -238,7 +238,7 @@ func generateMarkdown(tools []mcplib.Tool, filename string) error {
 	sb.WriteString("<!-- Run 'make generate-tools-doc' to regenerate. -->\n\n")
 
 	sb.WriteString("# Available Tools\n\n")
-	sb.WriteString("This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager, Tempo, and OpenTelemetry Collector configuration:\n\n")
+	sb.WriteString("This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager, Loki, Tempo, and OpenTelemetry Collector configuration:\n\n")
 	sb.WriteString("> [!NOTE]\n")
 	sb.WriteString("> **Types in the tables** follow JSON Schema: `object` is a JSON object (string keys with JSON values); `object[]` is an array of those objects. Scalar types use their usual names (`string`, `number`, `boolean`, and so on). When a field has no explicit schema type (for example a Go `any` payload), this document shows `object` as shorthand for \"structured JSON,\" not a guarantee that only objects are returned at runtime.\n\n")
 

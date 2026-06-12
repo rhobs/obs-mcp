@@ -3,6 +3,7 @@ package mcp
 import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/rhobs/obs-mcp/pkg/logs"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 	"github.com/rhobs/obs-mcp/pkg/traces"
@@ -12,6 +13,7 @@ import (
 // When adding a new tool, add it to pkg/tools/definitions.go to keep both MCP and Toolset in sync, as well as docs.
 func AllTools() []mcp.Tool {
 	toolDefs := append(tools.AllTools(), traces.AllTools()...)
+	toolDefs = append(toolDefs, logs.AllTools()...)
 	toolDefs = append(toolDefs, otelcol.AllTools()...)
 	mcpTools := make([]mcp.Tool, len(toolDefs))
 
@@ -58,4 +60,20 @@ func CreateGetAlertsTool() mcp.Tool {
 
 func CreateGetSilencesTool() mcp.Tool {
 	return *tools.GetSilences.ToMCPTool()
+}
+
+func CreateLokiLabelNamesTool() mcp.Tool {
+	return *logs.LabelNamesTool.ToMCPTool()
+}
+
+func CreateLokiListInstancesTool() mcp.Tool {
+	return *logs.ListInstancesTool.ToMCPTool()
+}
+
+func CreateLokiLabelValuesTool() mcp.Tool {
+	return *logs.LabelValuesTool.ToMCPTool()
+}
+
+func CreateLokiQueryRangeTool() mcp.Tool {
+	return *logs.QueryRangeTool.ToMCPTool()
 }

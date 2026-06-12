@@ -5,7 +5,7 @@
 [![e2e](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml)
 [![docs](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml)
 
-obs-mcp is a [mcp](https://modelcontextprotocol.io/introduction) server so LLMs can query [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/), [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/), and (optionally) [Grafana Tempo](https://grafana.com/docs/tempo/latest/) in Kubernetes. It can also assist with [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration. Enable additional toolsets with `--toolsets` (e.g., `--toolsets metrics,traces,otelcol`).
+obs-mcp is a [mcp](https://modelcontextprotocol.io/introduction) server so LLMs can query [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/), [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/), [Loki](https://grafana.com/oss/loki/), and (optionally) [Grafana Tempo](https://grafana.com/docs/tempo/latest/) in Kubernetes. It can also assist with [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration. Enable additional toolsets with `--toolsets` (e.g., `--toolsets metrics,logs,traces,otelcol`).
 
 > [!NOTE]
 > This project is moved from [jhadvig/genie-plugin](https://github.com/jhadvig/genie-plugin/tree/main/obs-mcp) preserving the history of commits.
@@ -75,8 +75,17 @@ go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-b
 > **Example using explicit PROMETHEUS_URL:**
 >
   ```shell
-  PROMETHEUS_URL=https://thanos-querier.openshift-monitoring.svc.cluster.local:9091/ make run
+  PROMETHEUS_URL=https://thanos-querier.openshift-monitoring.svc:9091/ make run
   ```
+
+> [!IMPORTANT]
+> **How the Loki URL is Determined (when `logs` toolset is enabled):**
+>
+> 1. `--loki-url` flag (if set)
+> 2. `LOKI_URL` environment variable
+> 3. Default: `http://localhost:3100` (kubeconfig mode only)
+>
+> In `header` and `serviceaccount` modes, you can either set `--loki-url`/`LOKI_URL` **or** use LokiStack discovery (`loki_list_instances` + `lokiNamespace`/`lokiName` arguments).
 
 ### 2. Port-forwarding alternative
 
@@ -99,7 +108,7 @@ make test-e2e-setup
 This creates a Kind cluster with:
 
 - Prometheus Operator
-- Prometheus (accessible at `prometheus-k8s.monitoring.svc.cluster.local:9090`)
+- Prometheus (accessible at `prometheus-k8s.monitoring.svc:9090`)
 - Alertmanager
 
 #### Build and deploy obs-mcp
@@ -149,10 +158,11 @@ You can test the MCP server using curl. The server uses `JSON-RPC 2.0` over `HTT
 
 > [!NOTE]
 > The default `--toolsets` value is `metrics` only. Additional toolsets:
+> - `logs` - Loki log query tools (requires Loki URL or LokiStack discovery)
 > - `traces` - Tempo tracing tools (requires Tempo configuration)
 > - `otelcol` - OpenTelemetry Collector configuration assistance (no external dependencies)
 >
-> Example: `--toolsets metrics,traces,otelcol`
+> Example: `--toolsets metrics,logs,traces,otelcol`
 
 ```shell
 curl -X POST http://localhost:9100/mcp \

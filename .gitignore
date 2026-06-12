@@ -19,6 +19,7 @@ integration-tests/screenshots
 .vscode/*
 tmp/*
 manifests/core/deploy/overlay
+manifests/loki/extras/overlay
 /vendor
 /.claude
 
