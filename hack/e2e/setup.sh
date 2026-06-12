@@ -569,18 +569,18 @@ phase_run() {
         case ${PROFILE} in
             openshift)
                 step "Port-forwarding Prometheus (openshift-monitoring)"
-                $KUBECTL port-forward -n openshift-monitoring pod/prometheus-k8s-0 9090:9090 &
+                _run $KUBECTL port-forward -n openshift-monitoring pod/prometheus-k8s-0 9090:9090 &
                 _pf_pids+=($!)
                 step "Port-forwarding Alertmanager (openshift-monitoring)"
-                $KUBECTL port-forward -n openshift-monitoring pod/alertmanager-main-0 9093:9093 &
+                _run $KUBECTL port-forward -n openshift-monitoring pod/alertmanager-main-0 9093:9093 &
                 _pf_pids+=($!)
                 ;;
             *)
                 step "Port-forwarding Prometheus (monitoring)"
-                $KUBECTL port-forward -n monitoring svc/prometheus-k8s 9090:9090 &
+                _run $KUBECTL port-forward -n monitoring svc/prometheus-k8s 9090:9090 &
                 _pf_pids+=($!)
                 step "Port-forwarding Alertmanager (monitoring)"
-                $KUBECTL port-forward -n monitoring svc/alertmanager-main 9093:9093 &
+                _run $KUBECTL port-forward -n monitoring svc/alertmanager-main 9093:9093 &
                 _pf_pids+=($!)
                 ;;
         esac
@@ -624,6 +624,12 @@ phase_run() {
     # Give port-forwards a moment to bind.
     if [[ ${#_pf_pids[@]} -gt 0 ]]; then
         sleep 2
+        # check the pids are still alive and fail if some failed
+        for _pid in "${_pf_pids[@]}"; do
+            if ! kill -0 "$_pid" 2>/dev/null; then
+                fail "Port-forward process $_pid failed to start or exited unexpectedly"
+            fi
+        done
     fi
 
     step "Starting obs-mcp"
@@ -672,7 +678,3 @@ for phase in "${PHASES[@]}"; do
         *)           fail "Unknown phase: ${phase}" ;;
     esac
 done
-
-step "Cluster setup complete!"
-info "Run 'make test-e2e-deploy' to build and deploy obs-mcp"
-info "Run 'make test-e2e' to run E2E tests"

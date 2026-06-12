@@ -188,7 +188,7 @@ test-e2e-pf: ## Port-forward obs-mcp e2e deployment locally
 
 .PHONY: test-e2e-run
 test-e2e-run: ## Run obs-mcp locally against the E2E cluster (auto port-forwards)
-   ./hack/e2e/setup.sh run --profile $(E2E_PROFILE) --stacks $(E2E_STACKS)
+	./hack/e2e/setup.sh run --profile $(E2E_PROFILE) --stacks $(E2E_STACKS)
 
 .PHONY: test-e2e-teardown
 test-e2e-teardown: ## Teardown E2E test cluster
