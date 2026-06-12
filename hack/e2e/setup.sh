@@ -27,6 +27,15 @@ _wait_rollout() {
     _run $KUBECTL -n "${namespace}" rollout status "${resource}" --timeout="${timeout}"
 }
 
+# Kill background port-forward processes.
+# Usage: _cleanup_pf PID [PID ...]
+_cleanup_pf() {
+    step "Clean up port-forward processes"
+    for pid in "$@"; do
+        kill "$pid" 2>/dev/null || true
+    done
+}
+
 # Execute the command while capturing the output. Print the output to stderr on fail.
 _run() {
     local _out
@@ -60,7 +69,7 @@ _relativepath() {
 PHASE_DEFAULT="up"
 PROFILE="kind"
 STACKS="prometheus,tempo,loki"
-SUPPORTED_PHASES=(provision prereqs extras upload deploy clean unprovision)
+SUPPORTED_PHASES=(provision prereqs extras upload deploy run clean unprovision)
 SUPPORTED_PROFILES=(kind k8s openshift)
 SUPPORTED_STACKS=(prometheus tempo loki)
 
@@ -533,6 +542,94 @@ EOF
     _wait_rollout obs-mcp deployment/obs-mcp 3m
 }
 
+phase_run() {
+    phase "run"
+
+    step "Building obs-mcp"
+    _run go build -mod=mod -o "${ROOT_DIR}/obs-mcp" ./cmd/obs-mcp
+
+    # Collect background port-forward PIDs for cleanup on exit.
+    local _pf_pids=()
+    trap '_cleanup_pf "${_pf_pids[@]}"' EXIT INT TERM
+
+    local _env_vars=()
+    local _flags=(
+        --listen ":9100"
+        --auth-mode kubeconfig
+        --insecure
+        --log-level debug
+    )
+
+    # Toolsets — always include otelcol.
+    local _toolsets_parts=(otelcol)
+
+    # -- Prometheus & Alertmanager --
+    if has_stack prometheus; then
+        _toolsets_parts+=(metrics)
+        case ${PROFILE} in
+            openshift)
+                step "Port-forwarding Prometheus (openshift-monitoring)"
+                $KUBECTL port-forward -n openshift-monitoring pod/prometheus-k8s-0 9090:9090 &
+                _pf_pids+=($!)
+                step "Port-forwarding Alertmanager (openshift-monitoring)"
+                $KUBECTL port-forward -n openshift-monitoring pod/alertmanager-main-0 9093:9093 &
+                _pf_pids+=($!)
+                ;;
+            *)
+                step "Port-forwarding Prometheus (monitoring)"
+                $KUBECTL port-forward -n monitoring svc/prometheus-k8s 9090:9090 &
+                _pf_pids+=($!)
+                step "Port-forwarding Alertmanager (monitoring)"
+                $KUBECTL port-forward -n monitoring svc/alertmanager-main 9093:9093 &
+                _pf_pids+=($!)
+                ;;
+        esac
+        _env_vars+=(PROMETHEUS_URL=http://localhost:9090 ALERTMANAGER_URL=http://localhost:9093)
+    fi
+
+    # -- Tempo --
+    if has_stack tempo; then
+        case ${PROFILE} in
+            openshift)
+                _toolsets_parts+=(traces)
+                _flags+=(--traces.use-route)
+                ;;
+            *)
+                fail "Tempo requires OpenShift routes for local run (no --tempo-url flag). Disable the tempo stack or run with --profile openshift."
+                ;;
+        esac
+    fi
+
+    # -- Loki --
+    if has_stack loki; then
+        _toolsets_parts+=(logs)
+        case ${PROFILE} in
+            openshift)
+                _flags+=(--loki.use-route)
+                ;;
+            *)
+                step "Port-forwarding Loki gateway (obs-mcp-loki)"
+                $KUBECTL port-forward -n obs-mcp-loki svc/obs-mcp-loki-gateway-http 8080:8080 &
+                _pf_pids+=($!)
+                _flags+=(--loki-url http://localhost:8080)
+                ;;
+        esac
+    fi
+
+    _flags+=(--toolsets "$(IFS=,; echo "${_toolsets_parts[*]}")") 
+
+    # Give port-forwards a moment to bind.
+    if [[ ${#_pf_pids[@]} -gt 0 ]]; then
+        sleep 2
+    fi
+
+    step "Starting obs-mcp"
+    info "Flags: ${_flags[*]}"
+    info "Env:   ${_env_vars[*]}"
+
+    env "${_env_vars[@]}" "${ROOT_DIR}/obs-mcp" "${_flags[@]}"
+}
+
 phase_clean() {
     phase "clean"
     # TODO: remove temporary files (e.g. tmp/kube-prometheus)
@@ -566,6 +663,7 @@ for phase in "${PHASES[@]}"; do
         extras)      phase_extras ;;
         upload)      phase_upload ;;
         deploy)      phase_deploy ;;
+        run)         phase_run ;;
         clean)       phase_clean ;;
         unprovision) phase_unprovision ;;
         *)           fail "Unknown phase: ${phase}" ;;
