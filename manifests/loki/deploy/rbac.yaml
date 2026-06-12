@@ -1,0 +1,50 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: obs-mcp-lokistack-discovery
+rules:
+  - apiGroups: ["loki.grafana.com"]
+    resources: ["lokistacks"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: obs-mcp-lokistack-discovery
+subjects:
+  - kind: ServiceAccount
+    name: obs-mcp
+    namespace: obs-mcp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: obs-mcp-lokistack-discovery
+---
+# Grant the obs-mcp service account read access to LokiStack tenants.
+# For openshift-network tenancy mode, each tenant (application, infrastructure,
+# audit, network) is a separate resource in the loki.grafana.com API group.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: obs-mcp-lokistack-tenant-reader
+rules:
+  - apiGroups: ["loki.grafana.com"]
+    resources: ["application", "infrastructure", "audit", "network"]
+    resourceNames: ["logs"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: obs-mcp-lokistack-tenant-reader
+subjects:
+  - kind: ServiceAccount
+    name: obs-mcp
+    namespace: obs-mcp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: obs-mcp-lokistack-tenant-reader

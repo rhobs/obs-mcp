@@ -59,15 +59,16 @@ _relativepath() {
 
 PHASE_DEFAULT="up"
 PROFILE="kind"
-STACKS="prometheus,tempo"
+STACKS="prometheus,tempo,loki"
 SUPPORTED_PHASES=(provision prereqs extras upload deploy clean unprovision)
 SUPPORTED_PROFILES=(kind k8s openshift)
-SUPPORTED_STACKS=(prometheus tempo)
+SUPPORTED_STACKS=(prometheus tempo loki)
 
 KUBE_PROMETHEUS_VERSION="${KUBE_PROMETHEUS_VERSION:-release-0.16}"
 
 # Preferring relative paths to have cleaner output.
 ROOT_DIR="$(_relativepath "${SCRIPT_DIR}/../..")"
+
 KUBE_PROMETHEUS_DIR="${ROOT_DIR}/tmp/kube-prometheus"
 CONTAINER_CLI="${CONTAINER_CLI:-docker}"
 
@@ -153,6 +154,27 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Loki helper functions
+# ---------------------------------------------------------------------------
+
+# Detect the cluster's default StorageClass.
+_detect_storage_class() {
+    local _sc="${LOKI_STORAGE_CLASS:-}"
+    if [[ -n "${_sc}" ]]; then
+        echo "${_sc}"
+        return
+    fi
+    _sc="$($KUBECTL get storageclass -o json | jq -r '.items[] | select(.metadata.annotations["storageclass.kubernetes.io/is-default-class"] == "true" or .metadata.annotations["storageclass.beta.kubernetes.io/is-default-class"] == "true") | .metadata.name' | head -n1)"
+    if [[ -z "${_sc}" ]]; then
+        echo "Unable to detect a default StorageClass. Set LOKI_STORAGE_CLASS explicitly and retry." >&2
+        echo "Available StorageClasses:" >&2
+        $KUBECTL get storageclass >&2
+        return 1
+    fi
+    echo "${_sc}"
+}
+
+# ---------------------------------------------------------------------------
 # Phase implementations
 # ---------------------------------------------------------------------------
 
@@ -210,6 +232,37 @@ phase_prereqs() {
         esac
     fi
 
+    if (has_stack tempo || has_stack loki) && [ "${PROFILE}" != "openshift" ]; then
+        if ! $KUBECTL get crd certificates.cert-manager.io &>/dev/null; then
+            step "Installing Cert Manager"
+            _run $KUBECTL apply -f https://github.com/jetstack/cert-manager/releases/download/v1.19.4/cert-manager.yaml
+            _wait_rollout cert-manager deployment/cert-manager 5m
+            _wait_rollout cert-manager deployment/cert-manager-cainjector 5m
+            _wait_rollout cert-manager deployment/cert-manager-webhook 5m
+        fi
+    fi
+
+    if has_stack loki; then
+        case ${PROFILE} in
+            openshift)
+                step "Installing Loki operator"
+                _run $KUBECTL apply -k "${ROOT_DIR}/manifests/loki/prereqs/openshift/"
+                _wait_rollout openshift-loki-operator deployment/loki-operator-controller-manager 10m
+
+                step "Waiting for LokiStack CRD"
+                _run $KUBECTL wait --for=condition=Established crd/lokistacks.loki.grafana.com --timeout=15m
+            ;;
+            kind|k8s)
+                step "Installing Loki operator"
+                _run $KUBECTL apply --server-side -k "${ROOT_DIR}/manifests/loki/prereqs/kubernetes/"
+                _wait_rollout loki-operator deployment/loki-operator-controller-manager 5m
+
+                step "Waiting for LokiStack CRD"
+                _run $KUBECTL wait --for=condition=Established crd/lokistacks.loki.grafana.com --timeout=5m
+            ;;
+        esac
+    fi
+
     if has_stack tempo; then
         case ${PROFILE} in
             openshift)
@@ -221,12 +274,6 @@ phase_prereqs() {
                 _wait_rollout openshift-tempo-operator deployment/tempo-operator-controller 10m
             ;;
             *)
-                step "Installing Cert Manager"
-                _run $KUBECTL apply -f https://github.com/jetstack/cert-manager/releases/download/v1.19.4/cert-manager.yaml
-                _wait_rollout cert-manager deployment/cert-manager 5m
-                _wait_rollout cert-manager deployment/cert-manager-cainjector 5m
-                _wait_rollout cert-manager deployment/cert-manager-webhook 5m
-
                 step "Installing OpenTelemetry operator"
                 _run $KUBECTL apply -f https://github.com/open-telemetry/opentelemetry-operator/releases/download/v0.146.0/opentelemetry-operator.yaml
                 _wait_rollout opentelemetry-operator-system deployment/opentelemetry-operator-controller-manager 5m
@@ -287,6 +334,51 @@ phase_extras() {
             [[ $i -eq 20 ]] && fail "No traces found after 20 attempts"
         done
     fi
+
+    if has_stack loki; then
+        case ${PROFILE} in
+            openshift) _loki_extras_base="../openshift" ;;
+            *)         _loki_extras_base="../kubernetes" ;;
+        esac
+
+        step "Deploying Loki test stack (obs-mcp-loki)"
+
+        # Detect the cluster's default StorageClass
+        _loki_sc=$(_detect_storage_class)
+        info "Using StorageClass: ${_loki_sc}"
+
+        # Build a temporary overlay that patches storageClassName into
+        # the LokiStack CR.
+        _overlay="${ROOT_DIR}/manifests/loki/extras/overlay"
+        mkdir -p "${_overlay}"
+        cat > "${_overlay}/kustomization.yaml" <<EOF
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ${_loki_extras_base}
+patches:
+  - patch: |
+      apiVersion: loki.grafana.com/v1
+      kind: LokiStack
+      metadata:
+        name: obs-mcp-loki
+        namespace: obs-mcp-loki
+      spec:
+        storageClassName: "${_loki_sc}"
+EOF
+        _run $KUBECTL apply -k "${_overlay}"
+
+        # Wait for dependencies
+        step "Waiting for MinIO"
+        _wait_rollout obs-mcp-loki deployment/minio 5m
+
+        step "Waiting for LokiStack Ready"
+        _run $KUBECTL wait --for=jsonpath='{.status.conditions[?(@.type=="Ready")].status}'=True \
+            lokistack/obs-mcp-loki -n obs-mcp-loki --timeout=10m
+
+        step "Waiting for log generator"
+        _wait_rollout obs-mcp-loki deployment/obs-mcp-log-generator 2m
+    fi
 }
 
 phase_upload() {
@@ -308,6 +400,7 @@ phase_upload() {
             else
                 _run kind load docker-image --name "${KIND_CLUSTER_NAME}" "${IMAGE_REF}"
             fi
+            _run kubectl delete pod -l app=obs-mcp --ignore-not-found=true
             ;;
         openshift)
             step "Pushing obs-mcp image to OpenShift internal registry"
@@ -373,6 +466,7 @@ phase_deploy() {
     _toolsets_parts=(otelcol)
     has_stack prometheus && _toolsets_parts+=(metrics)
     has_stack tempo      && _toolsets_parts+=(traces)
+    has_stack loki       && _toolsets_parts+=(logs)
     _toolsets=$(IFS=,; echo "${_toolsets_parts[*]}")
 
     # Build a temporary kustomize overlay to inject runtime values (toolsets, image)
@@ -428,6 +522,11 @@ EOF
     # Tempo tracing RBAC
     if has_stack tempo; then
         _run $KUBECTL apply -f "${ROOT_DIR}/manifests/tempo/deploy/"
+    fi
+
+    # Loki discovery RBAC
+    if has_stack loki; then
+        _run $KUBECTL apply -f "${ROOT_DIR}/manifests/loki/deploy/"
     fi
 
     step "Waiting for obs-mcp rollout"

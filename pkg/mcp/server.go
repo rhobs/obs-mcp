@@ -17,6 +17,8 @@ import (
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
+	"github.com/rhobs/obs-mcp/pkg/logs"
+	lokiclient "github.com/rhobs/obs-mcp/pkg/logs/loki"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/tools"
@@ -29,10 +31,11 @@ type Toolset string
 const (
 	ToolsetMetrics Toolset = "metrics"
 	ToolsetTraces  Toolset = "traces"
+	ToolsetLogs    Toolset = "logs"
 	ToolsetOtelcol Toolset = "otelcol"
 )
 
-var AllToolsets = []string{string(ToolsetMetrics), string(ToolsetTraces), string(ToolsetOtelcol)}
+var AllToolsets = []string{string(ToolsetMetrics), string(ToolsetTraces), string(ToolsetLogs), string(ToolsetOtelcol)}
 
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
@@ -45,6 +48,8 @@ type ObsMCPOptions struct {
 	FullRangeQueryResponse bool
 	Traces                 *traces.Config
 	Otelcol                *otelcol.Config
+	LokiURL                string
+	LokiUseRoute           bool
 }
 
 const (
@@ -67,6 +72,9 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 	}
 	if slices.Contains(opts.Toolsets, ToolsetTraces) {
 		instructions = append(instructions, traces.ServerPrompt)
+	}
+	if slices.Contains(opts.Toolsets, ToolsetLogs) {
+		instructions = append(instructions, logs.ServerPrompt)
 	}
 	if slices.Contains(opts.Toolsets, ToolsetOtelcol) {
 		instructions = append(instructions, otelcol.ServerPrompt)
@@ -132,6 +140,30 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		mcp.AddTool(mcpServer, otelcol.GetVersions.ToMCPTool(), otelcol.ToMCPHandler[otelcol.GetVersionsInput, otelcol.GetVersionsOutput](opts.Otelcol, otelcol.BuildGetVersionsInput, otelcol.GetVersionsHandler))
 	}
 
+	if slices.Contains(opts.Toolsets, ToolsetLogs) {
+		logsCfg := &logs.Config{
+			LokiURL:  opts.LokiURL,
+			UseRoute: opts.LokiUseRoute,
+		}
+		var logsDynamicClient dynamic.Interface
+		if restConfig, err := k8s.GetClientConfig(); err == nil {
+			if c, err := dynamic.NewForConfig(restConfig); err == nil {
+				logsDynamicClient = c
+			} else {
+				slog.Warn("LokiStack discovery disabled: failed to create Kubernetes dynamic client", "err", err)
+			}
+		} else {
+			slog.Warn("LokiStack discovery disabled: failed to get Kubernetes client config", "err", err)
+		}
+
+		newLokiClient := func(ctx context.Context, url, tenant string) (lokiclient.Loader, error) {
+			return getLokiClient(ctx, opts, url, tenant)
+		}
+		mcp.AddTool(mcpServer, logs.ListInstancesTool.ToMCPTool(), logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.ListInstancesHandler))
+		mcp.AddTool(mcpServer, logs.LabelNamesTool.ToMCPTool(), logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.LabelNamesHandler))
+		mcp.AddTool(mcpServer, logs.LabelValuesTool.ToMCPTool(), logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.LabelValuesHandler))
+		mcp.AddTool(mcpServer, logs.QueryRangeTool.ToMCPTool(), logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.QueryRangeHandler))
+	}
 	return nil
 }
 

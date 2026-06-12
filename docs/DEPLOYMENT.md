@@ -2,9 +2,32 @@
 
 This guide covers authentication modes and deploying obs-mcp on Kubernetes/OpenShift clusters.
 
+## Quickstart Developer Setup
+
+The best easiest way to get everything up and running for development is to leverage the e2e setup
+scripts:
+
+```bash
+# for local kind-based deployment
+export E2E_PROFILE=kind
+# or when running against openshift cluster
+# export E2E_PROFILE=openshift
+make test-e2e-setup && make test-e2e-deploy && make test-e2e
+```
+
+This setup configures all dependencies, as well as the obs-mcp deployment itself.
+
+To use the remote deployment locally, you can port-forward the MCP service with
+
+```
+make test-e2e-pf
+```
+
+These make targets leverage the `setup.sh` script. See [using setup.sh](#using-setup.sh) below for more details.
+
 ## Authentication Modes
 
-The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Prometheus/Thanos** and, when the **traces** toolset is enabled, for **Tempo** gateways:
+The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Prometheus/Thanos**, **Alertmanager**, and (when enabled) **Loki** and **Tempo** endpoints:
 
 | Mode             | Token Source                                                                   | Use Case                                              |
 |------------------|--------------------------------------------------------------------------------|-------------------------------------------------------|
@@ -23,6 +46,7 @@ The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Promethe
 
 - Reads the service account token mounted inside the pod
 - Requires explicit `PROMETHEUS_URL` (no auto-discovery)
+- If `logs` toolset is enabled, either set `LOKI_URL`/`--loki-url` or use LokiStack discovery parameters (`lokiNamespace`, `lokiName`)
 - The ServiceAccount must have RBAC permissions to query the metrics endpoint
 - Best for: **In-cluster deployment** on OpenShift with RBAC-protected Thanos/Prometheus
 
@@ -31,6 +55,7 @@ The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Promethe
 - Forwards the `Authorization` header from incoming MCP client requests to Prometheus
 - If no header is provided, connects without authentication
 - Requires explicit `PROMETHEUS_URL` (no auto-discovery)
+- If `logs` toolset is enabled, either set `LOKI_URL`/`--loki-url` or use LokiStack discovery parameters (`lokiNamespace`, `lokiName`)
 - Best for: **Pass-through auth** scenarios or **Prometheus without authentication** (e.g., port-forwarded, local kube-prometheus)
 
 ## Deploying on a Cluster
@@ -42,10 +67,11 @@ Example manifests are provided in the `manifests/` directory, organised by stack
 - `manifests/prometheus/deploy/kubernetes/` — NetworkPolicies for kube-prometheus access
 - `manifests/prometheus/deploy/openshift/` — RBAC for OpenShift monitoring access
 - `manifests/tempo/deploy/` — Tracing RBAC (platform-independent)
+- `manifests/loki/deploy/` — Loki RBAC (platform-independent)
 
 These are **reference examples** that you'll need to customize for your environment.
 
-### Using a helper script
+### Using setup.sh
 
 `hack/e2e/setup.sh` automates cluster setup for E2E testing and development. It accepts a
 **profile**, a set of **stacks**, and a **phase expression**:
@@ -69,11 +95,12 @@ comma-separated list via `--stacks` (default: `prometheus,tempo`):
 |--------------|------------------|-----------------|
 | `prometheus` | kube-prometheus (k8s) or uses the built-in OpenShift monitoring stack | `metrics` |
 | `tempo`      | Tempo + OpenTelemetry operators and a sample tracing app | `traces` |
+| `loki`       | Loki Operator test stack (`obs-mcp-loki` in `obs-mcp-loki`) — **OpenShift profile only** | `logs` |
 
 The enabled stacks determine which `manifests/` subtrees are applied and which `--toolsets`
 value is passed to the obs-mcp deployment — no manual editing of manifests is needed.
 When deploying via `hack/e2e/setup.sh`, the `otelcol` toolset is always included (it has no
-external backend dependency); stack selection adds `metrics` and/or `traces` on top.
+external backend dependency); stack selection adds `metrics`, `traces`, and/or `logs` on top.
 
 **Phases** express what work to perform. The two top-level aliases cover the common cases:
 
@@ -108,10 +135,11 @@ manifests/
 When deploying in-cluster, you must configure:
 
 1. **`PROMETHEUS_URL`**: Set the environment variable to your Prometheus/Thanos endpoint
-2. **`--auth-mode`**: Choose based on your Prometheus authentication requirements:
+2. **`LOKI_URL`**: Optional when using the `logs` toolset (or pass `--loki-url`). If omitted, use LokiStack discovery (`loki_list_instances` + `lokiNamespace`/`lokiName` tool arguments)
+3. **`--auth-mode`**: Choose based on your backend authentication requirements:
    - `serviceaccount` if your Prometheus requires RBAC/token auth
    - `header` if your Prometheus doesn't require authentication
-3. **ServiceAccount RBAC**: If using `serviceaccount` mode, ensure the ServiceAccount has permissions to query your metrics endpoint
+4. **ServiceAccount RBAC**: If using `serviceaccount` mode, ensure the ServiceAccount has permissions to query your metrics/logs endpoints
 
 ### Configuring the Prometheus URL
 
@@ -124,7 +152,7 @@ The metrics backend URL is determined in the following order:
 > [!NOTE]
 >
 > Auto-discovery only works in `kubeconfig` mode. For `serviceaccount` and `header` modes, the server
-> will fail at startup if `PROMETHEUS_URL` is not set. The same applies to `ALERTMANAGER_URL`.
+> will fail at startup if `PROMETHEUS_URL` is not set. The same applies to `ALERTMANAGER_URL` when alert tools are used.
 
 ### Guardrails and Thanos Compatibility
 
@@ -145,19 +173,3 @@ obs-mcp includes query guardrails that prevent expensive or unsafe PromQL querie
   ```
 
 - **Prometheus**: All guardrails work with any supported Prometheus version.
-
-## Traces (Tempo) toolset
-
-Optional MCP tools query [Grafana Tempo](https://grafana.com/docs/tempo/latest/) instances on the same Kubernetes or OpenShift cluster (see [TOOLS.md](../TOOLS.md) for tool names).
-
-- **Enable:** pass `--toolsets metrics,traces`. The default is `metrics` only, so Tempo tools are hidden until `traces` is included. Example `Deployment` manifests under `manifests/core/deploy/` enable `metrics`, `traces`, and `otelcol`.
-- **Discovery:** the server lists `TempoStack` / `TempoMonolithic` resources (Grafana Tempo Operator). The workload `ServiceAccount` must be allowed to `get`, `list`, and `watch` those resources in API group `tempo.grafana.com` (see RBAC in the example manifests).
-- **Routes:** use `--traces.use-route` when Tempo should be reached via an OpenShift `Route` instead of in-cluster service DNS.
-- **Local stack:** for an optional OpenShift tracing demo (Tempo, tenants, OTel), see [`hack/tempo_multitenancy_openshift/README.md`](../hack/tempo_multitenancy_openshift/README.md).
-
-## OpenTelemetry Collector (`otelcol`) toolset
-
-Optional MCP tools assist with [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration: listing components, fetching JSON schemas, validating configs, and listing supported versions (see [TOOLS.md](../TOOLS.md) for tool names).
-
-- **Enable:** pass `--toolsets otelcol` or include it alongside other toolsets (e.g. `--toolsets metrics,traces,otelcol`). The default is `metrics` only. Example `Deployment` manifests under `manifests/core/deploy/` already enable all three toolsets.
-- **Dependencies:** none — component schemas are embedded in the binary; no cluster-side Collector instance is required.

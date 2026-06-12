@@ -3,7 +3,7 @@
 
 # Available Tools
 
-This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager, Tempo, and OpenTelemetry Collector configuration:
+This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager, Loki, Tempo, and OpenTelemetry Collector configuration:
 
 > [!NOTE]
 > **Types in the tables** follow JSON Schema: `object` is a JSON object (string keys with JSON values); `object[]` is an array of those objects. Scalar types use their usual names (`string`, `number`, `boolean`, and so on). When a field has no explicit schema type (for example a Go `any` payload), this document shows `object` as shorthand for "structured JSON," not a guarantee that only objects are returned at runtime.
@@ -367,6 +367,102 @@ This is useful for building accurate TraceQL queries with tempo_search_traces.
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `tagValues` | `object` | Known values for the specified tag, keyed by type |
+
+---
+
+## `loki_list_instances`
+
+> List LokiStack instances available in the Kubernetes cluster.
+Call this first when using Loki Operator managed stacks so you can pass lokiNamespace and lokiName to other Loki tools.
+
+|  |  |
+| :--- | :--- |
+| **Parameters** | None |
+
+**Output Schema:**
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `instances` | `object[]` |  |
+
+---
+
+## `loki_label_names`
+
+> List available Loki label names for a time range. Use this before writing LogQL queries.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `end` | `string` |  | End time as RFC3339, Unix timestamp, NOW, or NOW-relative expression (optional). |
+| `lokiName` | `string` |  | Name of the LokiStack. Use loki_list_instances to discover valid values. |
+| `lokiNamespace` | `string` |  | Kubernetes namespace of the LokiStack. Use loki_list_instances to discover valid values. |
+| `start` | `string` |  | Start time as RFC3339, Unix timestamp, NOW, or NOW-relative expression (optional). |
+| `tenant` | `string` |  | Loki tenant ID (X-Scope-OrgID). For LokiStack gateway modes (e.g. openshift-network) this selects the `/api/logs/v1/<tenant>` path; use `network` for openshift-network. |
+
+**Output Schema:**
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `labels` | `string[]` |  |
+
+---
+
+## `loki_label_values`
+
+> List possible values for a Loki label key. Use this to build precise label matchers in LogQL.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `label` | `string` | ✅ | Label key to inspect (for example namespace, pod, container). |
+| `end` | `string` |  | End time as RFC3339, Unix timestamp, NOW, or NOW-relative expression (optional). |
+| `lokiName` | `string` |  | Name of the LokiStack. Use loki_list_instances to discover valid values. |
+| `lokiNamespace` | `string` |  | Kubernetes namespace of the LokiStack. Use loki_list_instances to discover valid values. |
+| `start` | `string` |  | Start time as RFC3339, Unix timestamp, NOW, or NOW-relative expression (optional). |
+| `tenant` | `string` |  | Loki tenant ID (X-Scope-OrgID). For LokiStack gateway modes (e.g. openshift-network) this selects the `/api/logs/v1/<tenant>` path; use `network` for openshift-network. |
+
+**Output Schema:**
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `values` | `string[]` |  |
+
+---
+
+## `loki_query_range`
+
+> Execute a Loki LogQL range query and return matching log streams and lines.
+
+**Usage Tips:**
+
+- Use precise label matchers and a short time window first.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `query` | `string` | ✅ | LogQL query string. |
+| `direction` | `string` |  | Search direction: backward (default) or forward. |
+| `duration` | `string` |  | Lookback duration from now when start/end are omitted (for example 5m, 1h). Defaults to 15m. |
+| `end` | `string` |  | End time as RFC3339, Unix timestamp, NOW, or NOW-relative expression (optional). |
+| `limit` | `number` |  | Maximum number of log lines to return. Defaults to 100, max 1000. |
+| `lokiName` | `string` |  | Name of the LokiStack. Use loki_list_instances to discover valid values. |
+| `lokiNamespace` | `string` |  | Kubernetes namespace of the LokiStack. Use loki_list_instances to discover valid values. |
+| `start` | `string` |  | Start time as RFC3339, Unix timestamp, NOW, or NOW-relative expression (optional). |
+| `tenant` | `string` |  | Loki tenant ID (X-Scope-OrgID). For LokiStack gateway modes (e.g. openshift-network) this selects the `/api/logs/v1/<tenant>` path; use `network` for openshift-network. |
+
+> [!NOTE]
+> Parameters with patterns must match: `^\d+[smhdwy]$`
+
+**Output Schema:**
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `resultType` | `string` |  |
+| `streams` | `object[]` |  |
 
 ---
 

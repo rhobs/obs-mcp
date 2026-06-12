@@ -144,3 +144,49 @@ func TestDetermineMetricsBackendURL_EnvVarOverridesAll(t *testing.T) {
 		})
 	}
 }
+
+func TestDetermineLokiURL(t *testing.T) {
+	t.Run("explicit flag wins", func(t *testing.T) {
+		t.Setenv("LOKI_URL", "http://from-env:3100")
+		got, source, err := determineLokiURL(auth.AuthModeHeader, "http://from-flag:3100")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != "http://from-flag:3100" || source != "--loki-url flag" {
+			t.Fatalf("unexpected result: %s (%s)", got, source)
+		}
+	})
+
+	t.Run("env used when flag missing", func(t *testing.T) {
+		t.Setenv("LOKI_URL", "http://from-env:3100")
+		got, source, err := determineLokiURL(auth.AuthModeHeader, "")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != "http://from-env:3100" || source != "LOKI_URL env var" {
+			t.Fatalf("unexpected result: %s (%s)", got, source)
+		}
+	})
+
+	t.Run("kubeconfig falls back to default", func(t *testing.T) {
+		t.Setenv("LOKI_URL", "")
+		got, source, err := determineLokiURL(auth.AuthModeKubeConfig, "")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != defaultLokiURL || source != "default" {
+			t.Fatalf("unexpected result: %s (%s)", got, source)
+		}
+	})
+
+	t.Run("non-kubeconfig without URL returns unset", func(t *testing.T) {
+		t.Setenv("LOKI_URL", "")
+		got, source, err := determineLokiURL(auth.AuthModeHeader, "")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != "" || source != "unset" {
+			t.Fatalf("unexpected result: %s (%s)", got, source)
+		}
+	})
+}
