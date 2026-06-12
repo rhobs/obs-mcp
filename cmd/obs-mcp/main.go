@@ -110,7 +110,7 @@ func main() {
 	lokiResolvedURL := ""
 	lokiURLSource := ""
 	if slices.Contains(parsedToolsets, mcpserver.ToolsetLogs) {
-		lokiResolvedURL, lokiURLSource, err = determineLokiURL(parsedAuthMode, *lokiURL)
+		lokiResolvedURL, lokiURLSource, err = determineLokiURL(parsedAuthMode, *lokiURL, *lokiUseRoute)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
@@ -278,14 +278,14 @@ func determineAlertmanagerURL(authMode auth.AuthMode) (url, source string, err e
 	)
 }
 
-func determineLokiURL(authMode auth.AuthMode, flagURL string) (url, source string, err error) {
+func determineLokiURL(authMode auth.AuthMode, flagURL string, useRoute bool) (url, source string, err error) {
 	if flagURL != "" {
 		return flagURL, "--loki-url flag", nil
 	}
 	if lokiURL := os.Getenv("LOKI_URL"); lokiURL != "" {
 		return lokiURL, "LOKI_URL env var", nil
 	}
-	if authMode == auth.AuthModeKubeConfig {
+	if authMode == auth.AuthModeKubeConfig && !useRoute {
 		slog.Warn("No Loki URL configured, falling back to default", "default", defaultLokiURL)
 		return defaultLokiURL, "default", nil
 	}

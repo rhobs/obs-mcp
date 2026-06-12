@@ -23,7 +23,19 @@ To use the remote deployment locally, you can port-forward the MCP service with
 make test-e2e-pf
 ```
 
-These make targets leverage the `setup.sh` script. See [using setup.sh](#using-setup.sh) below for more details.
+These make targets leverage the `setup.sh` script. See [using setup.sh](#using-setupsh) below for more details.
+
+### Running locally
+
+To run the server locally against the backends from the cluster:
+
+```
+E2E_PROFILE=kind  # or openshift
+make test-e2e-run
+```
+
+This command will open all necessary port-forwards to the backends running in
+the test cluster.
 
 ## Authentication Modes
 
