@@ -55,6 +55,7 @@ func main() {
 		"Maximum allowed label value count for blanket regex (0 = always disallow blanket regex).\n"+
 			"Only takes effect if disallow-blanket-regex is enabled.")
 	var fullRangeQueryResponse = flag.Bool("full-range-query-response", false, "Return full data points for range queries")
+	var tempoURL = flag.String("traces.tempo-url", "", "Tempo API base URL (overrides TEMPO_URL when explicitly set)")
 	var tracesUseRoute = flag.Bool("traces.use-route", false, "Use Route instead of internal service DNS when connecting to Tempo API")
 	var lokiURL = flag.String("loki-url", "", "Loki API base URL (overrides LOKI_URL when explicitly set)")
 	var lokiUseRoute = flag.Bool("loki.use-route", false, "Use OpenShift Routes when discovering LokiStack endpoints")
@@ -150,6 +151,13 @@ func main() {
 		}
 	}
 
+	// Determine Tempo URL only when traces toolset is enabled.
+	tempoResolvedURL := ""
+	tempoURLSource := ""
+	if slices.Contains(parsedToolsets, mcpserver.ToolsetTraces) {
+		tempoResolvedURL, tempoURLSource = determineTempoURL(*tempoURL)
+	}
+
 	// Create MCP options
 	opts := mcpserver.ObsMCPOptions{
 		Toolsets:               parsedToolsets,
@@ -163,6 +171,7 @@ func main() {
 		Traces: &traces.Config{
 			AuthMode: parsedAuthMode,
 			Insecure: *insecure,
+			TempoURL: tempoResolvedURL,
 			UseRoute: *tracesUseRoute,
 		},
 		Otelcol:      otelcol.NewDefaultConfig(),
@@ -184,6 +193,8 @@ func main() {
 		"alertmanager_url_source", alertmanagerURLSource,
 		"loki_url", opts.LokiURL,
 		"loki_url_source", lokiURLSource,
+		"tempo_url", tempoResolvedURL,
+		"tempo_url_source", tempoURLSource,
 		"guardrails", opts.Guardrails,
 	)
 
@@ -276,6 +287,17 @@ func determineAlertmanagerURL(authMode auth.AuthMode) (url, source string, err e
 			"  Set it via environment variable or use --auth-mode kubeconfig for auto-discovery",
 		authMode,
 	)
+}
+
+func determineTempoURL(flagURL string) (url, source string) {
+	if flagURL != "" {
+		return flagURL, "--traces.tempo-url flag"
+	}
+	if tempoURL := os.Getenv("TEMPO_URL"); tempoURL != "" {
+		return tempoURL, "TEMPO_URL env var"
+	}
+	slog.Info("No Tempo URL configured; Tempo tools require tempoNamespace+tempoName discovery parameters or explicit Tempo URL")
+	return "", "unset"
 }
 
 func determineLokiURL(authMode auth.AuthMode, flagURL string, useRoute bool) (url, source string, err error) {
