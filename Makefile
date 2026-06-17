@@ -230,7 +230,7 @@ RUNS ?= 1
 EVAL_CONFIG ?= eval.yaml
 
 .PHONY: run-mcpchecker-eval
-run-mcpchecker-eval: $(MCPCHECKER) ## Run mcpchecker eval (TASK=name, CATEGORY=..., EVAL_CONFIG=eval-logs.yaml, RUNS=3)
+run-mcpchecker-eval: $(MCPCHECKER) ## Run mcpchecker eval (TASK=name, CATEGORY=..., EVAL_CONFIG=eval.yaml, RUNS=3)
 ifdef TASK
 	cd $(MCPCHECKER_EVAL_DIR) && $(MCPCHECKER) check $(EVAL_CONFIG) --run "$(TASK)" --runs $(RUNS) --verbose
 else ifdef CATEGORY

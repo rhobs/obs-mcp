@@ -111,11 +111,9 @@ Quick start:
 ```bash
 make run-mcpchecker-eval                          # run all tasks in parallel (1 run each)
 make run-mcpchecker-eval CATEGORY=queries          # run by category (metrics, labels, queries, alerts, traces, logs, otelcol)
-make run-mcpchecker-eval CATEGORY=logs EVAL_CONFIG=eval-logs.yaml   # Loki-only evals (see evals/mcpchecker/README.md)
+make run-mcpchecker-eval CATEGORY=logs             # Loki log evals
 make run-mcpchecker-eval TASK=cpu-usage             # single task, verbose
 make run-mcpchecker-eval RUNS=3                     # multiple runs for consistency testing
 ```
 
-Loki **agent evals** need OpenShift + `make setup-loki-evals` + `make run-loki-mcp-server` — see [`evals/mcpchecker/README.md`](evals/mcpchecker/README.md#loki-logs-evals-openshift).
-
-For a **local smoke test** without OpenShift or an API key: `make run-loki-local-smoke` (Docker Loki + MCP tool verify).
+See [`evals/mcpchecker/README.md`](evals/mcpchecker/README.md) for installation, environment setup, and detailed usage.

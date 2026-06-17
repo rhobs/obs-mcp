@@ -95,8 +95,8 @@ Pushing the tag triggers the [release workflow](.github/workflows/release.yaml),
 
 ### 3. Verify the release
 
-- Check the [Actions tab](../../actions/workflows/release.yaml) for the workflow run
-- Confirm the release appears under [Releases](../../releases) with the expected assets:
+- Check the [Actions tab](https://github.com/rhobs/obs-mcp/actions/workflows/release.yaml) for the workflow run
+- Confirm the release appears under [Releases](https://github.com/rhobs/obs-mcp/releases) with the expected assets:
   - `obs-mcp_<version>_linux_amd64.tar.gz`
   - `obs-mcp_<version>_linux_arm64.tar.gz`
   - `obs-mcp_<version>_darwin_amd64.tar.gz`
@@ -114,7 +114,7 @@ A release can also be triggered manually from the GitHub Actions UI:
 
 ## Pre-releases
 
-Pre-releases follow the same process as stable releases but use the tag format `vX.Y.Z-rc.N`. No changelog PR is needed at release time keep the `[Unreleased]` section updated as changes land in main, and it will be promoted to a versioned section during the stable release.
+Pre-releases follow the same process as stable releases but use the tag format `vX.Y.Z-rc.N`. No changelog PR is needed at release time — keep the `[Unreleased]` section updated as changes land in main, and it will be promoted to a versioned section during the stable release.
 
 ```bash
 git checkout main

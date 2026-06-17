@@ -5,7 +5,7 @@ Evaluations for obs-mcp using [mcpchecker](https://github.com/mcpchecker/mcpchec
 ## Pre-requisites
 
 - [mcpchecker](https://github.com/mcpchecker/mcpchecker#install) installed (v0.0.16+) — run `make install-mcpchecker` from the repo root
-- **Metrics / alerts / traces / otelcol:** Kubernetes or OpenShift cluster with Prometheus and Alertmanager (see [Backend Setup](#backend-setup))
+- **Metrics / alerts / traces / otelcol:** Kubernetes or OpenShift cluster with Prometheus and Alertmanager (see [Setup the cluster](#setup-the-cluster))
 - **obs-mcp** running at `http://localhost:9100/mcp` before any mcpchecker run
 
 ## Environment Variables
@@ -34,11 +34,11 @@ For Anthropic, Gemini, or custom endpoints, see [Using a Different Agent](#using
 ### Setup the cluster
 
 It's recommended to leverage the e2e test setup and making sure
-the tests are passing before dong the evaluation.
+the tests are passing before doing the evaluation.
 
 The tests setup supports multiple profiles passed via `E2E_PROFILE` variable:
-- `kind` - provision an local kind cluster and deploy the workloads to it.
-- `kubernetes` - deploy the workloads to a remote Kubernetes cluster
+- `kind` - provision a local kind cluster and deploy the workloads to it.
+- `k8s` - deploy the workloads to a remote Kubernetes cluster
 - `openshift` - deploy the workloads to a remote OpenShift cluster
 
 ```bash

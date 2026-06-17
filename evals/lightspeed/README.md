@@ -28,7 +28,7 @@ uv sync
 
 ### Setup the lightspeed-stack
 
-On a another terminal:
+In another terminal:
 
 ```shell
 git clone https://github.com/lightspeed-core/lightspeed-stack.git

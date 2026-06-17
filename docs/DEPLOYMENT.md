@@ -4,7 +4,7 @@ This guide covers authentication modes and deploying obs-mcp on Kubernetes/OpenS
 
 ## Quickstart Developer Setup
 
-The best easiest way to get everything up and running for development is to leverage the e2e setup
+The easiest way to get everything up and running for development is to leverage the e2e setup
 scripts:
 
 ```bash
@@ -19,17 +19,17 @@ This setup configures all dependencies, as well as the obs-mcp deployment itself
 
 To use the remote deployment locally, you can port-forward the MCP service with
 
-```
+```bash
 make test-e2e-pf
 ```
 
-These make targets leverage the `setup.sh` script. See [using setup.sh](#using-setupsh) below for more details.
+These make targets leverage the `setup.sh` script. See [using the setup script](#using-the-setup-script) below for more details.
 
 ### Running locally
 
 To run the server locally against the backends from the cluster:
 
-```
+```bash
 E2E_PROFILE=kind  # or openshift
 make test-e2e-run
 ```
@@ -41,11 +41,11 @@ the test cluster.
 
 The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Prometheus/Thanos**, **Alertmanager**, and (when enabled) **Loki** and **Tempo** endpoints:
 
-| Mode             | Token Source                                                                   | Use Case                                              |
-|------------------|--------------------------------------------------------------------------------|-------------------------------------------------------|
-| `kubeconfig`     | Bearer token from `~/.kube/config`                                             | Local development, accessing cluster via routes       |
-| `serviceaccount` | Pod's mounted token at `/var/run/secrets/kubernetes.io/serviceaccount/token`   | In-cluster deployment on OpenShift/Kubernetes         |
-| `header`         | Forwarded from incoming MCP request's `Authorization` header                   | Pass-through auth or when Prometheus doesn't require auth |
+| Mode             | Token Source                                                                 | Use Case                                                  |
+| ---------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `kubeconfig`     | Bearer token from `~/.kube/config`                                           | Local development, accessing cluster via routes           |
+| `serviceaccount` | Pod's mounted token at `/var/run/secrets/kubernetes.io/serviceaccount/token` | In-cluster deployment on OpenShift/Kubernetes             |
+| `header`         | Forwarded from incoming MCP request's `Authorization` header                 | Pass-through auth or when Prometheus doesn't require auth |
 
 ### `kubeconfig` mode
 
@@ -83,7 +83,7 @@ Example manifests are provided in the `manifests/` directory, organised by stack
 
 These are **reference examples** that you'll need to customize for your environment.
 
-### Using setup.sh
+### Using the setup script
 
 `hack/e2e/setup.sh` automates cluster setup for E2E testing and development. It accepts a
 **profile**, a set of **stacks**, and a **phase expression**:
@@ -94,20 +94,20 @@ hack/e2e/setup.sh [PHASE_EXP] [--profile PROFILE] [--stacks STACKS]
 
 **Profiles** select the target cluster type:
 
-| Profile    | Description |
-|------------|-------------|
-| `kind`     | Local [Kind](https://kind.sigs.k8s.io/) cluster (default). Provisions and unprovisions the cluster automatically. |
-| `k8s`      | Generic upstream Kubernetes cluster (must already exist). |
-| `openshift`| OpenShift cluster (must already exist). Uses `oc` instead of `kubectl`. |
+| Profile      | Description                                                                                                       |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `kind`       | Local [Kind](https://kind.sigs.k8s.io/) cluster (default). Provisions and unprovisions the cluster automatically. |
+| `k8s`        | Generic upstream Kubernetes cluster (must already exist).                                                         |
+| `openshift`  | OpenShift cluster (must already exist). Uses `oc` instead of `kubectl`.                                           |
 
 **Stacks** are optional observability backends that obs-mcp connects to. Pass a
-comma-separated list via `--stacks` (default: `prometheus,tempo`):
+comma-separated list via `--stacks` (default: `prometheus,tempo,loki`):
 
-| Stack        | What it installs | Toolset enabled |
-|--------------|------------------|-----------------|
-| `prometheus` | kube-prometheus (k8s) or uses the built-in OpenShift monitoring stack | `metrics` |
-| `tempo`      | Tempo + OpenTelemetry operators and a sample tracing app | `traces` |
-| `loki`       | Loki Operator test stack (`obs-mcp-loki` in `obs-mcp-loki`) — **OpenShift profile only** | `logs` |
+| Stack        | What it installs                                                       | Toolset enabled |
+| ------------ | ---------------------------------------------------------------------- | --------------- |
+| `prometheus` | kube-prometheus (k8s) or uses the built-in OpenShift monitoring stack  | `metrics`       |
+| `tempo`      | Tempo + OpenTelemetry operators and a sample tracing app               | `traces`        |
+| `loki`       | Loki Operator test stack                                               | `logs`          |
 
 The enabled stacks determine which `manifests/` subtrees are applied and which `--toolsets`
 value is passed to the obs-mcp deployment — no manual editing of manifests is needed.
@@ -116,27 +116,27 @@ external backend dependency); stack selection adds `metrics`, `traces`, and/or `
 
 **Phases** express what work to perform. The two top-level aliases cover the common cases:
 
-| Alias | Expands to |
-|-------|------------|
-| `up` (default) | `provision` (kind only) → `prereqs` → `extras` → `upload` → `deploy` |
-| `down` | `clean` → `unprovision` (kind only) |
+| Alias          | Expands to                                                             |
+| -------------- | ---------------------------------------------------------------------- |
+| `up` (default) | `provision` (kind only) → `prereqs` → `extras` → `upload` → `deploy`   |
+| `down`         | `clean` → `unprovision` (kind only)                                    |
 
 Individual phases can be named explicitly (space-separated) to re-run just part of the
 sequence, e.g. `hack/e2e/setup.sh deploy --profile kind`:
 
-| Phase        | Description |
-|--------------|-------------|
-| `provision`  | Creates the Kind cluster (kind profile only). |
-| `prereqs`    | Installs cluster-wide operators and CRDs needed by the enabled stacks (cert-manager, Tempo/OTel operators, kube-prometheus CRDs). |
-| `extras`     | Adds sources of observability signal for better e2e testing. |
-| `upload`     | Builds/loads or pushes the obs-mcp container image into the cluster. |
-| `deploy`     | Deploys the obs-mcp to the cluster. |
-| `clean`      | Removes temporary artefacts. |
-| `unprovision`| Deletes the Kind cluster (kind profile only). |
+| Phase          | Description                                                                                                                       |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `provision`    | Creates the Kind cluster (kind profile only).                                                                                     |
+| `prereqs`      | Installs cluster-wide operators and CRDs needed by the enabled stacks (cert-manager, Tempo/OTel operators, kube-prometheus CRDs). |
+| `extras`       | Adds sources of observability signal for better e2e testing.                                                                      |
+| `upload`       | Builds/loads or pushes the obs-mcp container image into the cluster.                                                              |
+| `deploy`       | Deploys the obs-mcp to the cluster.                                                                                               |
+| `clean`        | Removes temporary artefacts.                                                                                                      |
+| `unprovision`  | Deletes the Kind cluster (kind profile only).                                                                                     |
 
 **Manifests directory structure** mirrors the phases and stacks:
 
-```
+```shell
 manifests/
 ├── core/$PHASE/{base,kubernetes,openshift}/    # common manifests for obs-mcp
 └── $STACK/$PHASE/{base,kubernetes,openshift}/  # stack-specific manifests
@@ -170,10 +170,10 @@ The metrics backend URL is determined in the following order:
 
 obs-mcp includes query guardrails that prevent expensive or unsafe PromQL queries. Two guardrails rely on the `/api/v1/status/tsdb` endpoint:
 
-| Guardrail | What it checks |
-|-----------|----------------|
-| `max-metric-cardinality` | Rejects queries against metrics with more series than the configured limit |
-| `disallow-blanket-regex` (with `max-label-cardinality > 0`)| Rejects blanket regex matchers (`=~".+"`) on high-cardinality labels |
+| Guardrail                                                   | What it checks                                                             |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `max-metric-cardinality`                                    | Rejects queries against metrics with more series than the configured limit |
+| `disallow-blanket-regex` (with `max-label-cardinality > 0`) | Rejects blanket regex matchers (`=~".+"`) on high-cardinality labels       |
 
 **Thanos compatibility:**
 

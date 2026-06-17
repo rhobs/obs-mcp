@@ -5,7 +5,7 @@
 [![e2e](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml)
 [![docs](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml)
 
-obs-mcp is a [mcp](https://modelcontextprotocol.io/introduction) server so LLMs can query [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/), [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/), [Loki](https://grafana.com/oss/loki/), and (optionally) [Grafana Tempo](https://grafana.com/docs/tempo/latest/) in Kubernetes. It can also assist with [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration. Enable additional toolsets with `--toolsets` (e.g., `--toolsets metrics,logs,traces,otelcol`).
+obs-mcp is an [MCP](https://modelcontextprotocol.io/introduction) server that lets LLMs query [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) in Kubernetes. It optionally supports [Loki](https://grafana.com/oss/loki/) for logs, [Grafana Tempo](https://grafana.com/docs/tempo/latest/) for traces, and [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration assistance. Enable additional toolsets with `--toolsets` (e.g., `--toolsets metrics,logs,traces,otelcol`).
 
 > [!NOTE]
 > This project is moved from [jhadvig/genie-plugin](https://github.com/jhadvig/genie-plugin/tree/main/obs-mcp) preserving the history of commits.
@@ -107,9 +107,9 @@ make test-e2e-setup
 
 This creates a Kind cluster with:
 
-- Prometheus Operator
-- Prometheus (accessible at `prometheus-k8s.monitoring.svc:9090`)
-- Alertmanager
+- Prometheus Operator, Prometheus, and Alertmanager
+- Tempo Operator and a sample tracing application
+- Loki Operator and a test LokiStack
 
 #### Build and deploy obs-mcp
 
@@ -136,10 +136,15 @@ See [TESTING.md](TESTING.md) for more details.
 ### 4. Using prometheus helm chart in local Kubernetes cluster
 
 ```shell
-# sets up Prometheus (and exporters) on your local single-node k8s cluster
-helm install prometheus-community/prometheus --name-template <prefix>
+# add the prometheus-community Helm repo (once)
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
 
-export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=alertmanager,app.kubernetes.io/instance=local" -o jsonpath="{.items[0].metadata.name}") && kubectl --namespace default port-forward $POD_NAME 9090
+# install Prometheus (and exporters) on your local cluster
+helm install local prometheus-community/prometheus
+
+# port-forward Prometheus server
+export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=prometheus,app.kubernetes.io/instance=local" -o jsonpath="{.items[0].metadata.name}") && kubectl --namespace default port-forward $POD_NAME 9090
 
 go run ./cmd/obs-mcp/ --auth-mode header --insecure --listen :9100 
 ```
@@ -158,6 +163,7 @@ You can test the MCP server using curl. The server uses `JSON-RPC 2.0` over `HTT
 
 > [!NOTE]
 > The default `--toolsets` value is `metrics` only. Additional toolsets:
+>
 > - `logs` - Loki log query tools (requires Loki URL or LokiStack discovery)
 > - `traces` - Tempo tracing tools (requires Tempo configuration)
 > - `otelcol` - OpenTelemetry Collector configuration assistance (no external dependencies)
