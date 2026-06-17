@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.0] - 2026-06-17
+
+### Added
+
+- `logs` toolset for [Loki](https://grafana.com/oss/loki/) log management: `loki_list_instances`, `loki_label_names`, `loki_label_values`, and `loki_query_range` ([#107](https://github.com/rhobs/obs-mcp/pull/107))
+- Static `--tempo-url` flag for configuring Tempo endpoint without route discovery ([#124](https://github.com/rhobs/obs-mcp/pull/124))
+- `make test-e2e-run` target for running the server locally against cluster backends with automatic port-forwarding ([#124](https://github.com/rhobs/obs-mcp/pull/124))
+- Loki e2e tests and mcpchecker eval tasks for log query validation ([#107](https://github.com/rhobs/obs-mcp/pull/107))
+- `andreasgerstmayr` added to OWNERS_ALIASES ([#119](https://github.com/rhobs/obs-mcp/pull/119))
+
+### Changed
+
+- Extract authentication code into a shared `pkg/auth` package ([#113](https://github.com/rhobs/obs-mcp/pull/113))
+- Improve TOOLS.md generation with category grouping, table of contents, collapsible sections, and quick-reference table ([#125](https://github.com/rhobs/obs-mcp/pull/125))
+- Add `category` label to traces and otelcol eval tasks ([#118](https://github.com/rhobs/obs-mcp/pull/118))
+- Improve port-forwarding failure detection in e2e setup ([#124](https://github.com/rhobs/obs-mcp/pull/124))
+- Bump Go to 1.26.3 and upgrade module dependencies ([#127](https://github.com/rhobs/obs-mcp/pull/127))
+
+### Fixed
+
+- Fix broken references, typos, and stale content across markdown documentation (README, TESTING, DEPLOYMENT, RELEASE, evals) ([#126](https://github.com/rhobs/obs-mcp/pull/126))
+
 ## [v0.3.0] - 2026-06-05
 
 ### Added
