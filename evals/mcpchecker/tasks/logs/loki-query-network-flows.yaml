@@ -7,6 +7,7 @@ metadata:
   runs: 1
   labels:
     category: logs
+    suite: observability
     toolType: query
   description: |
     Tests loki_query_range with NetObserv flow log labels (SrcK8S_Namespace /

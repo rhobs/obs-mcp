@@ -7,6 +7,7 @@ metadata:
   runs: 1
   labels:
     category: logs
+    suite: observability
     toolType: exploration
   description: |
     Tests discovery workflow: loki_list_instances then loki_label_names with tenant
