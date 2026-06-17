@@ -168,13 +168,15 @@ export CONTAINER_CLI
 export IMAGE_REF
 
 E2E_PROFILE ?= kind
+E2E_STACKS ?= prometheus,tempo,loki
+
 .PHONY: test-e2e-setup
 test-e2e-setup: ## Setup the cluster for E2E tests
-	./hack/e2e/setup.sh $(if $(filter kind,$(E2E_PROFILE)),provision) prereqs extras --profile $(E2E_PROFILE)
+	./hack/e2e/setup.sh $(if $(filter kind,$(E2E_PROFILE)),provision) prereqs extras --profile $(E2E_PROFILE) --stacks $(E2E_STACKS)
 
 .PHONY: test-e2e-deploy
 test-e2e-deploy: container ## Build and deploy obs-mcp to the cluster
-	./hack/e2e/setup.sh upload deploy --profile $(E2E_PROFILE)
+	./hack/e2e/setup.sh upload deploy --profile $(E2E_PROFILE) --stacks $(E2E_STACKS)
 
 .PHONY: test-e2e
 test-e2e: ## Run E2E tests (requires cluster to be running)
@@ -184,9 +186,13 @@ test-e2e: ## Run E2E tests (requires cluster to be running)
 test-e2e-pf: ## Port-forward obs-mcp e2e deployment locally
 	kubectl port-forward -n obs-mcp svc/obs-mcp 9100:9100
 
+.PHONY: test-e2e-run
+test-e2e-run: ## Run obs-mcp locally against the E2E cluster (auto port-forwards)
+	./hack/e2e/setup.sh run --profile $(E2E_PROFILE) --stacks $(E2E_STACKS)
+
 .PHONY: test-e2e-teardown
 test-e2e-teardown: ## Teardown E2E test cluster
-	./hack/e2e/setup.sh down --profile $(E2E_PROFILE)
+	./hack/e2e/setup.sh down --profile $(E2E_PROFILE) --stacks $(E2E_STACKS)
 
 .PHONY: test-e2e-full
 test-e2e-full: test-e2e-setup test-e2e-deploy test-e2e test-e2e-teardown ## Run full E2E test cycle (setup, test, teardown)
@@ -198,7 +204,7 @@ test-e2e-full: test-e2e-setup test-e2e-deploy test-e2e test-e2e-teardown ## Run 
 .PHONY: test-e2e-openshift-deploy
 test-e2e-openshift-deploy: ## Deploy obs-mcp to OpenShift (uses IMAGE env var from CI)
 	# We use IMAGE until we update the CI job to pass IMAGE_REF instead.
-	IMAGE_REF="$(IMAGE)" ./hack/e2e/setup.sh prereqs extras deploy --profile openshift
+	IMAGE_REF="$(IMAGE)" ./hack/e2e/setup.sh prereqs extras deploy --profile openshift --stacks $(E2E_STACKS)
 
 .PHONY: test-e2e-openshift
 test-e2e-openshift: ## Run OpenShift route discovery E2E tests (requires oc login)
