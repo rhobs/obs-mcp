@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.1.5] - 2026-06-18
+
+### Fixed
+
+- Flatten AdditionalFields directly into tool Meta instead of nesting under an extra key ([#131](https://github.com/rhobs/obs-mcp/pull/131))
+
 ## [v0.1.4] - 2026-05-06
 
 ### Added
