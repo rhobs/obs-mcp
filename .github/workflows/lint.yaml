@@ -11,8 +11,13 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
+    changed-files:
+        uses: ./.github/workflows/changed-files.yaml
+
     golangci-lint:
         name: golangci-lint
+        needs: changed-files
+        if: ${{ needs.changed-files.outputs.non-markdown-files }}
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
