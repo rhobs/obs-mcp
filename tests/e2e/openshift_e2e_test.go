@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/rhobs/obs-mcp/pkg/k8s"
+	"github.com/stretchr/testify/require"
 )
 
 // Route discovery tests below exercise pkg/k8s directly using the kubeconfig
@@ -125,6 +126,58 @@ func TestOpenShiftMetricsPresent(t *testing.T) {
 		t.Fatalf("OpenShift-specific metric %q not found -- is obs-mcp pointing at OpenShift monitoring?\nResult: %s", metric, string(resultJSON))
 	}
 	t.Logf("OpenShift metric %q confirmed present", metric)
+}
+
+func TestTempoListInstances(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 22, "tempo_list_instances", map[string]any{})
+	if err != nil {
+		t.Fatalf("Failed to call tempo_list_instances: %v", err)
+	}
+
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Fatalf("tempo_list_instances returned an error result: %s", resultJSON)
+	}
+
+	structured := resp.Result["structuredContent"].(map[string]any)
+	instances := structured["instances"].([]any)
+	require.ElementsMatch(t, []any{
+		map[string]any{"kind": "TempoStack", "tempoNamespace": "tracing", "tempoName": "tempo1", "multitenancy": false, "status": "Ready"},
+		map[string]any{"kind": "TempoStack", "tempoNamespace": "tracing", "tempoName": "tempo2", "multitenancy": false, "status": "Ready"},
+		map[string]any{"kind": "TempoStack", "tempoNamespace": "tracing", "tempoName": "multitenant", "multitenancy": true, "status": "Ready", "tenants": []any{"project1", "project2"}},
+	}, instances)
+
+	t.Log("tempo_list_instances returned successfully")
+}
+
+func TestTempoSearchTraces_Multitenant(t *testing.T) {
+	resp, err := mcpClient.CallTool(t, 40, "tempo_search_traces", map[string]any{
+		"tempoNamespace": "tracing",
+		"tempoName":      "multitenant",
+		"tenant":         "project1",
+		"query":          "{}",
+	})
+	if err != nil {
+		t.Fatalf("Failed to call tempo_search_traces: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("MCP error: %s", resp.Error.Message)
+	}
+	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
+		resultJSON, _ := json.Marshal(resp.Result)
+		t.Fatalf("tempo_search_traces returned an error result: %s", resultJSON)
+	}
+
+	structured, ok := resp.Result["structuredContent"].(map[string]any)
+	require.True(t, ok, "expected structuredContent in result")
+	traces, ok := structured["traces"].([]any)
+	require.True(t, ok, "expected traces field in structured content")
+	require.NotEmpty(t, traces, "expected at least one trace; was trace data ingested before this test ran?")
+
+	t.Logf("tempo_search_traces (multitenant) returned %d traces", len(traces))
 }
 
 func TestOtelcolToolset(t *testing.T) {

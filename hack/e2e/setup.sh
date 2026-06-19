@@ -426,6 +426,11 @@ phase_upload() {
                _img_tag="latest"
             fi
 
+            # Ensure the target namespace exists (otherwise pushing an image fails with "denied")
+            if ! $KUBECTL get namespace obs-mcp &>/dev/null; then
+                _run $KUBECTL create namespace obs-mcp
+            fi
+
             # Enable the default external route for the image registry (idempotent)
             _run $KUBECTL patch configs.imageregistry.operator.openshift.io/cluster \
                 --patch '{"spec":{"defaultRoute":true}}' --type=merge

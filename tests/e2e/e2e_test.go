@@ -696,10 +696,11 @@ func TestTempoListInstances(t *testing.T) {
 
 	structured := resp.Result["structuredContent"].(map[string]any)
 	instances := structured["instances"].([]any)
-	require.ElementsMatch(t, []any{
+	// Using require.Subset here because on OpenShift there is an additional multitenant Tempo instance
+	require.Subset(t, instances, []any{
 		map[string]any{"kind": "TempoStack", "tempoNamespace": "tracing", "tempoName": "tempo1", "multitenancy": false, "status": "Ready"},
 		map[string]any{"kind": "TempoStack", "tempoNamespace": "tracing", "tempoName": "tempo2", "multitenancy": false, "status": "Ready"},
-	}, instances)
+	})
 
 	t.Log("tempo_list_instances returned successfully")
 }
