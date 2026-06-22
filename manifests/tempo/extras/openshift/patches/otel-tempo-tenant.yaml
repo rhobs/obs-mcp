@@ -1,0 +1,26 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel
+  namespace: tracing
+spec:
+  config:
+    extensions:
+      bearertokenauth:
+        filename: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+    exporters:
+      otlp/project1:
+        endpoint: tempo-multitenant-gateway.tracing.svc.cluster.local:8090
+        tls:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
+        auth:
+          authenticator: bearertokenauth
+        headers:
+          X-Scope-OrgID: project1
+
+    service:
+      extensions: [bearertokenauth]
+      pipelines:
+        traces:
+          exporters: [otlp_http/tempo1, otlp/project1]
