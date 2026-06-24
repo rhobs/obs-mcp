@@ -133,10 +133,17 @@ func getLokiClient(ctx context.Context, opts ObsMCPOptions, url, tenant string) 
 		AuthMode:          opts.AuthMode,
 		MetricsBackendURL: url,
 		Insecure:          opts.Insecure,
+		Registry:          opts.Registry,
 	}
 	apiConfig, err := createAPIConfig(ctx, lokiOpts, url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API config: %w", err)
+	}
+
+	// Instrument the RoundTripper for Loki client
+	if opts.Registry != nil && apiConfig.RoundTripper != nil {
+		lokiClientMetrics := metrics.NewClientMetrics(opts.Registry)
+		apiConfig.RoundTripper = metrics.InstrumentedRoundTripper(apiConfig.RoundTripper, lokiClientMetrics)
 	}
 
 	lokiClient, err := loki.NewLoader(apiConfig, tenant)

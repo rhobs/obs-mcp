@@ -205,7 +205,6 @@ func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string, regist
 	if authMode == auth.AuthModeHeader {
 		handler = authMiddleware(handler)
 	}
-	}
 
 	httpServer := &http.Server{
 		Addr:    listenAddr,
