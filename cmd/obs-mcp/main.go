@@ -11,7 +11,11 @@ import (
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	prom "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/common/promslog"
+	"github.com/prometheus/common/version"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
@@ -22,8 +26,8 @@ import (
 )
 
 var (
-	version = "dev"
-	commit  = "unknown"
+	Version   = "dev"
+	GitCommit = "unknown"
 )
 
 const (
@@ -62,7 +66,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("obs-mcp %s (commit: %s)\n", version, commit)
+		fmt.Printf("obs-mcp %s (commit: %s)\n", Version, GitCommit)
 		os.Exit(0)
 	}
 
@@ -158,6 +162,20 @@ func main() {
 		tempoResolvedURL, tempoURLSource = determineTempoURL(*tempoURL)
 	}
 
+	// Initialize version info for metrics
+	version.Version = Version
+	version.Revision = GitCommit
+	version.Branch = "unknown"
+	version.BuildUser = "unknown"
+	version.BuildDate = "unknown"
+
+	reg := prom.NewRegistry()
+	reg.MustRegister(
+		versioncollector.NewCollector("obs_mcp"),
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+
 	// Create MCP options
 	opts := mcpserver.ObsMCPOptions{
 		Toolsets:               parsedToolsets,
@@ -176,6 +194,7 @@ func main() {
 		},
 		Otelcol:      otelcol.NewDefaultConfig(),
 		LokiUseRoute: *lokiUseRoute,
+		Registry:     reg,
 	}
 
 	// Create MCP server
@@ -202,7 +221,7 @@ func main() {
 	if *listen != "" {
 		// HTTP mode
 		ctx := context.Background()
-		if err := mcpserver.Serve(ctx, mcpServer, *listen, opts.AuthMode); err != nil {
+		if err := mcpserver.Serve(ctx, mcpServer, *listen, reg, parsedAuthMode); err != nil {
 			log.Fatalf("HTTP server failed: %v", err)
 		}
 	} else {

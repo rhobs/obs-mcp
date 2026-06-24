@@ -13,12 +13,15 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	prom "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/client-go/dynamic"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/logs"
 	lokiclient "github.com/rhobs/obs-mcp/pkg/logs/loki"
+	"github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/tools"
@@ -50,6 +53,7 @@ type ObsMCPOptions struct {
 	Otelcol                *otelcol.Config
 	LokiURL                string
 	LokiUseRoute           bool
+	Registry               prom.Registerer
 }
 
 const (
@@ -186,12 +190,21 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string, authMode auth.AuthMode) error {
+func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string, registry prom.Registerer, authMode auth.AuthMode) error {
 	mux := http.NewServeMux()
+
+	// Create instrumentation middleware
+	var instrMiddleware metrics.InstrumentationMiddleware
+	if registry != nil {
+		instrMiddleware = metrics.NewInstrumentationMiddleware(registry, nil)
+	} else {
+		instrMiddleware = metrics.NewNopInstrumentationMiddleware()
+	}
 
 	handler := loggingMiddleware(mux)
 	if authMode == auth.AuthModeHeader {
 		handler = authMiddleware(handler)
+	}
 	}
 
 	httpServer := &http.Server{
@@ -206,13 +219,20 @@ func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string, authMo
 	streamableHandler := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
 		return mcpServer
 	}, opts)
-	mux.Handle(mcpEndpoint, streamableHandler)
-	mux.Handle("/", streamableHandler)
+	mux.Handle(mcpEndpoint, instrMiddleware.NewHandler("mcp", streamableHandler))
+	mux.Handle("/", instrMiddleware.NewHandler("root", streamableHandler))
 
 	mux.HandleFunc(healthEndpoint, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	})
+
+	if registry != nil {
+		mux.Handle("/metrics", promhttp.HandlerFor(
+			registry.(prom.Gatherer),
+			promhttp.HandlerOpts{},
+		))
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
