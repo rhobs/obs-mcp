@@ -46,9 +46,8 @@ func getPromClient(ctx context.Context, opts ObsMCPOptions) (prometheus.Loader, 
 	}
 
 	// Instrument the RoundTripper for Prometheus client
-	if opts.Registry != nil && apiConfig.RoundTripper != nil {
-		promClientMetrics := metrics.NewClientMetrics(opts.Registry)
-		apiConfig.RoundTripper = metrics.InstrumentedRoundTripper(apiConfig.RoundTripper, promClientMetrics)
+	if opts.clientMetrics != nil && apiConfig.RoundTripper != nil {
+		apiConfig.RoundTripper = metrics.InstrumentedRoundTripper(apiConfig.RoundTripper, opts.clientMetrics)
 	}
 
 	promClient, err := prometheus.NewPrometheusLoader(apiConfig)
@@ -78,9 +77,8 @@ func getAlertmanagerClient(ctx context.Context, opts ObsMCPOptions) (alertmanage
 	apiConfig.Address = opts.AlertmanagerURL
 
 	// Instrument the RoundTripper for Alertmanager client
-	if opts.Registry != nil && apiConfig.RoundTripper != nil {
-		amClientMetrics := metrics.NewClientMetrics(opts.Registry)
-		apiConfig.RoundTripper = metrics.InstrumentedRoundTripper(apiConfig.RoundTripper, amClientMetrics)
+	if opts.clientMetrics != nil && apiConfig.RoundTripper != nil {
+		apiConfig.RoundTripper = metrics.InstrumentedRoundTripper(apiConfig.RoundTripper, opts.clientMetrics)
 	}
 
 	amClient, err := alertmanager.NewAlertmanagerClient(apiConfig)
@@ -96,7 +94,7 @@ func getTempoHTTPClient(ctx context.Context, opts ObsMCPOptions, url string) (te
 		AuthMode:          opts.AuthMode,
 		MetricsBackendURL: url,
 		Insecure:          opts.Insecure,
-		Registry:          opts.Registry,
+		clientMetrics:     opts.clientMetrics,
 	}
 
 	apiConfig, err := createAPIConfig(ctx, tempoOpts, url)
@@ -106,9 +104,8 @@ func getTempoHTTPClient(ctx context.Context, opts ObsMCPOptions, url string) (te
 
 	// Instrument the RoundTripper for Tempo client
 	rt := apiConfig.RoundTripper
-	if opts.Registry != nil && rt != nil {
-		tempoClientMetrics := metrics.NewClientMetrics(opts.Registry)
-		rt = metrics.InstrumentedRoundTripper(rt, tempoClientMetrics)
+	if opts.clientMetrics != nil && rt != nil {
+		rt = metrics.InstrumentedRoundTripper(rt, opts.clientMetrics)
 	}
 
 	httpClient := &http.Client{
@@ -130,10 +127,10 @@ func getLokiClient(ctx context.Context, opts ObsMCPOptions, url, tenant string) 
 	}
 
 	lokiOpts := ObsMCPOptions{
-		AuthMode:          opts.AuthMode,
+		AuthMode:      opts.AuthMode,
 		MetricsBackendURL: url,
-		Insecure:          opts.Insecure,
-		Registry:          opts.Registry,
+		Insecure:      opts.Insecure,
+		clientMetrics: opts.clientMetrics,
 	}
 	apiConfig, err := createAPIConfig(ctx, lokiOpts, url)
 	if err != nil {
@@ -141,9 +138,8 @@ func getLokiClient(ctx context.Context, opts ObsMCPOptions, url, tenant string) 
 	}
 
 	// Instrument the RoundTripper for Loki client
-	if opts.Registry != nil && apiConfig.RoundTripper != nil {
-		lokiClientMetrics := metrics.NewClientMetrics(opts.Registry)
-		apiConfig.RoundTripper = metrics.InstrumentedRoundTripper(apiConfig.RoundTripper, lokiClientMetrics)
+	if opts.clientMetrics != nil && apiConfig.RoundTripper != nil {
+		apiConfig.RoundTripper = metrics.InstrumentedRoundTripper(apiConfig.RoundTripper, opts.clientMetrics)
 	}
 
 	lokiClient, err := loki.NewLoader(apiConfig, tenant)

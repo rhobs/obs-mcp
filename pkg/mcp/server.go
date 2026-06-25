@@ -54,6 +54,9 @@ type ObsMCPOptions struct {
 	LokiURL                string
 	LokiUseRoute           bool
 	Registry               prom.Registerer
+
+	// Shared HTTP client metrics
+	clientMetrics *metrics.ClientMetrics
 }
 
 const (
@@ -65,6 +68,11 @@ const (
 )
 
 func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
+	// Initialize shared HTTP client metrics once
+	if opts.Registry != nil && opts.clientMetrics == nil {
+		opts.clientMetrics = metrics.NewClientMetrics(opts.Registry)
+	}
+
 	impl := &mcp.Implementation{
 		Name:    serverName,
 		Version: serverVersion,
