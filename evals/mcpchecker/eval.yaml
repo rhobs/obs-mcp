@@ -431,6 +431,21 @@ config:
         minToolCalls: 2
         maxToolCalls: 5
 
+    - path: tasks/traces/latency-baseline.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: tempo_search_traces
+        callOrder:
+          - type: tool
+            server: obs
+            name: tempo_search_traces
+          - type: tool
+            server: obs
+            name: tempo_search_traces
+        minToolCalls: 3
+        maxToolCalls: 5
+
     # OpenTelemetry Collector
     - path: tasks/otelcol/get-versions.yaml
       assertions:
