@@ -21,7 +21,7 @@ tmp/*
 manifests/core/deploy/overlay
 manifests/loki/extras/overlay
 /vendor
-/.claude
+/.claude/settings.local.json
 
 cpu.prof
 mem.prof
