@@ -5,14 +5,20 @@ metadata:
 config:
   agent:
     type: "builtin.llm-agent"
-    model: "openai:gpt-5-nano"
+    model: "openai:gpt-4o-mini"
+
+    # Alternative using Claude Code
+    # type: "builtin.claude-code"
 
   mcpConfigFile: mcp-config.yaml
 
   llmJudge:
     ref:
       type: builtin.llm-agent
-      model: "openai:gpt-5-nano"
+      model: "openai:gpt-4o-mini"
+
+      # Alternative using Claude Code
+      # type: "builtin.claude-code"
 
   taskSets:
     # Smoke test
