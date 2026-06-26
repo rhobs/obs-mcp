@@ -23,4 +23,4 @@ spec:
       extensions: [bearertokenauth]
       pipelines:
         traces:
-          exporters: [otlp_http/tempo1, otlp/project1]
+          exporters: [otlp_http/tempo1, otlp/project1, spanmetrics]
