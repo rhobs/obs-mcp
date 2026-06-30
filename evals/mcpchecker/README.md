@@ -64,6 +64,12 @@ make run-mcpchecker-eval TASK="alert|silence"  # regex match
 make run-mcpchecker-eval CATEGORY=alerts       # all alert tasks
 ```
 
+### Triaging evals results
+
+You can use the `/mcpchecker-results-triage` skill in an AI assistant
+to triage the results. It's useful way to identify potential causes for the failures 
+propose fixes.
+
 ### Additional mcpchecker tools
 
 ```bash
