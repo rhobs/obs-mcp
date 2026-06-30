@@ -5,7 +5,7 @@ metadata:
   namespace: obs-mcp
 data:
   auth-mode: "header"
-  toolsets: "metrics,traces,otelcol"
+  toolsets: "observability/metrics,observability/traces,observability/otelcol"
   # this is the default prometheus url for kube-prometheus stack
   prometheus-url: "http://prometheus-k8s.monitoring.svc:9090"
   # this is the default alertmanager url for kube-prometheus stack

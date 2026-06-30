@@ -58,7 +58,7 @@ The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Promethe
 
 - Reads the service account token mounted inside the pod
 - Requires explicit `PROMETHEUS_URL` (no auto-discovery)
-- If `logs` toolset is enabled, either set `LOKI_URL`/`--loki-url` or use LokiStack discovery parameters (`lokiNamespace`, `lokiName`)
+- If `observability/logs` toolset is enabled, either set `LOKI_URL`/`--loki-url` or use LokiStack discovery parameters (`lokiNamespace`, `lokiName`)
 - The ServiceAccount must have RBAC permissions to query the metrics endpoint
 - Best for: **In-cluster deployment** on OpenShift with RBAC-protected Thanos/Prometheus
 
@@ -67,7 +67,7 @@ The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Promethe
 - Forwards the `Authorization` header from incoming MCP client requests to Prometheus
 - If no header is provided, connects without authentication
 - Requires explicit `PROMETHEUS_URL` (no auto-discovery)
-- If `logs` toolset is enabled, either set `LOKI_URL`/`--loki-url` or use LokiStack discovery parameters (`lokiNamespace`, `lokiName`)
+- If `observability/logs` toolset is enabled, either set `LOKI_URL`/`--loki-url` or use LokiStack discovery parameters (`lokiNamespace`, `lokiName`)
 - Best for: **Pass-through auth** scenarios or **Prometheus without authentication** (e.g., port-forwarded, local kube-prometheus)
 
 ## Deploying on a Cluster
@@ -105,14 +105,14 @@ comma-separated list via `--stacks` (default: `prometheus,tempo,loki`):
 
 | Stack        | What it installs                                                       | Toolset enabled |
 | ------------ | ---------------------------------------------------------------------- | --------------- |
-| `prometheus` | kube-prometheus (k8s) or uses the built-in OpenShift monitoring stack  | `metrics`       |
-| `tempo`      | Tempo + OpenTelemetry operators and a sample tracing app               | `traces`        |
-| `loki`       | Loki Operator test stack                                               | `logs`          |
+| `prometheus` | kube-prometheus (k8s) or uses the built-in OpenShift monitoring stack  | `observability/metrics` |
+| `tempo`      | Tempo + OpenTelemetry operators and a sample tracing app               | `observability/traces`  |
+| `loki`       | Loki Operator test stack                                               | `observability/logs`    |
 
 The enabled stacks determine which `manifests/` subtrees are applied and which `--toolsets`
 value is passed to the obs-mcp deployment — no manual editing of manifests is needed.
-When deploying via `hack/e2e/setup.sh`, the `otelcol` toolset is always included (it has no
-external backend dependency); stack selection adds `metrics`, `traces`, and/or `logs` on top.
+When deploying via `hack/e2e/setup.sh`, the `observability/otelcol` toolset is always included (it has no
+external backend dependency); stack selection adds `observability/metrics`, `observability/traces`, and/or `observability/logs` on top.
 
 **Phases** express what work to perform. The two top-level aliases cover the common cases:
 
@@ -147,7 +147,7 @@ manifests/
 When deploying in-cluster, you must configure:
 
 1. **`PROMETHEUS_URL`**: Set the environment variable to your Prometheus/Thanos endpoint
-2. **`LOKI_URL`**: Optional when using the `logs` toolset (or pass `--loki-url`). If omitted, use LokiStack discovery (`loki_list_instances` + `lokiNamespace`/`lokiName` tool arguments)
+2. **`LOKI_URL`**: Optional when using the `observability/logs` toolset (or pass `--loki-url`). If omitted, use LokiStack discovery (`loki_list_instances` + `lokiNamespace`/`lokiName` tool arguments)
 3. **`--auth-mode`**: Choose based on your backend authentication requirements:
    - `serviceaccount` if your Prometheus requires RBAC/token auth
    - `header` if your Prometheus doesn't require authentication

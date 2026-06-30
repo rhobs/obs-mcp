@@ -29,10 +29,10 @@ import (
 type Toolset string
 
 const (
-	ToolsetMetrics Toolset = "metrics"
-	ToolsetTraces  Toolset = "traces"
-	ToolsetLogs    Toolset = "logs"
-	ToolsetOtelcol Toolset = "otelcol"
+	ToolsetMetrics Toolset = "observability/metrics"
+	ToolsetTraces  Toolset = "observability/traces"
+	ToolsetLogs    Toolset = "observability/logs"
+	ToolsetOtelcol Toolset = "observability/otelcol"
 )
 
 var AllToolsets = []string{string(ToolsetMetrics), string(ToolsetTraces), string(ToolsetLogs), string(ToolsetOtelcol)}

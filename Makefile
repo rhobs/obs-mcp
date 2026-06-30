@@ -109,13 +109,13 @@ check-tools-doc: generate-tools-doc ## Check if TOOLS.md is up to date
 LISTEN_ADDR ?= :9100
 LOG_LEVEL ?= debug
 AUTH_MODE ?= kubeconfig
-TOOLSETS ?= metrics
+TOOLSETS ?= observability/metrics
 RUN_FLAGS ?= --loki.use-route
 
 .PHONY: run
 run: build ## Run obs-mcp in HTTP mode (use LOG_LEVEL=debug to see backend call timings)
 	@echo "Tip: Override backend URLs with PROMETHEUS_URL=https://... ALERTMANAGER_URL=https://... make run"
-	@echo "Tip: Override toolsets with TOOLSETS=metrics,traces,otelcol make run"
+	@echo "Tip: Override toolsets with TOOLSETS=observability/metrics,observability/traces,observability/otelcol make run"
 	@echo "Note: AUTH_MODE=serviceaccount or header requires PROMETHEUS_URL and ALERTMANAGER_URL to be set"
 	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --insecure --log-level $(LOG_LEVEL) --toolsets $(TOOLSETS) $(RUN_FLAGS)
 
@@ -154,7 +154,7 @@ run-pf-loki: build ## Port-forward loki and start obs-mcp with header auth
 		sleep 2; \
 		trap "kill $$PF_LOKI_PID 2>/dev/null" EXIT; \
 		LOKI_URL=http://localhost:8080 \
-		./obs-mcp --listen $(LISTEN_ADDR) --auth-mode header --log-level $(LOG_LEVEL) --toolsets logs
+		./obs-mcp --listen $(LISTEN_ADDR) --auth-mode header --log-level $(LOG_LEVEL) --toolsets observability/logs
 
 .PHONY: inspect
 inspect: COMPOSE_HOST_GATEWAY = $(if $(filter podman,$(CONTAINER_CLI)),host.containers.internal,host.docker.internal)
