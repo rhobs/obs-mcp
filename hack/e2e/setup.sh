@@ -477,10 +477,10 @@ phase_deploy() {
     step "Deploying obs-mcp"
 
     # Compute toolsets from enabled stacks
-    _toolsets_parts=(otelcol)
-    has_stack prometheus && _toolsets_parts+=(metrics)
-    has_stack tempo      && _toolsets_parts+=(traces)
-    has_stack loki       && _toolsets_parts+=(logs)
+    _toolsets_parts=(observability/otelcol)
+    has_stack prometheus && _toolsets_parts+=(observability/metrics)
+    has_stack tempo      && _toolsets_parts+=(observability/traces)
+    has_stack loki       && _toolsets_parts+=(observability/logs)
     _toolsets=$(IFS=,; echo "${_toolsets_parts[*]}")
 
     # Build a temporary kustomize overlay to inject runtime values (toolsets, image)
@@ -566,11 +566,11 @@ phase_run() {
     )
 
     # Toolsets — always include otelcol.
-    local _toolsets_parts=(otelcol)
+    local _toolsets_parts=(observability/otelcol)
 
     # -- Prometheus & Alertmanager --
     if has_stack prometheus; then
-        _toolsets_parts+=(metrics)
+        _toolsets_parts+=(observability/metrics)
         case ${PROFILE} in
             openshift)
                 step "Port-forwarding Prometheus (openshift-monitoring)"
@@ -594,7 +594,7 @@ phase_run() {
 
     # -- Tempo --
     if has_stack tempo; then
-        _toolsets_parts+=(traces)
+        _toolsets_parts+=(observability/traces)
         case ${PROFILE} in
             openshift)
                 _flags+=(--traces.use-route)
@@ -610,7 +610,7 @@ phase_run() {
 
     # -- Loki --
     if has_stack loki; then
-        _toolsets_parts+=(logs)
+        _toolsets_parts+=(observability/logs)
         case ${PROFILE} in
             openshift)
                 _flags+=(--loki.use-route)
