@@ -487,7 +487,7 @@ config:
         minToolCalls: 1
         maxToolCalls: 3
 
-    # Logs (Loki) — requires --toolsets logs on obs-mcp; see evals/mcpchecker/README.md
+    # Logs (Loki) — requires --toolsets observability/logs on obs-mcp; see evals/mcpchecker/README.md
     - path: tasks/logs/loki-backend-reachability.yaml
       assertions:
         toolsUsed:
