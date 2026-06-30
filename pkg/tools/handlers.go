@@ -3,7 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	"k8s.io/klog/v2"
 	"maps"
 	"strings"
 	"time"
@@ -261,8 +261,8 @@ func BuildSilencesInput(args map[string]any) SilencesInput {
 
 // ListMetricsHandler handles the listing of available Prometheus metrics.
 func ListMetricsHandler(ctx context.Context, promClient prometheus.Loader, input ListMetricsInput) *resultutil.Result {
-	slog.Info("ListMetricsHandler called")
-	slog.Debug("ListMetricsHandler params", "input", input)
+	klog.FromContext(ctx).Info("ListMetricsHandler called")
+	klog.FromContext(ctx).V(4).Info("ListMetricsHandler params", "input", input)
 
 	// Validate required parameters
 	if input.NameRegex == "" {
@@ -271,12 +271,12 @@ func ListMetricsHandler(ctx context.Context, promClient prometheus.Loader, input
 
 	metrics, err := promClient.ListMetrics(ctx, input.NameRegex)
 	if err != nil {
-		slog.Error("failed to list metrics", "error", err)
+		klog.FromContext(ctx).Error(err, "failed to list metrics")
 		return resultutil.NewErrorResult(fmt.Errorf("failed to list metrics: %w", err))
 	}
 
-	slog.Info("ListMetricsHandler executed successfully", "resultLength", len(metrics))
-	slog.Debug("ListMetricsHandler results", "results", metrics)
+	klog.FromContext(ctx).Info("ListMetricsHandler executed successfully", "resultLength", len(metrics))
+	klog.FromContext(ctx).V(4).Info("ListMetricsHandler results", "results", metrics)
 
 	output := ListMetricsOutput{Metrics: metrics}
 	return resultutil.NewSuccessResult(output)
@@ -284,8 +284,8 @@ func ListMetricsHandler(ctx context.Context, promClient prometheus.Loader, input
 
 // ExecuteRangeQueryHandler handles the execution of Prometheus range queries.
 func ExecuteRangeQueryHandler(ctx context.Context, promClient prometheus.Loader, input RangeQueryInput, fullResponse bool) *resultutil.Result {
-	slog.Info("ExecuteRangeQueryHandler called")
-	slog.Debug("ExecuteRangeQueryHandler params", "input", input)
+	klog.FromContext(ctx).Info("ExecuteRangeQueryHandler called")
+	klog.FromContext(ctx).V(4).Info("ExecuteRangeQueryHandler params", "input", input)
 
 	// Validate required parameters
 	if input.Query == "" {
@@ -347,7 +347,7 @@ func ExecuteRangeQueryHandler(ctx context.Context, promClient prometheus.Loader,
 
 	resMatrix, ok := result["result"].(model.Matrix)
 	if ok {
-		slog.Info("ExecuteRangeQueryHandler executed successfully", "resultLength", resMatrix.Len())
+		klog.FromContext(ctx).Info("ExecuteRangeQueryHandler executed successfully", "resultLength", resMatrix.Len())
 
 		if fullResponse {
 			// Return full data
@@ -374,9 +374,9 @@ func ExecuteRangeQueryHandler(ctx context.Context, promClient prometheus.Loader,
 			}
 		}
 
-		slog.Debug("ExecuteRangeQueryHandler output", "output", output)
+		klog.FromContext(ctx).V(4).Info("ExecuteRangeQueryHandler output", "output", output)
 	} else {
-		slog.Info("ExecuteRangeQueryHandler executed successfully (unknown format)", "result", result)
+		klog.FromContext(ctx).Info("ExecuteRangeQueryHandler executed successfully (unknown format)", "result", result)
 	}
 
 	if warnings, ok := result["warnings"].([]string); ok {
@@ -388,8 +388,8 @@ func ExecuteRangeQueryHandler(ctx context.Context, promClient prometheus.Loader,
 
 // ShowTimeseriesHandler handles the show_timeseries tool, returning full range query data for chart rendering.
 func ShowTimeseriesHandler(ctx context.Context, promClient prometheus.Loader, input ShowTimeseriesInput) *resultutil.Result {
-	slog.Info("ShowTimeseriesHandler called")
-	slog.Debug("ShowTimeseriesHandler params", "input", input)
+	klog.FromContext(ctx).Info("ShowTimeseriesHandler called")
+	klog.FromContext(ctx).V(4).Info("ShowTimeseriesHandler params", "input", input)
 
 	// Executing the query handler just to validate the query is correct.
 	result := ExecuteRangeQueryHandler(ctx, promClient, input.RangeQueryInput, true)
@@ -402,8 +402,8 @@ func ShowTimeseriesHandler(ctx context.Context, promClient prometheus.Loader, in
 
 // ExecuteInstantQueryHandler handles the execution of Prometheus instant queries.
 func ExecuteInstantQueryHandler(ctx context.Context, promClient prometheus.Loader, input InstantQueryInput) *resultutil.Result {
-	slog.Info("ExecuteInstantQueryHandler called")
-	slog.Debug("ExecuteInstantQueryHandler params", "input", input)
+	klog.FromContext(ctx).Info("ExecuteInstantQueryHandler called")
+	klog.FromContext(ctx).V(4).Info("ExecuteInstantQueryHandler params", "input", input)
 
 	// Validate required parameters
 	if input.Query == "" {
@@ -434,8 +434,8 @@ func ExecuteInstantQueryHandler(ctx context.Context, promClient prometheus.Loade
 
 	resVector, ok := result["result"].(model.Vector)
 	if ok {
-		slog.Info("ExecuteInstantQueryHandler executed successfully", "resultLength", len(resVector))
-		slog.Debug("ExecuteInstantQueryHandler results", "results", resVector)
+		klog.FromContext(ctx).Info("ExecuteInstantQueryHandler executed successfully", "resultLength", len(resVector))
+		klog.FromContext(ctx).V(4).Info("ExecuteInstantQueryHandler results", "results", resVector)
 
 		output.Result = make([]InstantResult, len(resVector))
 		for i, sample := range resVector {
@@ -449,7 +449,7 @@ func ExecuteInstantQueryHandler(ctx context.Context, promClient prometheus.Loade
 			}
 		}
 	} else {
-		slog.Info("ExecuteInstantQueryHandler executed successfully (unknown format)", "result", result)
+		klog.FromContext(ctx).Info("ExecuteInstantQueryHandler executed successfully (unknown format)", "result", result)
 	}
 
 	if warnings, ok := result["warnings"].([]string); ok {
@@ -461,8 +461,8 @@ func ExecuteInstantQueryHandler(ctx context.Context, promClient prometheus.Loade
 
 // GetLabelNamesHandler handles the retrieval of label names.
 func GetLabelNamesHandler(ctx context.Context, promClient prometheus.Loader, input LabelNamesInput) *resultutil.Result {
-	slog.Info("GetLabelNamesHandler called")
-	slog.Debug("GetLabelNamesHandler params", "input", input)
+	klog.FromContext(ctx).Info("GetLabelNamesHandler called")
+	klog.FromContext(ctx).V(4).Info("GetLabelNamesHandler params", "input", input)
 
 	startTime, endTime, err := parseDefaultTimeRange(input.Start, input.End)
 	if err != nil {
@@ -475,8 +475,8 @@ func GetLabelNamesHandler(ctx context.Context, promClient prometheus.Loader, inp
 		return resultutil.NewErrorResult(fmt.Errorf("failed to get label names: %w", err))
 	}
 
-	slog.Info("GetLabelNamesHandler executed successfully", "labelCount", len(labels))
-	slog.Debug("GetLabelNamesHandler results", "results", labels)
+	klog.FromContext(ctx).Info("GetLabelNamesHandler executed successfully", "labelCount", len(labels))
+	klog.FromContext(ctx).V(4).Info("GetLabelNamesHandler results", "results", labels)
 
 	output := LabelNamesOutput{Labels: labels}
 	return resultutil.NewSuccessResult(output)
@@ -484,8 +484,8 @@ func GetLabelNamesHandler(ctx context.Context, promClient prometheus.Loader, inp
 
 // GetLabelValuesHandler handles the retrieval of label values.
 func GetLabelValuesHandler(ctx context.Context, promClient prometheus.Loader, input LabelValuesInput) *resultutil.Result {
-	slog.Info("GetLabelValuesHandler called")
-	slog.Debug("GetLabelValuesHandler params", "input", input)
+	klog.FromContext(ctx).Info("GetLabelValuesHandler called")
+	klog.FromContext(ctx).V(4).Info("GetLabelValuesHandler params", "input", input)
 
 	// Validate required parameters
 	if input.Label == "" {
@@ -503,8 +503,8 @@ func GetLabelValuesHandler(ctx context.Context, promClient prometheus.Loader, in
 		return resultutil.NewErrorResult(fmt.Errorf("failed to get label values: %w", err))
 	}
 
-	slog.Info("GetLabelValuesHandler executed successfully", "valueCount", len(values))
-	slog.Debug("GetLabelValuesHandler results", "results", values)
+	klog.FromContext(ctx).Info("GetLabelValuesHandler executed successfully", "valueCount", len(values))
+	klog.FromContext(ctx).V(4).Info("GetLabelValuesHandler results", "results", values)
 
 	output := LabelValuesOutput{Values: values}
 	return resultutil.NewSuccessResult(output)
@@ -512,8 +512,8 @@ func GetLabelValuesHandler(ctx context.Context, promClient prometheus.Loader, in
 
 // GetSeriesHandler handles the retrieval of time series.
 func GetSeriesHandler(ctx context.Context, promClient prometheus.Loader, input SeriesInput) *resultutil.Result {
-	slog.Info("GetSeriesHandler called")
-	slog.Debug("GetSeriesHandler params", "input", input)
+	klog.FromContext(ctx).Info("GetSeriesHandler called")
+	klog.FromContext(ctx).V(4).Info("GetSeriesHandler params", "input", input)
 
 	// Validate required parameters
 	if input.Matches == "" {
@@ -537,8 +537,8 @@ func GetSeriesHandler(ctx context.Context, promClient prometheus.Loader, input S
 		return resultutil.NewErrorResult(fmt.Errorf("failed to get series: %w", err))
 	}
 
-	slog.Info("GetSeriesHandler executed successfully", "cardinality", len(series))
-	slog.Debug("GetSeriesHandler results", "results", series)
+	klog.FromContext(ctx).Info("GetSeriesHandler executed successfully", "cardinality", len(series))
+	klog.FromContext(ctx).V(4).Info("GetSeriesHandler results", "results", series)
 
 	output := SeriesOutput{
 		Series:      series,
@@ -549,8 +549,8 @@ func GetSeriesHandler(ctx context.Context, promClient prometheus.Loader, input S
 
 // GetAlertsHandler handles the retrieval of alerts from Alertmanager.
 func GetAlertsHandler(ctx context.Context, amClient alertmanager.Loader, input AlertsInput) *resultutil.Result {
-	slog.Info("GetAlertsHandler called")
-	slog.Debug("GetAlertsHandler params", "input", input)
+	klog.FromContext(ctx).Info("GetAlertsHandler called")
+	klog.FromContext(ctx).V(4).Info("GetAlertsHandler params", "input", input)
 
 	alerts, err := amClient.GetAlerts(ctx, input.Active, input.Silenced, input.Inhibited, input.Unprocessed, parseFilterString(input.Filter), input.Receiver)
 	if err != nil {
@@ -564,16 +564,16 @@ func GetAlertsHandler(ctx context.Context, amClient alertmanager.Loader, input A
 		output.Alerts[i] = convertAlert(alert)
 	}
 
-	slog.Info("GetAlertsHandler executed successfully", "alertCount", len(alerts))
-	slog.Debug("GetAlertsHandler results", "results", output.Alerts)
+	klog.FromContext(ctx).Info("GetAlertsHandler executed successfully", "alertCount", len(alerts))
+	klog.FromContext(ctx).V(4).Info("GetAlertsHandler results", "results", output.Alerts)
 
 	return resultutil.NewSuccessResult(output)
 }
 
 // GetSilencesHandler handles the retrieval of silences from Alertmanager.
 func GetSilencesHandler(ctx context.Context, amClient alertmanager.Loader, input SilencesInput) *resultutil.Result {
-	slog.Info("GetSilencesHandler called")
-	slog.Debug("GetSilencesHandler params", "input", input)
+	klog.FromContext(ctx).Info("GetSilencesHandler called")
+	klog.FromContext(ctx).V(4).Info("GetSilencesHandler params", "input", input)
 
 	silences, err := amClient.GetSilences(ctx, parseFilterString(input.Filter))
 	if err != nil {
@@ -587,8 +587,8 @@ func GetSilencesHandler(ctx context.Context, amClient alertmanager.Loader, input
 		output.Silences[i] = convertSilence(silence)
 	}
 
-	slog.Info("GetSilencesHandler executed successfully", "silenceCount", len(silences))
-	slog.Debug("GetSilencesHandler results", "results", output.Silences)
+	klog.FromContext(ctx).Info("GetSilencesHandler executed successfully", "silenceCount", len(silences))
+	klog.FromContext(ctx).V(4).Info("GetSilencesHandler results", "results", output.Silences)
 
 	return resultutil.NewSuccessResult(output)
 }
