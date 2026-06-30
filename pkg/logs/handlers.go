@@ -239,7 +239,7 @@ func (params ToolParams) resolveLokiURL() (string, error) {
 		return instance.GetURL(), nil
 	}
 
-	return "", fmt.Errorf("loki URL not configured; set loki_url/--loki-url/LOKI_URL or provide lokiNamespace and lokiName")
+	return "", nil
 }
 
 func (params ToolParams) useRoute() bool {

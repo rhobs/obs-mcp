@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +34,8 @@ func ListInstances(ctx context.Context, k8sClient dynamic.Interface, useRoute bo
 	for _, item := range list.Items {
 		var stack LokiStack
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.Object, &stack); err != nil {
-			return nil, fmt.Errorf("failed to parse LokiStack: %w", err)
+			slog.Warn("Skipping unparseable LokiStack", "error", err)
+			continue
 		}
 
 		tenantsMode := ""
@@ -42,7 +44,8 @@ func ListInstances(ctx context.Context, k8sClient dynamic.Interface, useRoute bo
 		}
 		baseURL, err := resolveBaseURL(ctx, k8sClient, useRoute, stack.Namespace, stack.Name, tenantsMode)
 		if err != nil {
-			return nil, err
+			slog.Warn("Skipping LokiStack with unresolvable URL", "namespace", stack.Namespace, "name", stack.Name, "error", err)
+			continue
 		}
 		instances = append(instances, LokiInstance{
 			Namespace: stack.Namespace,
