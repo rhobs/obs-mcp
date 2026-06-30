@@ -17,7 +17,6 @@ spec:
   verify:
     - llmJudge:
         contains: "guardrail"
-        reason: "Verify the agent explains the query was rejected by a guardrail and suggests a scoped alternative"
   prompt:
     inline: |
       Show me the CPU, memory, network, and disk usage for every single container
