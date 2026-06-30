@@ -3,7 +3,6 @@ package mcp
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/klog/v2"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
@@ -150,10 +150,10 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 			if c, err := dynamic.NewForConfig(restConfig); err == nil {
 				logsDynamicClient = c
 			} else {
-				slog.Warn("LokiStack discovery disabled: failed to create Kubernetes dynamic client", "err", err)
+				klog.Background().Info("LokiStack discovery disabled: failed to create Kubernetes dynamic client", "err", err)
 			}
 		} else {
-			slog.Warn("LokiStack discovery disabled: failed to get Kubernetes client config", "err", err)
+			klog.Background().Info("LokiStack discovery disabled: failed to get Kubernetes client config", "err", err)
 		}
 
 		newLokiClient := func(ctx context.Context, url, tenant string) (lokiclient.Loader, error) {
@@ -175,18 +175,36 @@ func authMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+var sensitiveHeaders = map[string]bool{
+	"Authorization": true,
+	"Cookie":        true,
+	"Set-Cookie":    true,
+}
+
+func redactHeaders(h http.Header) http.Header {
+	redacted := h.Clone()
+	for key := range redacted {
+		if sensitiveHeaders[key] {
+			redacted.Set(key, "[REDACTED]")
+		}
+	}
+	return redacted
+}
+
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slog.Info("Incoming request", "method", r.Method, "path", r.URL.Path, "remote_addr", r.RemoteAddr)
-		slog.Debug("Request headers", "headers", r.Header)
+		logger := klog.FromContext(r.Context())
+		logger.Info("Incoming request", "method", r.Method, "path", r.URL.Path, "remote_addr", r.RemoteAddr)
+		logger.V(4).Info("Request headers", "headers", redactHeaders(r.Header))
 		if r.ContentLength > 0 {
-			slog.Info("Request content length", "content_length", r.ContentLength)
+			logger.Info("Request content length", "content_length", r.ContentLength)
 		}
 		next.ServeHTTP(w, r)
 	})
 }
 
 func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string, authMode auth.AuthMode) error {
+	logger := klog.FromContext(ctx)
 	mux := http.NewServeMux()
 
 	handler := loggingMiddleware(mux)
@@ -222,7 +240,7 @@ func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string, authMo
 
 	serverErr := make(chan error, 1)
 	go func() {
-		slog.Info("HTTP server starting", "listen_addr", listenAddr, "mcp_endpoint", mcpEndpoint)
+		logger.Info("HTTP server starting", "listen_addr", listenAddr, "mcp_endpoint", mcpEndpoint)
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErr <- err
 		}
@@ -230,24 +248,24 @@ func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string, authMo
 
 	select {
 	case sig := <-sigChan:
-		slog.Warn("Received signal, initiating graceful shutdown", "signal", sig)
+		logger.Info("Received signal, initiating graceful shutdown", "signal", sig)
 		cancel()
 	case <-ctx.Done():
-		slog.Warn("Context cancelled, initiating graceful shutdown")
+		logger.Info("Context cancelled, initiating graceful shutdown")
 	case err := <-serverErr:
-		slog.Error("HTTP server error", "error", err)
+		logger.Error(err, "HTTP server error")
 		return err
 	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
 	defer shutdownCancel()
 
-	slog.Info("Shutting down HTTP server gracefully")
+	logger.Info("Shutting down HTTP server gracefully")
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		slog.Error("HTTP server shutdown error", "error", err)
+		logger.Error(err, "HTTP server shutdown error")
 		return err
 	}
 
-	slog.Info("HTTP server shutdown complete")
+	logger.Info("HTTP server shutdown complete")
 	return nil
 }
