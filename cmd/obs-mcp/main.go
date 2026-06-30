@@ -5,13 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"log/slog"
 	"os"
 	"slices"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/prometheus/common/promslog"
+	"k8s.io/klog/v2"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
@@ -66,8 +65,10 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Configure slog with specified log level
+	// Configure klog with specified log level
 	configureLogging(*logLevel)
+	ctx := context.Background()
+	logger := klog.FromContext(ctx)
 
 	// Parse and validate auth mode
 	parsedAuthMode, err := auth.ParseAuthMode(*authMode)
@@ -92,7 +93,7 @@ func main() {
 	metricsBackendURL := ""
 	metricsURLSource := ""
 	if slices.Contains(parsedToolsets, mcpserver.ToolsetMetrics) {
-		metricsBackendURL, metricsURLSource, err = determineMetricsBackendURL(parsedAuthMode, parsedMetricsBackend)
+		metricsBackendURL, metricsURLSource, err = determineMetricsBackendURL(ctx, parsedAuthMode, parsedMetricsBackend)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
@@ -101,7 +102,7 @@ func main() {
 	alertmanagerURL := ""
 	alertmanagerURLSource := ""
 	if slices.Contains(parsedToolsets, mcpserver.ToolsetMetrics) {
-		alertmanagerURL, alertmanagerURLSource, err = determineAlertmanagerURL(parsedAuthMode)
+		alertmanagerURL, alertmanagerURLSource, err = determineAlertmanagerURL(ctx, parsedAuthMode)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
@@ -111,7 +112,7 @@ func main() {
 	lokiResolvedURL := ""
 	lokiURLSource := ""
 	if slices.Contains(parsedToolsets, mcpserver.ToolsetLogs) {
-		lokiResolvedURL, lokiURLSource, err = determineLokiURL(parsedAuthMode, *lokiURL, *lokiUseRoute)
+		lokiResolvedURL, lokiURLSource, err = determineLokiURL(ctx, parsedAuthMode, *lokiURL, *lokiUseRoute)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
@@ -155,7 +156,7 @@ func main() {
 	tempoResolvedURL := ""
 	tempoURLSource := ""
 	if slices.Contains(parsedToolsets, mcpserver.ToolsetTraces) {
-		tempoResolvedURL, tempoURLSource = determineTempoURL(*tempoURL)
+		tempoResolvedURL, tempoURLSource = determineTempoURL(ctx, *tempoURL)
 	}
 
 	// Create MCP options
@@ -184,7 +185,7 @@ func main() {
 		log.Fatalf("Failed to create MCP server: %v", err)
 	}
 
-	slog.Info("Starting server",
+	logger.Info("Starting server",
 		"toolsets", opts.Toolsets,
 		"auth_mode", opts.AuthMode,
 		"metrics_backend_url", opts.MetricsBackendURL,
@@ -201,14 +202,13 @@ func main() {
 	// Choose server mode based on flags
 	if *listen != "" {
 		// HTTP mode
-		ctx := context.Background()
 		if err := mcpserver.Serve(ctx, mcpServer, *listen, opts.AuthMode); err != nil {
 			log.Fatalf("HTTP server failed: %v", err)
 		}
 	} else {
 		// Start server on stdio (default mode)
 		transport := &mcp.StdioTransport{}
-		if _, err := mcpServer.Connect(context.Background(), transport, nil); err != nil {
+		if _, err := mcpServer.Connect(ctx, transport, nil); err != nil {
 			log.Fatalf("Server failed: %v", err)
 		}
 	}
@@ -241,16 +241,17 @@ func parseMetricsBackend(backend string) (k8s.MetricsBackend, error) {
 
 // determineMetricsBackendURL determines the metrics backend URL based on auth mode and environment.
 // Returns the resolved URL, a source description for logging, and an error if the configuration is invalid.
-func determineMetricsBackendURL(authMode auth.AuthMode, backend k8s.MetricsBackend) (url, source string, err error) {
+func determineMetricsBackendURL(ctx context.Context, authMode auth.AuthMode, backend k8s.MetricsBackend) (url, source string, err error) {
+	logger := klog.FromContext(ctx)
 	if prometheusURL := os.Getenv("PROMETHEUS_URL"); prometheusURL != "" {
 		return prometheusURL, "PROMETHEUS_URL env var", nil
 	}
 
 	if authMode == auth.AuthModeKubeConfig {
-		slog.Info("No PROMETHEUS_URL set, attempting route discovery", "backend", backend)
-		url, err := k8s.GetMetricsBackendURL(backend)
+		logger.Info("No PROMETHEUS_URL set, attempting route discovery", "backend", string(backend))
+		url, err := k8s.GetMetricsBackendURL(ctx, backend)
 		if err != nil {
-			slog.Warn("Route discovery failed, falling back to default", "err", err, "default", defaultPrometheusURL)
+			logger.Info("Route discovery failed, falling back to default", "err", err, "default", defaultPrometheusURL)
 			return defaultPrometheusURL, "default (route discovery failed)", nil
 		}
 		return url, "route discovery", nil
@@ -267,16 +268,17 @@ func determineMetricsBackendURL(authMode auth.AuthMode, backend k8s.MetricsBacke
 
 // determineAlertmanagerURL determines the Alertmanager URL based on auth mode and environment.
 // Returns the resolved URL, a source description for logging, and an error if the configuration is invalid.
-func determineAlertmanagerURL(authMode auth.AuthMode) (url, source string, err error) {
+func determineAlertmanagerURL(ctx context.Context, authMode auth.AuthMode) (url, source string, err error) {
+	logger := klog.FromContext(ctx)
 	if alertmanagerURL := os.Getenv("ALERTMANAGER_URL"); alertmanagerURL != "" {
 		return alertmanagerURL, "ALERTMANAGER_URL env var", nil
 	}
 
 	if authMode == auth.AuthModeKubeConfig {
-		slog.Info("No ALERTMANAGER_URL set, attempting route discovery")
-		url, err := k8s.GetAlertmanagerURL()
+		logger.Info("No ALERTMANAGER_URL set, attempting route discovery")
+		url, err := k8s.GetAlertmanagerURL(ctx)
 		if err != nil {
-			slog.Warn("Route discovery failed, falling back to default", "err", err, "default", defaultAlertmanagerURL)
+			logger.Info("Route discovery failed, falling back to default", "err", err, "default", defaultAlertmanagerURL)
 			return defaultAlertmanagerURL, "default (route discovery failed)", nil
 		}
 		return url, "route discovery", nil
@@ -289,18 +291,20 @@ func determineAlertmanagerURL(authMode auth.AuthMode) (url, source string, err e
 	)
 }
 
-func determineTempoURL(flagURL string) (url, source string) {
+func determineTempoURL(ctx context.Context, flagURL string) (url, source string) {
+	logger := klog.FromContext(ctx)
 	if flagURL != "" {
 		return flagURL, "--traces.tempo-url flag"
 	}
 	if tempoURL := os.Getenv("TEMPO_URL"); tempoURL != "" {
 		return tempoURL, "TEMPO_URL env var"
 	}
-	slog.Info("No Tempo URL configured; Tempo tools require tempoNamespace+tempoName discovery parameters or explicit Tempo URL")
+	logger.Info("No Tempo URL configured; Tempo tools require tempoNamespace+tempoName discovery parameters or explicit Tempo URL")
 	return "", "unset"
 }
 
-func determineLokiURL(authMode auth.AuthMode, flagURL string, useRoute bool) (url, source string, err error) {
+func determineLokiURL(ctx context.Context, authMode auth.AuthMode, flagURL string, useRoute bool) (url, source string, err error) {
+	logger := klog.FromContext(ctx)
 	if flagURL != "" {
 		return flagURL, "--loki-url flag", nil
 	}
@@ -308,10 +312,10 @@ func determineLokiURL(authMode auth.AuthMode, flagURL string, useRoute bool) (ur
 		return lokiURL, "LOKI_URL env var", nil
 	}
 	if authMode == auth.AuthModeKubeConfig && !useRoute {
-		slog.Warn("No Loki URL configured, falling back to default", "default", defaultLokiURL)
+		logger.Info("No Loki URL configured, falling back to default", "default", defaultLokiURL)
 		return defaultLokiURL, "default", nil
 	}
-	slog.Warn("No Loki URL configured; Loki tools require lokiNamespace+lokiName discovery parameters or explicit Loki URL")
+	logger.Info("No Loki URL configured; Loki tools require lokiNamespace+lokiName discovery parameters or explicit Loki URL")
 	return "", "unset", nil
 }
 
@@ -327,24 +331,22 @@ func isFlagExplicitlySet(name string) bool {
 	return found
 }
 
-// configureLogging sets up the slog logger with the specified log level
+// configureLogging sets up klog with the specified log level
 func configureLogging(levelStr string) {
-	level := promslog.NewLevel()
-	err := level.Set(levelStr)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	fs := flag.NewFlagSet("klog", flag.ContinueOnError)
+	klog.InitFlags(fs)
 
-	format := promslog.NewFormat()
-	err = format.Set("logfmt")
-	if err != nil {
-		log.Fatal(err.Error())
+	var verbosity string
+	switch strings.ToLower(levelStr) {
+	case "debug":
+		verbosity = "4"
+	default:
+		verbosity = "0"
 	}
-
-	logger := promslog.New(&promslog.Config{
-		Level:  level,
-		Format: format,
-		Style:  promslog.GoKitStyle,
-	})
-	slog.SetDefault(logger)
+	if err := fs.Set("v", verbosity); err != nil {
+		log.Fatalf("Failed to set klog verbosity: %v", err)
+	}
+	if err := fs.Set("logtostderr", "true"); err != nil {
+		log.Fatalf("Failed to set klog logtostderr: %v", err)
+	}
 }

@@ -3,6 +3,7 @@
 package e2e
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -21,7 +22,7 @@ import (
 // TestRouteDiscovery_ThanosQuerier verifies that the thanos-querier route in
 // openshift-monitoring can be discovered and returns a valid https:// URL.
 func TestRouteDiscovery_ThanosQuerier(t *testing.T) {
-	discoveredURL, err := k8s.GetMetricsBackendURL(k8s.MetricsBackendThanos)
+	discoveredURL, err := k8s.GetMetricsBackendURL(context.Background(), k8s.MetricsBackendThanos)
 	if err != nil {
 		t.Fatalf("Failed to discover thanos-querier route: %v", err)
 	}
@@ -32,7 +33,7 @@ func TestRouteDiscovery_ThanosQuerier(t *testing.T) {
 // TestRouteDiscovery_PrometheusK8s verifies that the prometheus-k8s route in
 // openshift-monitoring can be discovered when using the prometheus backend.
 func TestRouteDiscovery_PrometheusK8s(t *testing.T) {
-	discoveredURL, err := k8s.GetMetricsBackendURL(k8s.MetricsBackendPrometheus)
+	discoveredURL, err := k8s.GetMetricsBackendURL(context.Background(), k8s.MetricsBackendPrometheus)
 	if err != nil {
 		t.Fatalf("Failed to discover prometheus-k8s route: %v", err)
 	}
@@ -43,7 +44,7 @@ func TestRouteDiscovery_PrometheusK8s(t *testing.T) {
 // TestRouteDiscovery_Alertmanager verifies that the alertmanager-main route in
 // openshift-monitoring can be discovered and returns a valid https:// URL.
 func TestRouteDiscovery_Alertmanager(t *testing.T) {
-	discoveredURL, err := k8s.GetAlertmanagerURL()
+	discoveredURL, err := k8s.GetAlertmanagerURL(context.Background())
 	if err != nil {
 		t.Fatalf("Failed to discover alertmanager-main route: %v", err)
 	}
@@ -61,17 +62,17 @@ func TestRouteDiscovery_URLsAreReachable(t *testing.T) {
 	}{
 		{
 			name:    "thanos-querier",
-			getURL:  func() (string, error) { return k8s.GetMetricsBackendURL(k8s.MetricsBackendThanos) },
+			getURL:  func() (string, error) { return k8s.GetMetricsBackendURL(context.Background(), k8s.MetricsBackendThanos) },
 			apiPath: "/api/v1/query?query=up",
 		},
 		{
 			name:    "prometheus-k8s",
-			getURL:  func() (string, error) { return k8s.GetMetricsBackendURL(k8s.MetricsBackendPrometheus) },
+			getURL:  func() (string, error) { return k8s.GetMetricsBackendURL(context.Background(), k8s.MetricsBackendPrometheus) },
 			apiPath: "/api/v1/query?query=up",
 		},
 		{
 			name:    "alertmanager-main",
-			getURL:  k8s.GetAlertmanagerURL,
+			getURL:  func() (string, error) { return k8s.GetAlertmanagerURL(context.Background()) },
 			apiPath: "/api/v2/status",
 		},
 	}

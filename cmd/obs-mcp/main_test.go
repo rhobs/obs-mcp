@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
@@ -108,7 +109,7 @@ func TestDetermineMetricsBackendURL_RequiresURLForNonKubeconfigModes(t *testing.
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, err := determineMetricsBackendURL(tt.authMode, tt.backend)
+			_, _, err := determineMetricsBackendURL(context.Background(), tt.authMode, tt.backend)
 			if err == nil {
 				t.Errorf("expected error for auth mode %q without PROMETHEUS_URL, got nil", tt.authMode)
 			}
@@ -131,7 +132,7 @@ func TestDetermineMetricsBackendURL_EnvVarOverridesAll(t *testing.T) {
 
 	for _, authMode := range authModes {
 		t.Run(string(authMode), func(t *testing.T) {
-			url, source, err := determineMetricsBackendURL(authMode, k8s.MetricsBackendThanos)
+			url, source, err := determineMetricsBackendURL(context.Background(), authMode, k8s.MetricsBackendThanos)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
@@ -148,7 +149,7 @@ func TestDetermineMetricsBackendURL_EnvVarOverridesAll(t *testing.T) {
 func TestDetermineLokiURL(t *testing.T) {
 	t.Run("explicit flag wins", func(t *testing.T) {
 		t.Setenv("LOKI_URL", "http://from-env:3100")
-		got, source, err := determineLokiURL(auth.AuthModeHeader, "http://from-flag:3100", false)
+		got, source, err := determineLokiURL(context.Background(), auth.AuthModeHeader, "http://from-flag:3100", false)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -159,7 +160,7 @@ func TestDetermineLokiURL(t *testing.T) {
 
 	t.Run("env used when flag missing", func(t *testing.T) {
 		t.Setenv("LOKI_URL", "http://from-env:3100")
-		got, source, err := determineLokiURL(auth.AuthModeHeader, "", false)
+		got, source, err := determineLokiURL(context.Background(), auth.AuthModeHeader, "", false)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -170,7 +171,7 @@ func TestDetermineLokiURL(t *testing.T) {
 
 	t.Run("kubeconfig falls back to default", func(t *testing.T) {
 		t.Setenv("LOKI_URL", "")
-		got, source, err := determineLokiURL(auth.AuthModeKubeConfig, "", false)
+		got, source, err := determineLokiURL(context.Background(), auth.AuthModeKubeConfig, "", false)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -181,7 +182,7 @@ func TestDetermineLokiURL(t *testing.T) {
 
 	t.Run("non-kubeconfig without URL returns unset", func(t *testing.T) {
 		t.Setenv("LOKI_URL", "")
-		got, source, err := determineLokiURL(auth.AuthModeHeader, "", false)
+		got, source, err := determineLokiURL(context.Background(), auth.AuthModeHeader, "", false)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -194,7 +195,7 @@ func TestDetermineLokiURL(t *testing.T) {
 func TestDetermineTempoURL(t *testing.T) {
 	t.Run("explicit flag wins", func(t *testing.T) {
 		t.Setenv("TEMPO_URL", "http://from-env:3200")
-		got, source := determineTempoURL("http://from-flag:3200")
+		got, source := determineTempoURL(context.Background(), "http://from-flag:3200")
 		if got != "http://from-flag:3200" || source != "--traces.tempo-url flag" {
 			t.Fatalf("unexpected result: %s (%s)", got, source)
 		}
@@ -202,7 +203,7 @@ func TestDetermineTempoURL(t *testing.T) {
 
 	t.Run("env used when flag missing", func(t *testing.T) {
 		t.Setenv("TEMPO_URL", "http://from-env:3200")
-		got, source := determineTempoURL("")
+		got, source := determineTempoURL(context.Background(), "")
 		if got != "http://from-env:3200" || source != "TEMPO_URL env var" {
 			t.Fatalf("unexpected result: %s (%s)", got, source)
 		}
@@ -210,7 +211,7 @@ func TestDetermineTempoURL(t *testing.T) {
 
 	t.Run("no URL returns unset", func(t *testing.T) {
 		t.Setenv("TEMPO_URL", "")
-		got, source := determineTempoURL("")
+		got, source := determineTempoURL(context.Background(), "")
 		if got != "" || source != "unset" {
 			t.Fatalf("unexpected result: %s (%s)", got, source)
 		}
