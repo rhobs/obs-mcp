@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"log/slog"
+	"k8s.io/klog/v2"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -178,8 +178,8 @@ func getSchemaLoaderFromConfig(config *Config) (SchemaLoader, error) {
 
 // ListComponentsHandler handles the listing of available components.
 func ListComponentsHandler(ctx context.Context, loader SchemaLoader, input ListComponentsInput) *resultutil.Result {
-	slog.Info("ListComponentsHandler called")
-	slog.Debug("ListComponentsHandler params", "input", input)
+	klog.FromContext(ctx).Info("ListComponentsHandler called")
+	klog.FromContext(ctx).V(4).Info("ListComponentsHandler params", "input", input)
 
 	version := normalizeVersion(input.Version)
 	if version == "" {
@@ -209,7 +209,7 @@ func ListComponentsHandler(ctx context.Context, loader SchemaLoader, input ListC
 		output.Components[string(k)] = v
 	}
 
-	slog.Info("ListComponentsHandler executed successfully",
+	klog.FromContext(ctx).Info("ListComponentsHandler executed successfully",
 		"receivers", len(output.Receivers),
 		"processors", len(output.Processors),
 		"exporters", len(output.Exporters))
@@ -219,8 +219,8 @@ func ListComponentsHandler(ctx context.Context, loader SchemaLoader, input ListC
 
 // GetComponentSchemaHandler handles getting a component's schema.
 func GetComponentSchemaHandler(ctx context.Context, loader SchemaLoader, input GetComponentSchemaInput) *resultutil.Result {
-	slog.Info("GetComponentSchemaHandler called")
-	slog.Debug("GetComponentSchemaHandler params", "input", input)
+	klog.FromContext(ctx).Info("GetComponentSchemaHandler called")
+	klog.FromContext(ctx).V(4).Info("GetComponentSchemaHandler params", "input", input)
 
 	if !input.ComponentType.IsValid() {
 		return resultutil.NewErrorResult(fmt.Errorf("invalid component_type: %s, must be one of: receiver, processor, exporter, extension, connector", input.ComponentType))
@@ -251,14 +251,14 @@ func GetComponentSchemaHandler(ctx context.Context, loader SchemaLoader, input G
 		Schema:  schema.Schema,
 	}
 
-	slog.Info("GetComponentSchemaHandler executed successfully", "component", input.ComponentName)
+	klog.FromContext(ctx).Info("GetComponentSchemaHandler executed successfully", "component", input.ComponentName)
 	return resultutil.NewSuccessResult(output)
 }
 
 // ValidateConfigHandler handles validating a component configuration.
 func ValidateConfigHandler(ctx context.Context, loader SchemaLoader, input ValidateConfigInput) *resultutil.Result {
-	slog.Info("ValidateConfigHandler called")
-	slog.Debug("ValidateConfigHandler params", "componentType", input.ComponentType, "componentName", input.ComponentName)
+	klog.FromContext(ctx).Info("ValidateConfigHandler called")
+	klog.FromContext(ctx).V(4).Info("ValidateConfigHandler params", "componentType", input.ComponentType, "componentName", input.ComponentName)
 
 	if !input.ComponentType.IsValid() {
 		return resultutil.NewErrorResult(fmt.Errorf("invalid component_type: %s, must be one of: receiver, processor, exporter, extension, connector", input.ComponentType))
@@ -309,13 +309,13 @@ func ValidateConfigHandler(ctx context.Context, loader SchemaLoader, input Valid
 		Version: version,
 	}
 
-	slog.Info("ValidateConfigHandler executed successfully", "valid", output.Valid, "errorCount", len(output.Errors))
+	klog.FromContext(ctx).Info("ValidateConfigHandler executed successfully", "valid", output.Valid, "errorCount", len(output.Errors))
 	return resultutil.NewSuccessResult(output)
 }
 
 // GetVersionsHandler handles listing available versions.
 func GetVersionsHandler(ctx context.Context, loader SchemaLoader, input GetVersionsInput) *resultutil.Result {
-	slog.Info("GetVersionsHandler called")
+	klog.FromContext(ctx).Info("GetVersionsHandler called")
 
 	versions, err := loader.GetAllVersions()
 	if err != nil {
@@ -332,6 +332,6 @@ func GetVersionsHandler(ctx context.Context, loader SchemaLoader, input GetVersi
 		LatestVersion: latestVersion,
 	}
 
-	slog.Info("GetVersionsHandler executed successfully", "versionCount", len(output.Versions))
+	klog.FromContext(ctx).Info("GetVersionsHandler executed successfully", "versionCount", len(output.Versions))
 	return resultutil.NewSuccessResult(output)
 }

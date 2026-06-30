@@ -2,7 +2,7 @@ package tools
 
 import (
 	"fmt"
-	"log/slog"
+	"k8s.io/klog/v2"
 	"strings"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
@@ -37,13 +37,13 @@ func getPromClient(params api.ToolHandlerParams) (prometheus.Loader, error) {
 	metricsBackendURL := cfg.PrometheusURL
 	if metricsBackendURL == "" {
 		metricsBackendURL = defaultPrometheusURL
-		slog.Info("No prometheus_url configured, using default", "url", defaultPrometheusURL)
+		klog.FromContext(params.Context).Info("No prometheus_url configured, using default", "url", defaultPrometheusURL)
 	}
 
 	// Get guardrails configuration
 	guardrails, err := cfg.GetGuardrails()
 	if err != nil {
-		slog.Warn("Failed to parse guardrails configuration", "err", err)
+		klog.FromContext(params.Context).Info("Failed to parse guardrails configuration", "err", err)
 	}
 
 	apiConfig, err := buildAPIConfig(params, metricsBackendURL, cfg.Insecure, cfg.GetAuthMode())

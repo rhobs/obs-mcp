@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	"k8s.io/klog/v2"
 	"os"
 	"strings"
 
@@ -32,7 +32,7 @@ func readToken(ctx context.Context, restConfig *rest.Config, authMode AuthMode) 
 		// The caller is responsible for putting the token from the request header into the context.
 		token := readTokenFromContext(ctx)
 		if token == "" {
-			slog.Warn("no bearer token found in request context authorization header")
+			klog.FromContext(ctx).Info("no bearer token found in request context authorization header")
 		}
 		return token, nil
 

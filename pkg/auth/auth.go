@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"log/slog"
+	"k8s.io/klog/v2"
 	"net/http"
 	"os"
 	"strings"
@@ -62,10 +62,10 @@ func BuildRoundTripper(ctx context.Context, restConfig *rest.Config, authMode Au
 		return nil, err
 	}
 
-	return createRoundTripperWithToken(restConfig, token, useTLS, insecure)
+	return createRoundTripperWithToken(ctx, restConfig, token, useTLS, insecure)
 }
 
-func createRoundTripperWithToken(restConfig *rest.Config, token string, useTLS, insecure bool) (http.RoundTripper, error) {
+func createRoundTripperWithToken(ctx context.Context, restConfig *rest.Config, token string, useTLS, insecure bool) (http.RoundTripper, error) {
 	defaultRt, ok := promapi.DefaultRoundTripper.(*http.Transport)
 	if !ok {
 		return nil, fmt.Errorf("unexpected RoundTripper type: %T, expected *http.Transport", promapi.DefaultRoundTripper)
@@ -73,7 +73,7 @@ func createRoundTripperWithToken(restConfig *rest.Config, token string, useTLS, 
 	rt := defaultRt.Clone()
 
 	if !useTLS {
-		slog.Warn("Connecting without TLS")
+		klog.FromContext(ctx).Info("Connecting without TLS")
 		return rt, nil
 	}
 
@@ -83,7 +83,7 @@ func createRoundTripperWithToken(restConfig *rest.Config, token string, useTLS, 
 			InsecureSkipVerify: true,
 		}
 	} else {
-		certs, err := createCertPoolFromRESTConfig(restConfig)
+		certs, err := createCertPoolFromRESTConfig(ctx, restConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -102,7 +102,7 @@ func createRoundTripperWithToken(restConfig *rest.Config, token string, useTLS, 
 }
 
 // createCertPoolFromRESTConfig creates a cert pool from Kubernetes REST config.
-func createCertPoolFromRESTConfig(restConfig *rest.Config) (*x509.CertPool, error) {
+func createCertPoolFromRESTConfig(ctx context.Context, restConfig *rest.Config) (*x509.CertPool, error) {
 	var certPool *x509.CertPool
 
 	// Start with system cert pool if available
@@ -119,9 +119,9 @@ func createCertPoolFromRESTConfig(restConfig *rest.Config) (*x509.CertPool, erro
 	if len(restConfig.CAData) > 0 {
 		if ok := certPool.AppendCertsFromPEM(restConfig.CAData); ok {
 			caLoaded = true
-			slog.Debug("Loaded cluster CA from REST config CAData")
+			klog.FromContext(ctx).V(4).Info("Loaded cluster CA from REST config CAData")
 		} else {
-			slog.Warn("Failed to parse CA certificates from REST config CAData")
+			klog.FromContext(ctx).Info("Failed to parse CA certificates from REST config CAData")
 		}
 	}
 
@@ -129,12 +129,12 @@ func createCertPoolFromRESTConfig(restConfig *rest.Config) (*x509.CertPool, erro
 	if !caLoaded {
 		caPEM, err := os.ReadFile(serviceCAFile)
 		if err != nil {
-			slog.Warn("Failed to read CA file", "file", serviceCAFile, "error", err)
+			klog.FromContext(ctx).Info("Failed to read CA file", "file", serviceCAFile, "error", err)
 		} else {
 			if ok := certPool.AppendCertsFromPEM(caPEM); ok {
-				slog.Debug("Loaded cluster CA from file", "file", serviceCAFile)
+				klog.FromContext(ctx).V(4).Info("Loaded cluster CA from file", "file", serviceCAFile)
 			} else {
-				slog.Warn("Failed to parse CA certificates from file", "file", serviceCAFile)
+				klog.FromContext(ctx).Info("Failed to parse CA certificates from file", "file", serviceCAFile)
 			}
 		}
 	}
