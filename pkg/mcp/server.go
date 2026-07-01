@@ -5,16 +5,12 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"os"
-	"os/signal"
 	"slices"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	prom "github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/client-go/dynamic"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
@@ -198,7 +194,9 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string, registry prom.Registerer, authMode auth.AuthMode) error {
+// NewHTTPServer creates an HTTP server for MCP over SSE.
+// Returns the server and a shutdown function to be used with run.Group.
+func NewHTTPServer(mcpServer *mcp.Server, listenAddr string, registry prom.Registerer, authMode auth.AuthMode) (*http.Server, func(error)) {
 	mux := http.NewServeMux()
 
 	// Create instrumentation middleware
@@ -234,47 +232,17 @@ func Serve(ctx context.Context, mcpServer *mcp.Server, listenAddr string, regist
 		_, _ = w.Write([]byte("OK"))
 	})
 
-	if registry != nil {
-		mux.Handle("/metrics", promhttp.HandlerFor(
-			registry.(prom.Gatherer),
-			promhttp.HandlerOpts{},
-		))
-	}
+	shutdown := func(err error) {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
+		defer shutdownCancel()
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGHUP, syscall.SIGTERM)
-
-	serverErr := make(chan error, 1)
-	go func() {
-		slog.Info("HTTP server starting", "listen_addr", listenAddr, "mcp_endpoint", mcpEndpoint)
-		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			serverErr <- err
+		slog.Info("Shutting down HTTP server gracefully")
+		if shutdownErr := httpServer.Shutdown(shutdownCtx); shutdownErr != nil {
+			slog.Error("HTTP server shutdown error", "error", shutdownErr)
+		} else {
+			slog.Info("HTTP server shutdown complete")
 		}
-	}()
-
-	select {
-	case sig := <-sigChan:
-		slog.Warn("Received signal, initiating graceful shutdown", "signal", sig)
-		cancel()
-	case <-ctx.Done():
-		slog.Warn("Context cancelled, initiating graceful shutdown")
-	case err := <-serverErr:
-		slog.Error("HTTP server error", "error", err)
-		return err
 	}
 
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
-	defer shutdownCancel()
-
-	slog.Info("Shutting down HTTP server gracefully")
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		slog.Error("HTTP server shutdown error", "error", err)
-		return err
-	}
-
-	slog.Info("HTTP server shutdown complete")
-	return nil
+	return httpServer, shutdown
 }
