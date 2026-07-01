@@ -127,10 +127,10 @@ func getLokiClient(ctx context.Context, opts ObsMCPOptions, url, tenant string) 
 	}
 
 	lokiOpts := ObsMCPOptions{
-		AuthMode:      opts.AuthMode,
+		AuthMode:          opts.AuthMode,
 		MetricsBackendURL: url,
-		Insecure:      opts.Insecure,
-		clientMetrics: opts.clientMetrics,
+		Insecure:          opts.Insecure,
+		clientMetrics:     opts.clientMetrics,
 	}
 	apiConfig, err := createAPIConfig(ctx, lokiOpts, url)
 	if err != nil {

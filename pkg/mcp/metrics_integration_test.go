@@ -59,14 +59,14 @@ func TestStreamableHTTPWithMetrics(t *testing.T) {
 
 	// Test 1: Send a POST request with initialize
 	t.Run("POST_initialize", func(t *testing.T) {
-		initRequest := map[string]interface{}{
+		initRequest := map[string]any{
 			"jsonrpc": "2.0",
 			"id":      1,
 			"method":  "initialize",
-			"params": map[string]interface{}{
+			"params": map[string]any{
 				"protocolVersion": "2024-11-05",
-				"capabilities":    map[string]interface{}{},
-				"clientInfo": map[string]interface{}{
+				"capabilities":    map[string]any{},
+				"clientInfo": map[string]any{
 					"name":    "test-client",
 					"version": "1.0.0",
 				},
@@ -159,7 +159,7 @@ func TestStreamableHTTPWithMetrics(t *testing.T) {
 					labels[label.GetName()] = label.GetValue()
 				}
 
-				var value interface{}
+				var value any
 				if m.Counter != nil {
 					value = m.Counter.GetValue()
 				} else if m.Gauge != nil {
@@ -211,14 +211,14 @@ func TestStreamableHTTPWithMetrics_SSEStream(t *testing.T) {
 	// Test: Send a POST to initialize and get session ID
 	t.Run("POST_and_GET_SSE", func(t *testing.T) {
 		// First, initialize to get a session
-		initRequest := map[string]interface{}{
+		initRequest := map[string]any{
 			"jsonrpc": "2.0",
 			"id":      1,
 			"method":  "initialize",
-			"params": map[string]interface{}{
+			"params": map[string]any{
 				"protocolVersion": "2024-11-05",
-				"capabilities":    map[string]interface{}{},
-				"clientInfo": map[string]interface{}{
+				"capabilities":    map[string]any{},
+				"clientInfo": map[string]any{
 					"name":    "test-client",
 					"version": "1.0.0",
 				},
@@ -248,7 +248,7 @@ func TestStreamableHTTPWithMetrics_SSEStream(t *testing.T) {
 		}
 
 		// Now try to open an SSE stream with the session ID
-		getReq, err := http.NewRequest("GET", ts.URL, nil)
+		getReq, err := http.NewRequest("GET", ts.URL, http.NoBody)
 		if err != nil {
 			t.Fatalf("Failed to create GET request: %v", err)
 		}
