@@ -3,11 +3,12 @@ package alertmanager
 import (
 	"context"
 	"fmt"
-	"k8s.io/klog/v2"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"k8s.io/klog/v2"
 
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/prometheus/alertmanager/api/v2/client"

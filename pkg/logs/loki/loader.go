@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"k8s.io/klog/v2"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"k8s.io/klog/v2"
 
 	promapi "github.com/prometheus/client_golang/api"
 )

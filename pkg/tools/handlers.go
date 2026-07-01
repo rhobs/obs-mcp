@@ -3,10 +3,11 @@ package tools
 import (
 	"context"
 	"fmt"
-	"k8s.io/klog/v2"
 	"maps"
 	"strings"
 	"time"
+
+	"k8s.io/klog/v2"
 
 	ammodels "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/common/model"

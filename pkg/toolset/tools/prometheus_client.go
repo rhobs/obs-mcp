@@ -2,8 +2,9 @@ package tools
 
 import (
 	"fmt"
-	"k8s.io/klog/v2"
 	"strings"
+
+	"k8s.io/klog/v2"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	promapi "github.com/prometheus/client_golang/api"

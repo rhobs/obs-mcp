@@ -3,9 +3,10 @@ package auth
 import (
 	"context"
 	"fmt"
-	"k8s.io/klog/v2"
 	"os"
 	"strings"
+
+	"k8s.io/klog/v2"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
 	"k8s.io/client-go/rest"

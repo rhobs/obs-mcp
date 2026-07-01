@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"k8s.io/klog/v2"
 	"strings"
+
+	"k8s.io/klog/v2"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/pavolloffay/opentelemetry-mcp-server/modules/collectorschema"
