@@ -4,7 +4,9 @@
 package metrics
 
 import (
+	"bufio"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -84,6 +86,8 @@ func httpInstrumentationHandler(baseLabels prometheus.Labels, metrics *defaultMe
 }
 
 // responseWriterDelegator implements http.ResponseWriter and extracts the statusCode.
+// It also implements optional interfaces (Flusher, Hijacker, Pusher) to support
+// streaming (SSE), WebSockets, and HTTP/2 push.
 type responseWriterDelegator struct {
 	w          http.ResponseWriter
 	written    bool
@@ -113,6 +117,33 @@ func (wd *responseWriterDelegator) StatusCode() int {
 
 func (wd *responseWriterDelegator) Status() string {
 	return fmt.Sprintf("%d", wd.StatusCode())
+}
+
+// Flush implements http.Flusher.
+// This is required for SSE (Server-Sent Events) streaming to work.
+func (wd *responseWriterDelegator) Flush() {
+	if f, ok := wd.w.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// Hijack implements http.Hijacker.
+// This is required for WebSocket connections and other protocols that need
+// to take over the underlying connection.
+func (wd *responseWriterDelegator) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if h, ok := wd.w.(http.Hijacker); ok {
+		return h.Hijack()
+	}
+	return nil, nil, fmt.Errorf("http.Hijacker not implemented by underlying ResponseWriter")
+}
+
+// Push implements http.Pusher.
+// This is required for HTTP/2 server push support.
+func (wd *responseWriterDelegator) Push(target string, opts *http.PushOptions) error {
+	if p, ok := wd.w.(http.Pusher); ok {
+		return p.Push(target, opts)
+	}
+	return fmt.Errorf("http.Pusher not implemented by underlying ResponseWriter")
 }
 
 // instrumentHandlerInFlight is responsible for counting the amount of
