@@ -14,31 +14,30 @@ import (
 // ClientMetrics holds a collection of metrics that can be used to instrument a http client.
 // By setting this field in HTTPClientConfig, NewHTTPClient will create an instrumented client.
 type ClientMetrics struct {
-	inFlightGauge            prometheus.Gauge
+	inFlightGauge            *prometheus.GaugeVec
 	requestTotalCount        *prometheus.CounterVec
 	requestDurationHistogram *prometheus.HistogramVec
 }
 
 // NewClientMetrics creates a new instance of ClientMetrics.
 // It will also register the metrics with the included register.
-// This ClientMetrics should be reused for diff clients with the same purpose.
-// e.g. 1 ClientMetrics should be used for all the clients that talk to Alertmanager.
+// The metrics include a 'client' label to distinguish between different client types.
 func NewClientMetrics(reg prometheus.Registerer) *ClientMetrics {
 	var m ClientMetrics
 	const maxBucketNumber = 256
 	const bucketFactor = 1.1
 
-	m.inFlightGauge = promauto.With(reg).NewGauge(prometheus.GaugeOpts{
+	m.inFlightGauge = promauto.With(reg).NewGaugeVec(prometheus.GaugeOpts{
 		Subsystem: "http_client",
 		Name:      "in_flight_requests",
 		Help:      "A gauge of in-flight requests.",
-	})
+	}, []string{"client"})
 
 	m.requestTotalCount = promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
 		Subsystem: "http_client",
 		Name:      "request_total",
-		Help:      "Total http client request by code and method.",
-	}, []string{"code", "method"})
+		Help:      "Total http client request by code, method, and client.",
+	}, []string{"client", "code", "method"})
 
 	m.requestDurationHistogram = promauto.With(reg).NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -50,25 +49,31 @@ func NewClientMetrics(reg prometheus.Registerer) *ClientMetrics {
 			NativeHistogramBucketFactor:    bucketFactor,
 			NativeHistogramMaxBucketNumber: maxBucketNumber,
 		},
-		[]string{"code", "method"},
+		[]string{"client", "code", "method"},
 	)
 
 	return &m
 }
 
 // InstrumentedRoundTripper instruments the given roundtripper with metrics that are
-// registered in the provided ClientMetrics.
-func InstrumentedRoundTripper(tripper http.RoundTripper, m *ClientMetrics) http.RoundTripper {
+// registered in the provided ClientMetrics. The clientName parameter is used to set the
+// 'client' label on all metrics.
+func InstrumentedRoundTripper(tripper http.RoundTripper, m *ClientMetrics, clientName string) http.RoundTripper {
 	if m == nil {
 		return tripper
 	}
 
+	// Curry the metrics with the client label
+	inFlightGauge := m.inFlightGauge.With(prometheus.Labels{"client": clientName})
+	requestTotal := m.requestTotalCount.MustCurryWith(prometheus.Labels{"client": clientName})
+	requestDuration := m.requestDurationHistogram.MustCurryWith(prometheus.Labels{"client": clientName})
+
 	return promhttp.InstrumentRoundTripperInFlight(
-		m.inFlightGauge,
+		inFlightGauge,
 		promhttp.InstrumentRoundTripperCounter(
-			m.requestTotalCount,
+			requestTotal,
 			promhttp.InstrumentRoundTripperDuration(
-				m.requestDurationHistogram,
+				requestDuration,
 				tripper,
 			),
 		),
