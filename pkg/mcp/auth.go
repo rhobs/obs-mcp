@@ -12,6 +12,7 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/logs/loki"
+	"github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	tempoclient "github.com/rhobs/obs-mcp/pkg/traces/tempo"
 )
@@ -44,6 +45,11 @@ func getPromClient(ctx context.Context, opts ObsMCPOptions) (prometheus.Loader, 
 		return nil, fmt.Errorf("failed to create API config: %w", err)
 	}
 
+	// Instrument the RoundTripper for Prometheus client
+	if opts.clientMetrics != nil && apiConfig.RoundTripper != nil {
+		apiConfig.RoundTripper = metrics.InstrumentedRoundTripper(apiConfig.RoundTripper, opts.clientMetrics, "prometheus")
+	}
+
 	promClient, err := prometheus.NewPrometheusLoader(apiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Prometheus client: %w", err)
@@ -70,6 +76,11 @@ func getAlertmanagerClient(ctx context.Context, opts ObsMCPOptions) (alertmanage
 	// Update the address to use AlertmanagerURL instead of MetricsBackendURL
 	apiConfig.Address = opts.AlertmanagerURL
 
+	// Instrument the RoundTripper for Alertmanager client
+	if opts.clientMetrics != nil && apiConfig.RoundTripper != nil {
+		apiConfig.RoundTripper = metrics.InstrumentedRoundTripper(apiConfig.RoundTripper, opts.clientMetrics, "alertmanager")
+	}
+
 	amClient, err := alertmanager.NewAlertmanagerClient(apiConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Alertmanager client: %w", err)
@@ -83,6 +94,7 @@ func getTempoHTTPClient(ctx context.Context, opts ObsMCPOptions, url string) (te
 		AuthMode:          opts.AuthMode,
 		MetricsBackendURL: url,
 		Insecure:          opts.Insecure,
+		clientMetrics:     opts.clientMetrics,
 	}
 
 	apiConfig, err := createAPIConfig(ctx, tempoOpts, url)
@@ -90,9 +102,15 @@ func getTempoHTTPClient(ctx context.Context, opts ObsMCPOptions, url string) (te
 		return nil, fmt.Errorf("failed to create API config: %w", err)
 	}
 
+	// Instrument the RoundTripper for Tempo client
+	rt := apiConfig.RoundTripper
+	if opts.clientMetrics != nil && rt != nil {
+		rt = metrics.InstrumentedRoundTripper(rt, opts.clientMetrics, "tempo")
+	}
+
 	httpClient := &http.Client{
 		Timeout:   tempoclient.RequestTimeout,
-		Transport: apiConfig.RoundTripper,
+		Transport: rt,
 	}
 	return tempoclient.NewTempoLoader(httpClient, url), nil
 }
@@ -112,10 +130,16 @@ func getLokiClient(ctx context.Context, opts ObsMCPOptions, url, tenant string) 
 		AuthMode:          opts.AuthMode,
 		MetricsBackendURL: url,
 		Insecure:          opts.Insecure,
+		clientMetrics:     opts.clientMetrics,
 	}
 	apiConfig, err := createAPIConfig(ctx, lokiOpts, url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API config: %w", err)
+	}
+
+	// Instrument the RoundTripper for Loki client
+	if opts.clientMetrics != nil && apiConfig.RoundTripper != nil {
+		apiConfig.RoundTripper = metrics.InstrumentedRoundTripper(apiConfig.RoundTripper, opts.clientMetrics, "loki")
 	}
 
 	lokiClient, err := loki.NewLoader(apiConfig, tenant)
