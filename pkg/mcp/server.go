@@ -53,6 +53,8 @@ type ObsMCPOptions struct {
 
 	// Shared HTTP client metrics
 	clientMetrics *metrics.ClientMetrics
+	// Tool call metrics
+	toolMetrics *metrics.ToolMetrics
 }
 
 const (
@@ -67,6 +69,10 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 	// Initialize shared HTTP client metrics once
 	if opts.Registry != nil && opts.clientMetrics == nil {
 		opts.clientMetrics = metrics.NewClientMetrics(opts.Registry)
+	}
+
+	if opts.Registry != nil && opts.toolMetrics == nil {
+		opts.toolMetrics = metrics.NewToolMetrics(opts.Registry)
 	}
 
 	impl := &mcp.Implementation{
@@ -103,15 +109,24 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 
 func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	if slices.Contains(opts.Toolsets, ToolsetMetrics) {
-		mcp.AddTool(mcpServer, tools.ListMetrics.ToMCPTool(), ListMetricsHandler(opts))
-		mcp.AddTool(mcpServer, tools.ExecuteInstantQuery.ToMCPTool(), ExecuteInstantQueryHandler(opts))
-		mcp.AddTool(mcpServer, tools.ExecuteRangeQuery.ToMCPTool(), ExecuteRangeQueryHandler(opts))
-		mcp.AddTool(mcpServer, tools.ShowTimeseries.ToMCPTool(), ShowTimeseriesHandler(opts))
-		mcp.AddTool(mcpServer, tools.GetLabelNames.ToMCPTool(), GetLabelNamesHandler(opts))
-		mcp.AddTool(mcpServer, tools.GetLabelValues.ToMCPTool(), GetLabelValuesHandler(opts))
-		mcp.AddTool(mcpServer, tools.GetSeries.ToMCPTool(), GetSeriesHandler(opts))
-		mcp.AddTool(mcpServer, tools.GetAlerts.ToMCPTool(), GetAlertsHandler(opts))
-		mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(), GetSilencesHandler(opts))
+		mcp.AddTool(mcpServer, tools.ListMetrics.ToMCPTool(),
+			metrics.InstrumentToolHandler(tools.ListMetrics.Name, opts.toolMetrics, ListMetricsHandler(opts)))
+		mcp.AddTool(mcpServer, tools.ExecuteInstantQuery.ToMCPTool(),
+			metrics.InstrumentToolHandler(tools.ExecuteInstantQuery.Name, opts.toolMetrics, ExecuteInstantQueryHandler(opts)))
+		mcp.AddTool(mcpServer, tools.ExecuteRangeQuery.ToMCPTool(),
+			metrics.InstrumentToolHandler(tools.ExecuteRangeQuery.Name, opts.toolMetrics, ExecuteRangeQueryHandler(opts)))
+		mcp.AddTool(mcpServer, tools.ShowTimeseries.ToMCPTool(),
+			metrics.InstrumentToolHandler(tools.ShowTimeseries.Name, opts.toolMetrics, ShowTimeseriesHandler(opts)))
+		mcp.AddTool(mcpServer, tools.GetLabelNames.ToMCPTool(),
+			metrics.InstrumentToolHandler(tools.GetLabelNames.Name, opts.toolMetrics, GetLabelNamesHandler(opts)))
+		mcp.AddTool(mcpServer, tools.GetLabelValues.ToMCPTool(),
+			metrics.InstrumentToolHandler(tools.GetLabelValues.Name, opts.toolMetrics, GetLabelValuesHandler(opts)))
+		mcp.AddTool(mcpServer, tools.GetSeries.ToMCPTool(),
+			metrics.InstrumentToolHandler(tools.GetSeries.Name, opts.toolMetrics, GetSeriesHandler(opts)))
+		mcp.AddTool(mcpServer, tools.GetAlerts.ToMCPTool(),
+			metrics.InstrumentToolHandler(tools.GetAlerts.Name, opts.toolMetrics, GetAlertsHandler(opts)))
+		mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(),
+			metrics.InstrumentToolHandler(tools.GetSilences.Name, opts.toolMetrics, GetSilencesHandler(opts)))
 	}
 
 	if slices.Contains(opts.Toolsets, ToolsetTraces) {
@@ -131,21 +146,39 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		if err != nil {
 			return err
 		}
-		mcp.AddTool(mcpServer, traces.ListInstancesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.ListInstancesHandler))
-		mcp.AddTool(mcpServer, traces.GetTraceByIDTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.GetTraceByIDHandler))
-		mcp.AddTool(mcpServer, traces.SearchTracesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.SearchTracesHandler))
-		mcp.AddTool(mcpServer, traces.SearchTagsTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.SearchTagsHandler))
-		mcp.AddTool(mcpServer, traces.SearchTagValuesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.SearchTagValuesHandler))
+		mcp.AddTool(mcpServer, traces.ListInstancesTool.ToMCPTool(),
+			metrics.InstrumentToolHandler(traces.ListInstancesTool.Name, opts.toolMetrics,
+				traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.ListInstancesHandler)))
+		mcp.AddTool(mcpServer, traces.GetTraceByIDTool.ToMCPTool(),
+			metrics.InstrumentToolHandler(traces.GetTraceByIDTool.Name, opts.toolMetrics,
+				traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.GetTraceByIDHandler)))
+		mcp.AddTool(mcpServer, traces.SearchTracesTool.ToMCPTool(),
+			metrics.InstrumentToolHandler(traces.SearchTracesTool.Name, opts.toolMetrics,
+				traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.SearchTracesHandler)))
+		mcp.AddTool(mcpServer, traces.SearchTagsTool.ToMCPTool(),
+			metrics.InstrumentToolHandler(traces.SearchTagsTool.Name, opts.toolMetrics,
+				traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.SearchTagsHandler)))
+		mcp.AddTool(mcpServer, traces.SearchTagValuesTool.ToMCPTool(),
+			metrics.InstrumentToolHandler(traces.SearchTagValuesTool.Name, opts.toolMetrics,
+				traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.SearchTagValuesHandler)))
 	}
 
 	if slices.Contains(opts.Toolsets, ToolsetOtelcol) {
 		if opts.Otelcol == nil {
 			return errors.New("configuration for otelcol toolset is missing")
 		}
-		mcp.AddTool(mcpServer, otelcol.ListComponents.ToMCPTool(), otelcol.ToMCPHandler[otelcol.ListComponentsInput, otelcol.ListComponentsOutput](opts.Otelcol, otelcol.BuildListComponentsInput, otelcol.ListComponentsHandler))
-		mcp.AddTool(mcpServer, otelcol.GetComponentSchema.ToMCPTool(), otelcol.ToMCPHandler[otelcol.GetComponentSchemaInput, otelcol.GetComponentSchemaOutput](opts.Otelcol, otelcol.BuildGetComponentSchemaInput, otelcol.GetComponentSchemaHandler))
-		mcp.AddTool(mcpServer, otelcol.ValidateConfig.ToMCPTool(), otelcol.ToMCPHandler[otelcol.ValidateConfigInput, otelcol.ValidateConfigOutput](opts.Otelcol, otelcol.BuildValidateConfigInput, otelcol.ValidateConfigHandler))
-		mcp.AddTool(mcpServer, otelcol.GetVersions.ToMCPTool(), otelcol.ToMCPHandler[otelcol.GetVersionsInput, otelcol.GetVersionsOutput](opts.Otelcol, otelcol.BuildGetVersionsInput, otelcol.GetVersionsHandler))
+		mcp.AddTool(mcpServer, otelcol.ListComponents.ToMCPTool(),
+			metrics.InstrumentToolHandler(otelcol.ListComponents.Name, opts.toolMetrics,
+				otelcol.ToMCPHandler[otelcol.ListComponentsInput, otelcol.ListComponentsOutput](opts.Otelcol, otelcol.BuildListComponentsInput, otelcol.ListComponentsHandler)))
+		mcp.AddTool(mcpServer, otelcol.GetComponentSchema.ToMCPTool(),
+			metrics.InstrumentToolHandler(otelcol.GetComponentSchema.Name, opts.toolMetrics,
+				otelcol.ToMCPHandler[otelcol.GetComponentSchemaInput, otelcol.GetComponentSchemaOutput](opts.Otelcol, otelcol.BuildGetComponentSchemaInput, otelcol.GetComponentSchemaHandler)))
+		mcp.AddTool(mcpServer, otelcol.ValidateConfig.ToMCPTool(),
+			metrics.InstrumentToolHandler(otelcol.ValidateConfig.Name, opts.toolMetrics,
+				otelcol.ToMCPHandler[otelcol.ValidateConfigInput, otelcol.ValidateConfigOutput](opts.Otelcol, otelcol.BuildValidateConfigInput, otelcol.ValidateConfigHandler)))
+		mcp.AddTool(mcpServer, otelcol.GetVersions.ToMCPTool(),
+			metrics.InstrumentToolHandler(otelcol.GetVersions.Name, opts.toolMetrics,
+				otelcol.ToMCPHandler[otelcol.GetVersionsInput, otelcol.GetVersionsOutput](opts.Otelcol, otelcol.BuildGetVersionsInput, otelcol.GetVersionsHandler)))
 	}
 
 	if slices.Contains(opts.Toolsets, ToolsetLogs) {
@@ -167,10 +200,18 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		newLokiClient := func(ctx context.Context, url, tenant string) (lokiclient.Loader, error) {
 			return getLokiClient(ctx, opts, url, tenant)
 		}
-		mcp.AddTool(mcpServer, logs.ListInstancesTool.ToMCPTool(), logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.ListInstancesHandler))
-		mcp.AddTool(mcpServer, logs.LabelNamesTool.ToMCPTool(), logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.LabelNamesHandler))
-		mcp.AddTool(mcpServer, logs.LabelValuesTool.ToMCPTool(), logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.LabelValuesHandler))
-		mcp.AddTool(mcpServer, logs.QueryRangeTool.ToMCPTool(), logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.QueryRangeHandler))
+		mcp.AddTool(mcpServer, logs.ListInstancesTool.ToMCPTool(),
+			metrics.InstrumentToolHandler(logs.ListInstancesTool.Name, opts.toolMetrics,
+				logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.ListInstancesHandler)))
+		mcp.AddTool(mcpServer, logs.LabelNamesTool.ToMCPTool(),
+			metrics.InstrumentToolHandler(logs.LabelNamesTool.Name, opts.toolMetrics,
+				logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.LabelNamesHandler)))
+		mcp.AddTool(mcpServer, logs.LabelValuesTool.ToMCPTool(),
+			metrics.InstrumentToolHandler(logs.LabelValuesTool.Name, opts.toolMetrics,
+				logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.LabelValuesHandler)))
+		mcp.AddTool(mcpServer, logs.QueryRangeTool.ToMCPTool(),
+			metrics.InstrumentToolHandler(logs.QueryRangeTool.Name, opts.toolMetrics,
+				logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.QueryRangeHandler)))
 	}
 	return nil
 }
