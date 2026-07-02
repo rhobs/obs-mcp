@@ -5,7 +5,7 @@ Evaluations for obs-mcp using [mcpchecker](https://github.com/mcpchecker/mcpchec
 ## Pre-requisites
 
 - [mcpchecker](https://github.com/mcpchecker/mcpchecker#install) installed (v0.0.16+) — run `make install-mcpchecker` from the repo root
-- **Metrics / alerts / traces / otelcol:** Kubernetes or OpenShift cluster with Prometheus and Alertmanager (see [Setup the cluster](#setup-the-cluster))
+- **Metrics / alerts / traces / otelcol:** Kubernetes or OpenShift cluster with Prometheus and Alertmanager (see [Setup the cluster](#setup-the-cluster)). Toolsets are namespaced as `observability/metrics`, `observability/traces`, `observability/logs`, `observability/otelcol`.
 - **obs-mcp** running at `http://localhost:9100/mcp` before any mcpchecker run
 
 ## Environment Variables

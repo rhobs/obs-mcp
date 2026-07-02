@@ -5,7 +5,7 @@
 [![e2e](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml)
 [![docs](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml)
 
-obs-mcp is an [MCP](https://modelcontextprotocol.io/introduction) server that lets LLMs query [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) in Kubernetes. It optionally supports [Loki](https://grafana.com/oss/loki/) for logs, [Grafana Tempo](https://grafana.com/docs/tempo/latest/) for traces, and [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration assistance. Enable additional toolsets with `--toolsets` (e.g., `--toolsets metrics,logs,traces,otelcol`).
+obs-mcp is an [MCP](https://modelcontextprotocol.io/introduction) server that lets LLMs query [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) in Kubernetes. It optionally supports [Loki](https://grafana.com/oss/loki/) for logs, [Grafana Tempo](https://grafana.com/docs/tempo/latest/) for traces, and [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration assistance. Enable additional toolsets with `--toolsets` (e.g., `--toolsets observability/metrics,observability/logs,observability/traces,observability/otelcol`).
 
 > [!NOTE]
 > This project is moved from [jhadvig/genie-plugin](https://github.com/jhadvig/genie-plugin/tree/main/obs-mcp) preserving the history of commits.
@@ -79,7 +79,7 @@ go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-b
   ```
 
 > [!IMPORTANT]
-> **How the Loki URL is Determined (when `logs` toolset is enabled):**
+> **How the Loki URL is Determined (when `observability/logs` toolset is enabled):**
 >
 > 1. `--loki-url` flag (if set)
 > 2. `LOKI_URL` environment variable
@@ -162,13 +162,13 @@ You can test the MCP server using curl. The server uses `JSON-RPC 2.0` over `HTT
 **List available tools:**
 
 > [!NOTE]
-> The default `--toolsets` value is `metrics` only. Additional toolsets:
+> The default `--toolsets` value is `observability/metrics` only. Additional toolsets:
 >
-> - `logs` - Loki log query tools (requires Loki URL or LokiStack discovery)
-> - `traces` - Tempo tracing tools (requires Tempo configuration)
-> - `otelcol` - OpenTelemetry Collector configuration assistance (no external dependencies)
+> - `observability/logs` - Loki log query tools (requires Loki URL or LokiStack discovery)
+> - `observability/traces` - Tempo tracing tools (requires Tempo configuration)
+> - `observability/otelcol` - OpenTelemetry Collector configuration assistance (no external dependencies)
 >
-> Example: `--toolsets metrics,logs,traces,otelcol`
+> Example: `--toolsets observability/metrics,observability/logs,observability/traces,observability/otelcol`
 
 ```shell
 curl -X POST http://localhost:9100/mcp \

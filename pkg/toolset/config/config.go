@@ -12,7 +12,7 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
-const MetricsToolSetName = "metrics"
+const MetricsToolSetName = "observability/metrics"
 
 // Config holds obs-mcp toolset configuration
 type Config struct {

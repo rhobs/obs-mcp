@@ -11,7 +11,7 @@ metadata:
     toolType: smoke-test
   description: |
     Smoke test that the agent can reach Loki via loki_list_instances and report
-    a discovered LokiStack. Run obs-mcp with --toolsets logs (or metrics,traces,logs).
+    a discovered LokiStack. Run obs-mcp with --toolsets observability/logs (or observability/metrics,observability/traces,observability/logs).
 spec:
   prompt:
     inline: |
