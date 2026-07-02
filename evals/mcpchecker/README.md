@@ -70,6 +70,18 @@ You can use the `/mcpchecker-results-triage` skill in an AI assistant
 to triage the results. It's useful way to identify potential causes for the failures 
 propose fixes.
 
+### Publish eval results
+
+We keep the reference to the latest published results from the evals in `./evals/mcpchecker/results`.
+When working on changes with impact on the evals, it's advised to run the full evals suite and
+and update the results via:
+
+``` bash
+make publish-mcpchecker-evals
+```
+
+Include the results in the PR, to update the latest reference.
+
 ### Additional mcpchecker tools
 
 ```bash
