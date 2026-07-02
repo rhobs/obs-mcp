@@ -19,4 +19,3 @@ spec:
   verify:
     - llmJudge:
         contains: "status=error"
-        reason: "Verify the agent used the TraceQL filter status=error to search for error traces. The term status=error is TraceQL query syntax, not an indication that the operation failed."

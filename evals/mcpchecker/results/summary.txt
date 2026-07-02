@@ -1,0 +1,69 @@
+=== Evaluation Summary ===
+
+  ✓ alert-investigation (assertions: 3/3)
+  ✓ backend-reachability (assertions: 3/3)
+  ✓ cpu-usage (assertions: 4/4)
+  ✓ crashlooping-pods (assertions: 4/4)
+  ~ diagnose-cluster-health (assertions: 1/3)
+      - ToolsUsed: Required tool not called: server=obs, tool=, pattern=(execute_instant_query|execute_range_query)
+      - MinToolCalls: Too few tool calls: expected >= 4, got 2
+  ✓ filtered-alerts (assertions: 3/3)
+  ✓ get-alerts (assertions: 3/3)
+  ✓ get-batch-processor-schema (assertions: 3/3)
+  ✓ get-otelcol-versions (assertions: 3/3)
+  ✓ get-series-cardinality (assertions: 4/4)
+  ✓ get-silences (assertions: 3/3)
+  ~ high-cardinality-rejection (assertions: 2/3)
+      - MaxToolCalls: Too many tool calls: expected <= 15, got 21
+  ✓ label-names (assertions: 4/4)
+  ✓ label-values (assertions: 4/4)
+  ✗ latency-baseline (assertions: 1/4)
+      one or more verification steps failed
+      - ToolsUsed: Required tool not called: server=obs, tool=tempo_search_traces, pattern=
+      - MinToolCalls: Too few tool calls: expected >= 3, got 2
+      - CallOrder: Expected call order not satisfied. Got to 0/2
+  ✗ latency-investigation (assertions: 2/4)
+      one or more verification steps failed
+      - ToolsUsed: Required tool not called: server=obs, tool=tempo_search_traces, pattern=
+      - CallOrder: Expected call order not satisfied. Got to 1/2
+  ✓ list-kube-metrics (assertions: 3/3)
+  ✓ list-node-metrics (assertions: 3/3)
+  ✓ list-otelcol-components (assertions: 3/3)
+  ✓ loki-backend-reachability (assertions: 3/3)
+  ✓ loki-label-names (assertions: 3/3)
+  ✓ loki-label-values (assertions: 3/3)
+  ✓ loki-list-instances (assertions: 3/3)
+  ✓ loki-query-network-flows (assertions: 4/4)
+  ✓ memory-usage (assertions: 4/4)
+  ✓ namespace-pod-count (assertions: 4/4)
+  ✓ namespace-resource-usage (assertions: 4/4)
+  ✓ network-traffic (assertions: 4/4)
+  ✓ nonexistent-metric (assertions: 3/3)
+  ✓ nonexistent-namespace (assertions: 4/4)
+  ✓ pending-pods (assertions: 4/4)
+  ~ pods-created (assertions: 2/4)
+      - ToolsUsed: Required tool not called: server=obs, tool=execute_range_query, pattern=
+      - CallOrder: Expected call order not satisfied. Got to 1/2
+  ✓ prometheus-head-series (assertions: 4/4)
+  ✓ prometheus-requests (assertions: 4/4)
+  ✓ prometheus-wal-size (assertions: 4/4)
+  ~ search-error-traces (assertions: 1/4)
+      - ToolsUsed: Required tool not called: server=obs, tool=tempo_search_traces, pattern=
+      - MinToolCalls: Too few tool calls: expected >= 2, got 1
+      - CallOrder: Expected call order not satisfied. Got to 1/2
+  ✓ series-by-namespace (assertions: 4/4)
+  ✓ time-range-query (assertions: 4/4)
+  ✓ validate-batch-processor-config-invalid (assertions: 3/3)
+  ✓ validate-batch-processor-config-valid (assertions: 3/3)
+  ✓ visualize-cpu-usage (assertions: 4/4)
+
+Tasks:      39/41 passed (95.12%)
+Assertions: 132/145 passed (91.03%)
+Tokens:     ~1420311 (estimate - excludes system prompt & cache)
+MCP schemas: ~265475 (included in token total)
+Agent used tokens:
+  Input:  254835 tokens
+  Output: 229540 tokens
+Judge used tokens:
+  Input:  371641 tokens
+  Output: 306202 tokens
