@@ -67,14 +67,14 @@ make run-mcpchecker-eval CATEGORY=alerts       # all alert tasks
 ### Triaging evals results
 
 You can use the `/mcpchecker-results-triage` skill in an AI assistant
-to triage the results. It's useful way to identify potential causes for the failures 
-propose fixes.
+to triage the results. It's a useful way to identify potential causes for the failures
+and propose fixes.
 
 ### Publish eval results
 
 We keep the reference to the latest published results from the evals in `./evals/mcpchecker/results`.
 When working on changes with impact on the evals, it's advised to run the full evals suite and
-and update the results via:
+update the results via:
 
 ``` bash
 make publish-mcpchecker-evals
