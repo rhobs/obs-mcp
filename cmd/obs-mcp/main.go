@@ -207,8 +207,7 @@ func main() {
 		}
 	} else {
 		// Start server on stdio (default mode)
-		transport := &mcp.StdioTransport{}
-		if _, err := mcpServer.Connect(context.Background(), transport, nil); err != nil {
+		if err := mcpServer.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 			log.Fatalf("Server failed: %v", err)
 		}
 	}
