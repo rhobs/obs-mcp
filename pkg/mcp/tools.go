@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/rhobs/obs-mcp/pkg/logs"
@@ -50,7 +51,7 @@ func GroupedTools() []ToolGroup {
 	return []ToolGroup{
 		{Name: "Prometheus / Thanos", Icon: "📈", Tools: promTools},
 		{Name: "Alertmanager", Icon: "🔔", Tools: alertTools},
-		{Name: "Tempo (Distributed Tracing)", Icon: "🔍", Tools: toMCP(traces.AllTools())},
+		{Name: "Tempo (Distributed Tracing)", Icon: "🔍", Tools: toolsetToMCPTools(&traces.Toolset{})},
 		{Name: "Loki (Log Management)", Icon: "📋", Tools: toMCP(logs.AllTools())},
 		{Name: "OpenTelemetry Collector", Icon: "⚙️", Tools: toMCP(otelcol.AllTools())},
 	}
@@ -108,4 +109,57 @@ func CreateLokiLabelValuesTool() mcp.Tool {
 
 func CreateLokiQueryRangeTool() mcp.Tool {
 	return *logs.QueryRangeTool.ToMCPTool()
+}
+
+// toolsetToMCPTools converts a Toolset's tools to mcp.Tool for documentation generation.
+// TODO: remove once all toolsets are converted to the Toolset API.
+func toolsetToMCPTools(ts api.Toolset) []mcp.Tool {
+	serverTools := ts.GetTools(nil)
+	out := make([]mcp.Tool, len(serverTools))
+	for i := range serverTools {
+		st := serverTools[i]
+		out[i] = apiToolToMCPTool(st.Tool)
+	}
+	return out
+}
+
+func apiToolToMCPTool(t api.Tool) mcp.Tool {
+	inputSchema := make(map[string]any)
+	if t.InputSchema != nil {
+		inputSchema["type"] = t.InputSchema.Type
+		if len(t.InputSchema.Properties) > 0 {
+			props := make(map[string]any, len(t.InputSchema.Properties))
+			for name, schema := range t.InputSchema.Properties {
+				prop := map[string]any{
+					"description": schema.Description,
+				}
+				if schema.Type != "" {
+					prop["type"] = schema.Type
+				}
+				if schema.Pattern != "" {
+					prop["pattern"] = schema.Pattern
+				}
+				props[name] = prop
+			}
+			inputSchema["properties"] = props
+		}
+		if len(t.InputSchema.Required) > 0 {
+			required := make([]any, len(t.InputSchema.Required))
+			for i, r := range t.InputSchema.Required {
+				required[i] = r
+			}
+			inputSchema["required"] = required
+		}
+	}
+
+	tool := mcp.Tool{
+		Name:         t.Name,
+		Description:  t.Description,
+		InputSchema:  inputSchema,
+		OutputSchema: t.OutputSchema,
+	}
+	if t.Annotations.Title != "" {
+		tool.Title = t.Annotations.Title
+	}
+	return tool
 }

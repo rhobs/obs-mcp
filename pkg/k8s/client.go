@@ -37,18 +37,21 @@ const (
 	MetricsBackendThanos     MetricsBackend = "thanos"
 )
 
-// GetClientConfig returns a Kubernetes REST config using kubeconfig
-func GetClientConfig() (*rest.Config, error) {
+// GetClientCmdConfig returns a ClientConfig that can produce both a REST config
+// and raw kubeconfig data, using the default loading rules.
+func GetClientCmdConfig() clientcmd.ClientConfig {
 	// Try to load from kubeconfig first
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	configOverrides := &clientcmd.ConfigOverrides{}
-	kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+}
 
-	config, err := kubeConfig.ClientConfig()
+// GetClientConfig returns a Kubernetes REST config using kubeconfig
+func GetClientConfig() (*rest.Config, error) {
+	config, err := GetClientCmdConfig().ClientConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load kubeconfig: %w", err)
 	}
-
 	return config, nil
 }
 

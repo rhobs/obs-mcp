@@ -3,7 +3,6 @@ package mcp
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 
 	promapi "github.com/prometheus/client_golang/api"
@@ -13,7 +12,6 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/logs/loki"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
-	tempoclient "github.com/rhobs/obs-mcp/pkg/traces/tempo"
 )
 
 type ContextKey string
@@ -76,25 +74,6 @@ func getAlertmanagerClient(ctx context.Context, opts ObsMCPOptions) (alertmanage
 	}
 
 	return amClient, nil
-}
-
-func getTempoHTTPClient(ctx context.Context, opts ObsMCPOptions, url string) (tempoclient.Loader, error) {
-	tempoOpts := ObsMCPOptions{
-		AuthMode:          opts.AuthMode,
-		MetricsBackendURL: url,
-		Insecure:          opts.Insecure,
-	}
-
-	apiConfig, err := createAPIConfig(ctx, tempoOpts, url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create API config: %w", err)
-	}
-
-	httpClient := &http.Client{
-		Timeout:   tempoclient.RequestTimeout,
-		Transport: apiConfig.RoundTripper,
-	}
-	return tempoclient.NewTempoLoader(httpClient, url), nil
 }
 
 func getLokiClient(ctx context.Context, opts ObsMCPOptions, url, tenant string) (loki.Loader, error) {
