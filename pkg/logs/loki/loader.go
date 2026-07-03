@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"k8s.io/klog/v2"
 
 	promapi "github.com/prometheus/client_golang/api"
 )
@@ -218,7 +219,7 @@ func (l *RealLoader) getJSON(ctx context.Context, endpoint string, params url.Va
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	slog.Debug("Backend call completed",
+	klog.FromContext(ctx).V(4).Info("Backend call completed",
 		"backend", "loki",
 		"endpoint", endpoint,
 		"status_code", resp.StatusCode,

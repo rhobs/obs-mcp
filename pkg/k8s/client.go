@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -68,33 +68,37 @@ func GetKubeClient() (*kubernetes.Clientset, error) {
 }
 
 // GetMetricsBackendURL discovers the metrics backend endpoint in OpenShift.
-func GetMetricsBackendURL(backend MetricsBackend) (string, error) {
+func GetMetricsBackendURL(ctx context.Context, backend MetricsBackend) (string, error) {
+	logger := klog.FromContext(ctx)
 	if backend == MetricsBackendPrometheus {
-		return discoverRoute(prometheusRouteName)
+		return discoverRoute(ctx, prometheusRouteName)
 	}
 
-	// Thanos with fallback to Prometheus
-	url, err := discoverRoute(thanosQuerierRouteName)
+	// Thanos with fallback to Prometheus — use getRouteURL directly to
+	// avoid error-level logging for the expected "not found" case.
+	url, err := getRouteURL(ctx, thanosQuerierRouteName)
 	if err == nil {
+		logger.Info("Successfully discovered route", "route", thanosQuerierRouteName, "url", url)
 		return url, nil
 	}
-	slog.Info("Thanos route not found, falling back to prometheus", "error", err)
-	return discoverRoute(prometheusRouteName)
+	logger.Info("Thanos route not found, falling back to prometheus", "error", err)
+	return discoverRoute(ctx, prometheusRouteName)
 }
 
 // discoverRoute attempts to find a route and logs the result.
-func discoverRoute(routeName string) (string, error) {
-	url, err := getRouteURL(routeName)
+func discoverRoute(ctx context.Context, routeName string) (string, error) {
+	logger := klog.FromContext(ctx)
+	url, err := getRouteURL(ctx, routeName)
 	if err != nil {
-		slog.Error("Failed to discover route", "route", routeName, "error", err)
+		logger.Error(err, "Failed to discover route", "route", routeName)
 		return "", err
 	}
-	slog.Info("Successfully discovered route", "route", routeName, "url", url)
+	logger.Info("Successfully discovered route", "route", routeName, "url", url)
 	return url, nil
 }
 
-func getRouteURL(routeName string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), routeDiscoveryTimeout)
+func getRouteURL(ctx context.Context, routeName string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, routeDiscoveryTimeout)
 	defer cancel()
 
 	kubeClient, err := GetKubeClient()
@@ -141,6 +145,6 @@ func parseHostFromRouteBody(body []byte) (string, error) {
 }
 
 // GetAlertmanagerURL discovers the Alertmanager endpoint in OpenShift.
-func GetAlertmanagerURL() (string, error) {
-	return discoverRoute(alertmanagerRouteName)
+func GetAlertmanagerURL(ctx context.Context) (string, error) {
+	return discoverRoute(ctx, alertmanagerRouteName)
 }
