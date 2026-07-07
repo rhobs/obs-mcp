@@ -7,9 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.5.0] - 2026-07-06
+
+### Added
+
+- CI: skip lint, unit, and e2e workflows for doc-only changes ([#132](https://github.com/rhobs/obs-mcp/pull/132))
+- CI: add multitenancy tests for tracing, split files ([#136](https://github.com/rhobs/obs-mcp/pull/136))
+- Evals: add suite label to loki eval tasks ([#129](https://github.com/rhobs/obs-mcp/pull/129))
+- Skills: mcpchecker-results-triage for evaluating and triaging eval results ([#149](https://github.com/rhobs/obs-mcp/pull/149))
+
 ### Changed
 
-- Namespace all toolset names with `observability/` prefix for clarity in user configuration: `metrics` → `observability/metrics`, `traces` → `observability/traces`, `logs` → `observability/logs`, `otelcol` → `observability/otelcol`
+- Namespace all toolset names with `observability/` prefix for clarity in user configuration: `metrics` → `observability/metrics`, `traces` → `observability/traces`, `logs` → `observability/logs`, `otelcol` → `observability/otelcol` ([#146](https://github.com/rhobs/obs-mcp/pull/146))
+- `tempo_search_traces`: establish latency baseline instead of guessing ([#143](https://github.com/rhobs/obs-mcp/pull/143))
+- Bump Go dependencies ([#151](https://github.com/rhobs/obs-mcp/pull/151))
+- Evals: keep latest results in git repo, remove llmJudge reason ([#149](https://github.com/rhobs/obs-mcp/pull/149))
+
+### Fixed
+
+- Fix stdin mode ([#148](https://github.com/rhobs/obs-mcp/pull/148))
+- Evals: fix false positives ([#149](https://github.com/rhobs/obs-mcp/pull/149))
 
 ## [v0.4.0] - 2026-06-17
 
