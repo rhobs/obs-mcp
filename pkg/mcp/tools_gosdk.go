@@ -2,6 +2,11 @@
 // https://github.com/containers/kubernetes-mcp-server/blob/3d4a06dcfdfc1c558c83d15902ebc899bb231ca6/pkg/mcp/tools_gosdk.go
 // https://github.com/containers/kubernetes-mcp-server/blob/3d4a06dcfdfc1c558c83d15902ebc899bb231ca6/pkg/mcp/mcp.go
 // Original code is licensed under the Apache License, Version 2.0.
+//
+// The copy changes ServerToolToGoSdkTool to accept plain arguments
+// (kubernetes.Manager, api.BaseConfig) instead of *Server, decoupling it from
+// the upstream MCP server infrastructure (config hot reload, multi-cluster
+// targeting, confirmation rules) and its transitive dependencies.
 
 package mcp
 
