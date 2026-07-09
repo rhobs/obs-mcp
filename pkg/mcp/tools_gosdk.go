@@ -5,7 +5,7 @@
 //
 // The copy changes ServerToolToGoSdkTool to accept plain arguments
 // (kubernetes.Manager, api.BaseConfig) instead of *Server, decoupling it from
-// the upstream MCP server infrastructure (config hot reload, multi-cluster
+// the kubernetes-mcp-server infrastructure (config hot reload, multi-cluster
 // targeting, confirmation rules) and its transitive dependencies.
 
 package mcp
