@@ -21,7 +21,7 @@ require (
 
 require (
 	github.com/modelcontextprotocol/go-sdk v1.6.1
-	github.com/pavolloffay/opentelemetry-mcp-server/modules/collectorschema v0.0.0-20260520093054-4540dfe82192
+	github.com/pavolloffay/opentelemetry-mcp-server/modules/schemagen v0.0.0-20260710124846-8bb49fd6ccc7
 	github.com/stretchr/testify v1.11.1
 )
 
@@ -108,7 +108,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
-	github.com/os-observability/redhat-opentelemetry-collector/configschemas v0.0.0-20260611132535-04e24ebf54ab
+	github.com/os-observability/redhat-opentelemetry-collector/configschemas v0.0.0-20260617154302-0835b732e6cd
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/philippgille/chromem-go v0.7.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
