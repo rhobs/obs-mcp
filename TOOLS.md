@@ -530,8 +530,8 @@ _No parameters._
 | Parameter | Type | Description |
 | :--- | :--- | :--- |
 | `end` | `string` | End of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".<br>Use "NOW" for current time.<br>Both start and end should be provided to search the full time range; if omitted, only a small window of recent data is searched. |
-| `limit` | `number` | Maximum number of traces to return. Defaults to the server-side limit if not specified. |
-| `spss` | `number` | Maximum number of matching spans to return per trace. |
+| `limit` | `integer` | Maximum number of traces to return. Defaults to the server-side limit if not specified. |
+| `spss` | `integer` | Maximum number of matching spans to return per trace. |
 | `start` | `string` | Start of the time range in RFC 3339 format, e.g. "2025-01-01T00:00:00Z".<br>Use "NOW" for current time.<br>Both start and end should be provided to search the full time range; if omitted, only a small window of recent data is searched. |
 | `tenant` | `string` | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance. |
 
@@ -561,8 +561,8 @@ _No parameters._
 | Parameter | Type | Description |
 | :--- | :--- | :--- |
 | `end` | `string` | Optional end of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing tags. |
-| `limit` | `number` | Maximum number of tag names to return per scope. |
-| `maxStaleValues` | `number` | Maximum number of consecutive blocks without new tag names before the search stops early. Higher values are more thorough but slower. |
+| `limit` | `integer` | Maximum number of tag names to return per scope. |
+| `maxStaleValues` | `integer` | Maximum number of consecutive blocks without new tag names before the search stops early. Higher values are more thorough but slower. |
 | `query` | `string` | Optional TraceQL query to filter which traces are considered when listing tags,<br>e.g. '{ resource.service.name="payment-service" }' to only show tags present in traces from the 'payment-service' service. |
 | `scope` | `string` | Filter tags to a specific scope. One of:<br>"resource" (service-level attributes like service.name),<br>"span" (individual span attributes like http.response.status_code),<br>"intrinsic" (built-in fields like duration, status, name).<br>If omitted, tags from all scopes are returned. |
 | `start` | `string` | Optional start of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing tags. |
@@ -594,8 +594,8 @@ _No parameters._
 | Parameter | Type | Description |
 | :--- | :--- | :--- |
 | `end` | `string` | Optional end of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing values. |
-| `limit` | `number` | Maximum number of tag values to return. |
-| `maxStaleValues` | `number` | Maximum number of consecutive blocks without new values before the search stops early. Higher values are more thorough but slower. |
+| `limit` | `integer` | Maximum number of tag values to return. |
+| `maxStaleValues` | `integer` | Maximum number of consecutive blocks without new values before the search stops early. Higher values are more thorough but slower. |
 | `query` | `string` | Optional TraceQL query to filter which traces are considered when listing values,<br>e.g. '{ resource.service.name="payment-service" }' to only show tag values from the 'payment-service' service. |
 | `start` | `string` | Optional start of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing values. |
 | `tenant` | `string` | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance. |

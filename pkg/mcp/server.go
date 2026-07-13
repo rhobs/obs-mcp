@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containers/kubernetes-mcp-server/pkg/config"
+	"github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"k8s.io/client-go/dynamic"
 
@@ -23,7 +25,6 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/tools"
 	"github.com/rhobs/obs-mcp/pkg/traces"
-	tempoclient "github.com/rhobs/obs-mcp/pkg/traces/tempo"
 )
 
 type Toolset string
@@ -94,6 +95,16 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 }
 
 func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
+	clientCmdConfig := k8s.GetClientCmdConfig()
+	restConfig, err := clientCmdConfig.ClientConfig()
+	if err != nil {
+		return err
+	}
+	mgr, err := kubernetes.NewManager(context.Background(), config.BaseDefault(), restConfig, clientCmdConfig)
+	if err != nil {
+		return err
+	}
+
 	if slices.Contains(opts.Toolsets, ToolsetMetrics) {
 		mcp.AddTool(mcpServer, tools.ListMetrics.ToMCPTool(), ListMetricsHandler(opts))
 		mcp.AddTool(mcpServer, tools.ExecuteInstantQuery.ToMCPTool(), ExecuteInstantQueryHandler(opts))
@@ -111,23 +122,17 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 			return errors.New("configuration for traces toolset is missing")
 		}
 
+		baseConfig := &mcpBaseConfig{toolsetConfig: opts.Traces}
 		tempoToolset := &traces.Toolset{}
-		newTempoClient := func(ctx context.Context, url string) (tempoclient.Loader, error) {
-			return getTempoHTTPClient(ctx, opts, url)
+		tempoTools := tempoToolset.GetTools(nil)
+		for i := range tempoTools {
+			tool := tempoTools[i]
+			goSdkTool, goSdkHandler, err := ServerToolToGoSdkTool(mgr, baseConfig, tool)
+			if err != nil {
+				return err
+			}
+			mcpServer.AddTool(goSdkTool, goSdkHandler)
 		}
-		restConfig, err := k8s.GetClientConfig()
-		if err != nil {
-			return err
-		}
-		dynamicClient, err := dynamic.NewForConfig(restConfig)
-		if err != nil {
-			return err
-		}
-		mcp.AddTool(mcpServer, traces.ListInstancesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.ListInstancesHandler))
-		mcp.AddTool(mcpServer, traces.GetTraceByIDTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.GetTraceByIDHandler))
-		mcp.AddTool(mcpServer, traces.SearchTracesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.SearchTracesHandler))
-		mcp.AddTool(mcpServer, traces.SearchTagsTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.SearchTagsHandler))
-		mcp.AddTool(mcpServer, traces.SearchTagValuesTool.ToMCPTool(), traces.ToMCPHandler(newTempoClient, dynamicClient, opts.Traces, tempoToolset.SearchTagValuesHandler))
 	}
 
 	if slices.Contains(opts.Toolsets, ToolsetOtelcol) {
