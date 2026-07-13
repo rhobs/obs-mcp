@@ -52,7 +52,7 @@ func GroupedTools() []ToolGroup {
 		{Name: "Prometheus / Thanos", Icon: "📈", Tools: promTools},
 		{Name: "Alertmanager", Icon: "🔔", Tools: alertTools},
 		{Name: "Tempo (Distributed Tracing)", Icon: "🔍", Tools: toolsetToMCPTools(&traces.Toolset{})},
-		{Name: "Loki (Log Management)", Icon: "📋", Tools: toMCP(logs.AllTools())},
+		{Name: "Loki (Log Management)", Icon: "📋", Tools: toolsetToMCPTools(&logs.Toolset{})},
 		{Name: "OpenTelemetry Collector", Icon: "⚙️", Tools: toMCP(otelcol.AllTools())},
 	}
 }
@@ -93,22 +93,6 @@ func CreateGetAlertsTool() mcp.Tool {
 
 func CreateGetSilencesTool() mcp.Tool {
 	return *tools.GetSilences.ToMCPTool()
-}
-
-func CreateLokiLabelNamesTool() mcp.Tool {
-	return *logs.LabelNamesTool.ToMCPTool()
-}
-
-func CreateLokiListInstancesTool() mcp.Tool {
-	return *logs.ListInstancesTool.ToMCPTool()
-}
-
-func CreateLokiLabelValuesTool() mcp.Tool {
-	return *logs.LabelValuesTool.ToMCPTool()
-}
-
-func CreateLokiQueryRangeTool() mcp.Tool {
-	return *logs.QueryRangeTool.ToMCPTool()
 }
 
 // toolsetToMCPTools converts a Toolset's tools to mcp.Tool for documentation generation.

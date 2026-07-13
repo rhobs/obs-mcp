@@ -728,7 +728,7 @@ _No parameters._
 | `direction` | `string` | Search direction: backward (default) or forward. |
 | `duration` | `string` | Lookback duration from now when start/end are omitted (for example 5m, 1h). Defaults to 15m. |
 | `end` | `string` | End time as RFC3339, Unix timestamp, NOW, or NOW-relative expression (optional). |
-| `limit` | `number` | Maximum number of log lines to return. Defaults to 100, max 1000. |
+| `limit` | `integer` | Maximum number of log lines to return. Defaults to 100, max 1000. |
 | `lokiName` | `string` | Name of the LokiStack. Use loki_list_instances to discover valid values. |
 | `lokiNamespace` | `string` | Kubernetes namespace of the LokiStack. Use loki_list_instances to discover valid values. |
 | `start` | `string` | Start time as RFC3339, Unix timestamp, NOW, or NOW-relative expression (optional). |

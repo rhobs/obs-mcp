@@ -12,15 +12,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/containers/kubernetes-mcp-server/pkg/config"
 	"github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"k8s.io/client-go/dynamic"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/logs"
-	lokiclient "github.com/rhobs/obs-mcp/pkg/logs/loki"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/tools"
@@ -49,8 +48,7 @@ type ObsMCPOptions struct {
 	FullRangeQueryResponse bool
 	Traces                 *traces.Config
 	Otelcol                *otelcol.Config
-	LokiURL                string
-	LokiUseRoute           bool
+	Logs                   *logs.Config
 }
 
 const (
@@ -122,16 +120,9 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 			return errors.New("configuration for traces toolset is missing")
 		}
 
-		baseConfig := &mcpBaseConfig{toolsetConfig: opts.Traces}
-		tempoToolset := &traces.Toolset{}
-		tempoTools := tempoToolset.GetTools(nil)
-		for i := range tempoTools {
-			tool := tempoTools[i]
-			goSdkTool, goSdkHandler, err := ServerToolToGoSdkTool(mgr, baseConfig, tool)
-			if err != nil {
-				return err
-			}
-			mcpServer.AddTool(goSdkTool, goSdkHandler)
+		err := addToolset(mcpServer, mgr, &traces.Toolset{}, opts.Traces)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -146,28 +137,26 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	}
 
 	if slices.Contains(opts.Toolsets, ToolsetLogs) {
-		logsCfg := &logs.Config{
-			LokiURL:  opts.LokiURL,
-			UseRoute: opts.LokiUseRoute,
+		if opts.Logs == nil {
+			return errors.New("configuration for logs toolset is missing")
 		}
-		var logsDynamicClient dynamic.Interface
-		if restConfig, err := k8s.GetClientConfig(); err == nil {
-			if c, err := dynamic.NewForConfig(restConfig); err == nil {
-				logsDynamicClient = c
-			} else {
-				slog.Warn("LokiStack discovery disabled: failed to create Kubernetes dynamic client", "err", err)
-			}
-		} else {
-			slog.Warn("LokiStack discovery disabled: failed to get Kubernetes client config", "err", err)
+		err := addToolset(mcpServer, mgr, &logs.Toolset{}, opts.Logs)
+		if err != nil {
+			return err
 		}
+	}
+	return nil
+}
 
-		newLokiClient := func(ctx context.Context, url, tenant string) (lokiclient.Loader, error) {
-			return getLokiClient(ctx, opts, url, tenant)
+func addToolset(mcpServer *mcp.Server, mgr *kubernetes.Manager, toolset api.Toolset, toolsetConfig api.ExtendedConfig) error {
+	baseConfig := &mcpBaseConfig{toolsetConfig: toolsetConfig}
+	serverTools := toolset.GetTools(nil)
+	for i := range serverTools {
+		goSdkTool, goSdkHandler, err := ServerToolToGoSdkTool(mgr, baseConfig, serverTools[i])
+		if err != nil {
+			return err
 		}
-		mcp.AddTool(mcpServer, logs.ListInstancesTool.ToMCPTool(), logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.ListInstancesHandler))
-		mcp.AddTool(mcpServer, logs.LabelNamesTool.ToMCPTool(), logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.LabelNamesHandler))
-		mcp.AddTool(mcpServer, logs.LabelValuesTool.ToMCPTool(), logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.LabelValuesHandler))
-		mcp.AddTool(mcpServer, logs.QueryRangeTool.ToMCPTool(), logs.ToMCPHandler(newLokiClient, logsDynamicClient, logsCfg, logs.QueryRangeHandler))
+		mcpServer.AddTool(goSdkTool, goSdkHandler)
 	}
 	return nil
 }

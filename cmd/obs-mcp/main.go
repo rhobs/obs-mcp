@@ -15,6 +15,7 @@ import (
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
+	"github.com/rhobs/obs-mcp/pkg/logs"
 	mcpserver "github.com/rhobs/obs-mcp/pkg/mcp"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
@@ -164,7 +165,6 @@ func main() {
 		AuthMode:               parsedAuthMode,
 		MetricsBackendURL:      metricsBackendURL,
 		AlertmanagerURL:        alertmanagerURL,
-		LokiURL:                lokiResolvedURL,
 		Insecure:               *insecure,
 		Guardrails:             parsedGuardrails,
 		FullRangeQueryResponse: *fullRangeQueryResponse,
@@ -174,8 +174,13 @@ func main() {
 			TempoURL: tempoResolvedURL,
 			UseRoute: *tracesUseRoute,
 		},
-		Otelcol:      otelcol.NewDefaultConfig(),
-		LokiUseRoute: *lokiUseRoute,
+		Otelcol: otelcol.NewDefaultConfig(),
+		Logs: &logs.Config{
+			AuthMode: parsedAuthMode,
+			Insecure: *insecure,
+			LokiURL:  lokiResolvedURL,
+			UseRoute: *lokiUseRoute,
+		},
 	}
 
 	// Create MCP server
@@ -191,7 +196,7 @@ func main() {
 		"metrics_backend_url_source", metricsURLSource,
 		"alertmanager_url", opts.AlertmanagerURL,
 		"alertmanager_url_source", alertmanagerURLSource,
-		"loki_url", opts.LokiURL,
+		"loki_url", opts.Logs.LokiURL,
 		"loki_url_source", lokiURLSource,
 		"tempo_url", tempoResolvedURL,
 		"tempo_url_source", tempoURLSource,
