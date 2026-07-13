@@ -216,7 +216,11 @@ func (l *RealLoader) getJSON(ctx context.Context, endpoint string, params url.Va
 	if err != nil {
 		return fmt.Errorf("loki request failed: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			slog.Warn("failed to close Loki response body", "error", closeErr)
+		}
+	}()
 
 	slog.Debug("Backend call completed",
 		"backend", "loki",
