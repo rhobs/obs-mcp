@@ -7,9 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.6.0] - 2026-07-15
+
+### Added
+
+- Skills: deploy-and-eval for building, deploying, and running evals on the test cluster ([#145](https://github.com/rhobs/obs-mcp/pull/145))
+- E2E: enable span metrics for traces ([#142](https://github.com/rhobs/obs-mcp/pull/142))
+
 ### Changed
 
-- Bump `kubernetes-mcp-server` to v0.0.65 and adapt toolset `GetTools` to the new `api.FilteringProvider` signature (replaces removed `api.Openshift` from upstream [PR #1196](https://github.com/containers/kubernetes-mcp-server/pull/1196))
+- Refactor traces and logs toolsets to kubernetes-mcp-server Toolset API ([#155](https://github.com/rhobs/obs-mcp/pull/155), [#158](https://github.com/rhobs/obs-mcp/pull/158))
+- Bump `kubernetes-mcp-server` to v0.0.65 and adapt toolset `GetTools` to the new `api.FilteringProvider` signature (replaces removed `api.Openshift` from upstream [PR #1196](https://github.com/containers/kubernetes-mcp-server/pull/1196)) ([#161](https://github.com/rhobs/obs-mcp/pull/161))
+- OTELcol: update product schemas and drop upstream schemas ([#157](https://github.com/rhobs/obs-mcp/pull/157))
+- `tempo_search_traces`: add OpenTelemetry semantic convention guidance to tool description ([#140](https://github.com/rhobs/obs-mcp/pull/140))
+- Update traces toolset description ([#159](https://github.com/rhobs/obs-mcp/pull/159))
+- Skip Tempo instances without an exposed route during discovery ([#153](https://github.com/rhobs/obs-mcp/pull/153))
+- Bump `github.com/prometheus/alertmanager` ([#156](https://github.com/rhobs/obs-mcp/pull/156))
+
+### Breaking
+
+- Rename `useRoute` to `use_route` in traces and logs toolset TOML configuration ([#152](https://github.com/rhobs/obs-mcp/pull/152))
 
 ## [v0.5.0] - 2026-07-06
 
