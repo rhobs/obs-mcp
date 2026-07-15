@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
+	"github.com/rhobs/obs-mcp/pkg/korrel8r"
 	"github.com/rhobs/obs-mcp/pkg/logs"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
@@ -32,10 +34,11 @@ const (
 	ToolsetMetrics Toolset = "observability/metrics"
 	ToolsetTraces  Toolset = "observability/traces"
 	ToolsetLogs    Toolset = "observability/logs"
-	ToolsetOtelcol Toolset = "observability/otelcol"
+	ToolsetOtelcol   Toolset = "observability/otelcol"
+	ToolsetKorrel8r  Toolset = "observability/korrel8r"
 )
 
-var AllToolsets = []string{string(ToolsetMetrics), string(ToolsetTraces), string(ToolsetLogs), string(ToolsetOtelcol)}
+var AllToolsets = []string{string(ToolsetMetrics), string(ToolsetTraces), string(ToolsetLogs), string(ToolsetOtelcol), string(ToolsetKorrel8r)}
 
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
@@ -49,6 +52,7 @@ type ObsMCPOptions struct {
 	Traces                 *traces.Config
 	Otelcol                *otelcol.Config
 	Logs                   *logs.Config
+	Korrel8r               *korrel8r.Config
 }
 
 const (
@@ -59,7 +63,7 @@ const (
 	defaultShutdownTimeout = 10 * time.Second
 )
 
-func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
+func NewMCPServer(ctx context.Context, opts ObsMCPOptions) (*mcp.Server, error) {
 	impl := &mcp.Implementation{
 		Name:    serverName,
 		Version: serverVersion,
@@ -79,11 +83,28 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 		instructions = append(instructions, otelcol.ServerPrompt)
 	}
 
+	var korrel8rProxy *korrel8r.Proxy
+	if slices.Contains(opts.Toolsets, ToolsetKorrel8r) {
+		if opts.Korrel8r == nil {
+			return nil, errors.New("configuration for korrel8r toolset is missing")
+		}
+		proxy, err := korrel8r.Connect(ctx, opts.Korrel8r)
+		if err != nil {
+			return nil, fmt.Errorf("korrel8r proxy: %w", err)
+		}
+		korrel8rProxy = proxy
+		instructions = append(instructions, proxy.Instructions())
+	}
+
 	serverOpts := &mcp.ServerOptions{
 		Instructions: strings.Join(instructions, "\n"),
 	}
 
 	mcpServer := mcp.NewServer(impl, serverOpts)
+
+	if korrel8rProxy != nil {
+		korrel8rProxy.AddTools(mcpServer)
+	}
 
 	if err := SetupTools(mcpServer, opts); err != nil {
 		return nil, err

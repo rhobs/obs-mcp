@@ -15,6 +15,7 @@ import (
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
+	"github.com/rhobs/obs-mcp/pkg/korrel8r"
 	"github.com/rhobs/obs-mcp/pkg/logs"
 	mcpserver "github.com/rhobs/obs-mcp/pkg/mcp"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
@@ -60,6 +61,7 @@ func main() {
 	var tracesUseRoute = flag.Bool("traces.use-route", false, "Use Route instead of internal service DNS when connecting to Tempo API")
 	var lokiURL = flag.String("loki-url", "", "Loki API base URL (overrides LOKI_URL when explicitly set)")
 	var lokiUseRoute = flag.Bool("loki.use-route", false, "Use OpenShift Routes when discovering LokiStack endpoints")
+	var korrel8rURL = flag.String("korrel8r-url", "", "Korrel8r MCP server URL (overrides KORREL8R_URL when explicitly set)")
 	flag.Parse()
 
 	if *showVersion {
@@ -159,6 +161,21 @@ func main() {
 		tempoResolvedURL, tempoURLSource = determineTempoURL(*tempoURL)
 	}
 
+	// Determine Korrel8r URL only when korrel8r toolset is enabled.
+	korrel8rResolvedURL := ""
+	korrel8rURLSource := ""
+	var korrel8rConfig *korrel8r.Config
+	if slices.Contains(parsedToolsets, mcpserver.ToolsetKorrel8r) {
+		korrel8rResolvedURL, korrel8rURLSource = determineKorrel8rURL(*korrel8rURL)
+		if korrel8rResolvedURL == "" {
+			log.Fatalf("--korrel8r-url or KORREL8R_URL must be set when korrel8r toolset is enabled")
+		}
+		korrel8rConfig = &korrel8r.Config{
+			Endpoint: korrel8rResolvedURL,
+			Insecure: *insecure,
+		}
+	}
+
 	// Create MCP options
 	opts := mcpserver.ObsMCPOptions{
 		Toolsets:               parsedToolsets,
@@ -181,10 +198,13 @@ func main() {
 			LokiURL:  lokiResolvedURL,
 			UseRoute: *lokiUseRoute,
 		},
+		Korrel8r: korrel8rConfig,
 	}
 
+	ctx := context.Background()
+
 	// Create MCP server
-	mcpServer, err := mcpserver.NewMCPServer(opts)
+	mcpServer, err := mcpserver.NewMCPServer(ctx, opts)
 	if err != nil {
 		log.Fatalf("Failed to create MCP server: %v", err)
 	}
@@ -200,6 +220,8 @@ func main() {
 		"loki_url_source", lokiURLSource,
 		"tempo_url", tempoResolvedURL,
 		"tempo_url_source", tempoURLSource,
+		"korrel8r_url", korrel8rResolvedURL,
+		"korrel8r_url_source", korrel8rURLSource,
 		"guardrails", opts.Guardrails,
 	)
 
@@ -317,6 +339,16 @@ func determineLokiURL(authMode auth.AuthMode, flagURL string, useRoute bool) (ur
 	}
 	slog.Warn("No Loki URL configured; Loki tools require lokiNamespace+lokiName discovery parameters or explicit Loki URL")
 	return "", "unset", nil
+}
+
+func determineKorrel8rURL(flagURL string) (url, source string) {
+	if flagURL != "" {
+		return flagURL, "--korrel8r-url flag"
+	}
+	if u := os.Getenv("KORREL8R_URL"); u != "" {
+		return u, "KORREL8R_URL env var"
+	}
+	return "", "unset"
 }
 
 // isFlagExplicitlySet reports whether the named flag was explicitly provided on
