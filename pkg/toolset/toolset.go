@@ -63,6 +63,6 @@ func (t *Toolset) GetResourceTemplates() []api.ServerResourceTemplate {
 func init() {
 	toolsets.Register(&Toolset{})
 	toolsets.Register(&tempo.Toolset{})
-	toolsets.Register(&logs.Toolset{NewLokiLoader: toolset_tools.NewLokiLoader})
+	toolsets.Register(&logs.Toolset{})
 	toolsets.Register(&otelcol.Toolset{})
 }

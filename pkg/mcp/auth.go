@@ -10,7 +10,6 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/alertmanager"
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
-	"github.com/rhobs/obs-mcp/pkg/logs/loki"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
@@ -22,9 +21,6 @@ const (
 
 	// TestAlertmanagerClientKey is the context key for injecting a test Alertmanager client
 	TestAlertmanagerClientKey ContextKey = "test-alertmanager-client"
-
-	// TestLokiClientKey is the context key for injecting a test Loki client
-	TestLokiClientKey ContextKey = "test-loki-client"
 )
 
 func getPromClient(ctx context.Context, opts ObsMCPOptions) (prometheus.Loader, error) {
@@ -74,34 +70,6 @@ func getAlertmanagerClient(ctx context.Context, opts ObsMCPOptions) (alertmanage
 	}
 
 	return amClient, nil
-}
-
-func getLokiClient(ctx context.Context, opts ObsMCPOptions, url, tenant string) (loki.Loader, error) {
-	if testClient := ctx.Value(TestLokiClientKey); testClient != nil {
-		if client, ok := testClient.(loki.Loader); ok {
-			return client, nil
-		}
-	}
-
-	if url == "" {
-		url = opts.LokiURL
-	}
-
-	lokiOpts := ObsMCPOptions{
-		AuthMode:          opts.AuthMode,
-		MetricsBackendURL: url,
-		Insecure:          opts.Insecure,
-	}
-	apiConfig, err := createAPIConfig(ctx, lokiOpts, url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create API config: %w", err)
-	}
-
-	lokiClient, err := loki.NewLoader(apiConfig, tenant)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Loki client: %w", err)
-	}
-	return lokiClient, nil
 }
 
 func createAPIConfig(ctx context.Context, opts ObsMCPOptions, url string) (promapi.Config, error) {
