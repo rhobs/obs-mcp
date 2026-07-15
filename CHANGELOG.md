@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `kubernetes-mcp-server` to v0.0.65 and adapt toolset `GetTools` to the new `api.FilteringProvider` signature (replaces removed `api.Openshift` from upstream [PR #1196](https://github.com/containers/kubernetes-mcp-server/pull/1196))
+
 ## [v0.5.0] - 2026-07-06
 
 ### Added
