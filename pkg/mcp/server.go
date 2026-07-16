@@ -130,10 +130,10 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		if opts.Otelcol == nil {
 			return errors.New("configuration for otelcol toolset is missing")
 		}
-		mcp.AddTool(mcpServer, otelcol.ListComponents.ToMCPTool(), otelcol.ToMCPHandler[otelcol.ListComponentsInput, otelcol.ListComponentsOutput](opts.Otelcol, otelcol.BuildListComponentsInput, otelcol.ListComponentsHandler))
-		mcp.AddTool(mcpServer, otelcol.GetComponentSchema.ToMCPTool(), otelcol.ToMCPHandler[otelcol.GetComponentSchemaInput, otelcol.GetComponentSchemaOutput](opts.Otelcol, otelcol.BuildGetComponentSchemaInput, otelcol.GetComponentSchemaHandler))
-		mcp.AddTool(mcpServer, otelcol.ValidateConfig.ToMCPTool(), otelcol.ToMCPHandler[otelcol.ValidateConfigInput, otelcol.ValidateConfigOutput](opts.Otelcol, otelcol.BuildValidateConfigInput, otelcol.ValidateConfigHandler))
-		mcp.AddTool(mcpServer, otelcol.GetVersions.ToMCPTool(), otelcol.ToMCPHandler[otelcol.GetVersionsInput, otelcol.GetVersionsOutput](opts.Otelcol, otelcol.BuildGetVersionsInput, otelcol.GetVersionsHandler))
+		err := addToolset(mcpServer, mgr, &otelcol.Toolset{}, opts.Otelcol)
+		if err != nil {
+			return err
+		}
 	}
 
 	if slices.Contains(opts.Toolsets, ToolsetLogs) {
