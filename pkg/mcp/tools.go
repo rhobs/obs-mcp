@@ -53,7 +53,7 @@ func GroupedTools() []ToolGroup {
 		{Name: "Alertmanager", Icon: "🔔", Tools: alertTools},
 		{Name: "Tempo (Distributed Tracing)", Icon: "🔍", Tools: toolsetToMCPTools(&traces.Toolset{})},
 		{Name: "Loki (Log Management)", Icon: "📋", Tools: toolsetToMCPTools(&logs.Toolset{})},
-		{Name: "OpenTelemetry Collector", Icon: "⚙️", Tools: toMCP(otelcol.AllTools())},
+		{Name: "OpenTelemetry Collector", Icon: "⚙️", Tools: toolsetToMCPTools(&otelcol.Toolset{})},
 	}
 }
 
