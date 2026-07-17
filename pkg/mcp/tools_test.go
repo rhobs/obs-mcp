@@ -7,7 +7,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/rhobs/obs-mcp/pkg/tools"
+	tools "github.com/rhobs/obs-mcp/pkg/metrics"
 )
 
 func TestListMetricsOutputSerialization(t *testing.T) {

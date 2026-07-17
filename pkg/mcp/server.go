@@ -19,9 +19,9 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/instrumentation"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/logs"
+	tools "github.com/rhobs/obs-mcp/pkg/metrics"
+	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
-	"github.com/rhobs/obs-mcp/pkg/prometheus"
-	"github.com/rhobs/obs-mcp/pkg/tools"
 	"github.com/rhobs/obs-mcp/pkg/traces"
 )
 

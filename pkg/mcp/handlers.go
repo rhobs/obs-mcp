@@ -6,8 +6,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	tools "github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/resultutil"
-	"github.com/rhobs/obs-mcp/pkg/tools"
 )
 
 // ListMetricsHandler handles the listing of available Prometheus metrics.

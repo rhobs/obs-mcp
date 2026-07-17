@@ -1,11 +1,11 @@
-package tools
+package toolset_tools
 
 import (
 	"fmt"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 
-	"github.com/rhobs/obs-mcp/pkg/tools"
+	tools "github.com/rhobs/obs-mcp/pkg/metrics"
 )
 
 // ListMetricsHandler handles the listing of available Prometheus metrics.

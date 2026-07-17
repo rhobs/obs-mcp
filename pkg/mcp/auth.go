@@ -7,11 +7,11 @@ import (
 
 	promapi "github.com/prometheus/client_golang/api"
 
-	"github.com/rhobs/obs-mcp/pkg/alertmanager"
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/instrumentation"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
-	"github.com/rhobs/obs-mcp/pkg/prometheus"
+	"github.com/rhobs/obs-mcp/pkg/metrics/alertmanager"
+	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
 )
 
 type ContextKey string

@@ -7,9 +7,9 @@ import (
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets"
 
 	"github.com/rhobs/obs-mcp/pkg/logs"
+	"github.com/rhobs/obs-mcp/pkg/metrics/config"
+	"github.com/rhobs/obs-mcp/pkg/metrics/toolset_tools"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
-	"github.com/rhobs/obs-mcp/pkg/toolset/config"
-	toolset_tools "github.com/rhobs/obs-mcp/pkg/toolset/tools"
 	tempo "github.com/rhobs/obs-mcp/pkg/traces"
 )
 

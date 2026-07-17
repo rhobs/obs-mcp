@@ -1,4 +1,4 @@
-package tools
+package toolset_tools
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
-	toolsetconfig "github.com/rhobs/obs-mcp/pkg/toolset/config"
+	toolsetconfig "github.com/rhobs/obs-mcp/pkg/metrics/config"
 )
 
 type mockKubernetesClient struct {

@@ -5,8 +5,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/rhobs/obs-mcp/pkg/logs"
+	tools "github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
-	"github.com/rhobs/obs-mcp/pkg/tools"
 	"github.com/rhobs/obs-mcp/pkg/traces"
 )
 
