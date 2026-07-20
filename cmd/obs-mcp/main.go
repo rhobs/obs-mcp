@@ -240,7 +240,7 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 	}
 
 	// Add internal health server to run group
-	if listenInternal != nil {
+	if listenInternal != nil && *listenInternal != "" {
 		healthServer := health.NewServer(reg)
 		httpServer, shutdown := healthServer.ListenAndServe(*listenInternal)
 		g.Add(func() error {
