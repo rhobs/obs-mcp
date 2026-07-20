@@ -41,7 +41,7 @@ const (
 func main() { //nolint:gocyclo // main wires up flags, config, and run group
 	var showVersion = flag.Bool("version", false, "Print version and exit")
 	var listen = flag.String("listen", "", "Listen address for HTTP mode (e.g., :9100, 127.0.0.1:8080)")
-	var listenInternal = flag.String("listen-internal", ":8081", "Listen address for internal health server (metrics, pprof, health)")
+	var listenInternal = flag.String("listen-internal", "", "Listen address for internal health server (metrics, pprof, health e.g., :8081, 127.0.0.1:8081). Off by default.")
 	var toolsets = flag.String("toolsets", string(mcpserver.ToolsetMetrics), fmt.Sprintf("Comma-separated list of enabled toolsets: %s", strings.Join(mcpserver.AllToolsets, ", ")))
 	var authMode = flag.String("auth-mode", "", "Authentication mode: kubeconfig, serviceaccount, or header")
 	var insecure = flag.Bool("insecure", false, "Skip TLS certificate verification")
@@ -240,7 +240,7 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 	}
 
 	// Add internal health server to run group
-	{
+	if listenInternal != nil {
 		healthServer := health.NewServer(reg)
 		httpServer, shutdown := healthServer.ListenAndServe(*listenInternal)
 		g.Add(func() error {
