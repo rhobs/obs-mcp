@@ -105,7 +105,7 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 
 func needsKubernetes(toolsets []Toolset) bool {
 	for _, ts := range toolsets {
-		if ts == ToolsetTraces || ts == ToolsetLogs {
+		if ts == ToolsetTraces || ts == ToolsetLogs || ts == ToolsetOtelcol {
 			return true
 		}
 	}

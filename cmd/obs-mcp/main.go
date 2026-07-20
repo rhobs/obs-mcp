@@ -258,7 +258,7 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 		httpServer, shutdown := mcpserver.NewHTTPServer(mcpServer, *listen, reg, parsedAuthMode)
 		g.Add(func() error {
 			slog.Info("HTTP server starting", "listen_addr", *listen)
-			if err := httpServer.ListenAndServe(); err != nil {
+			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				return fmt.Errorf("HTTP server failed: %w", err)
 			}
 			return nil
