@@ -11,9 +11,9 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/prometheus/alertmanager/api/v2/models"
 
-	"github.com/rhobs/obs-mcp/pkg/alertmanager"
-	"github.com/rhobs/obs-mcp/pkg/prometheus"
-	"github.com/rhobs/obs-mcp/pkg/tools"
+	tools "github.com/rhobs/obs-mcp/pkg/metrics"
+	"github.com/rhobs/obs-mcp/pkg/metrics/alertmanager"
+	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
 )
 
 // MockedLoader is a mock implementation of prometheus.PromClient for testing

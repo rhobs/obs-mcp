@@ -9,7 +9,7 @@ import (
 	serverconfig "github.com/containers/kubernetes-mcp-server/pkg/config"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
-	"github.com/rhobs/obs-mcp/pkg/prometheus"
+	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
 )
 
 const MetricsToolSetName = "observability/metrics"

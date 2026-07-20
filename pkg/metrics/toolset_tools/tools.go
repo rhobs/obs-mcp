@@ -1,9 +1,9 @@
-package tools
+package toolset_tools
 
 import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 
-	"github.com/rhobs/obs-mcp/pkg/tools"
+	tools "github.com/rhobs/obs-mcp/pkg/metrics"
 )
 
 // InitListMetrics creates the list_metrics tool.
