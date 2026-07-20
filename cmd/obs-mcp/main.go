@@ -2,29 +2,34 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
 	"slices"
 	"strings"
+	"syscall"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/oklog/run"
+	prom "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/common/promslog"
+	"github.com/prometheus/common/version"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
+	"github.com/rhobs/obs-mcp/pkg/health"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/logs"
 	mcpserver "github.com/rhobs/obs-mcp/pkg/mcp"
+	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
-	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/traces"
-)
-
-var (
-	version = "dev"
-	commit  = "unknown"
 )
 
 const (
@@ -33,9 +38,10 @@ const (
 	defaultLokiURL         = "http://localhost:3100"
 )
 
-func main() {
+func main() { //nolint:gocyclo // main wires up flags, config, and run group
 	var showVersion = flag.Bool("version", false, "Print version and exit")
 	var listen = flag.String("listen", "", "Listen address for HTTP mode (e.g., :9100, 127.0.0.1:8080)")
+	var listenInternal = flag.String("listen-internal", "", "Listen address for internal health server (metrics, pprof, health e.g., :8081, 127.0.0.1:8081). Off by default.")
 	var toolsets = flag.String("toolsets", string(mcpserver.ToolsetMetrics), fmt.Sprintf("Comma-separated list of enabled toolsets: %s", strings.Join(mcpserver.AllToolsets, ", ")))
 	var authMode = flag.String("auth-mode", "", "Authentication mode: kubeconfig, serviceaccount, or header")
 	var insecure = flag.Bool("insecure", false, "Skip TLS certificate verification")
@@ -63,9 +69,16 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("obs-mcp %s (commit: %s)\n", version, commit)
+		log.Println("obs-mcp", "build_info", version.Info(), "build_context", version.BuildContext())
 		os.Exit(0)
 	}
+
+	reg := prom.NewRegistry()
+	reg.MustRegister(
+		versioncollector.NewCollector("obs-mcp"),
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
 
 	// Configure slog with specified log level
 	configureLogging(*logLevel)
@@ -181,6 +194,7 @@ func main() {
 			LokiURL:  lokiResolvedURL,
 			UseRoute: *lokiUseRoute,
 		},
+		Registry: reg,
 	}
 
 	if err := validateConfigs(opts); err != nil {
@@ -192,6 +206,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create MCP server: %v", err)
 	}
+
+	slog.Info("starting obs-mcp", "build_info", version.Info(), "build_context", version.BuildContext())
 
 	slog.Info("Starting server",
 		"toolsets", opts.Toolsets,
@@ -207,18 +223,80 @@ func main() {
 		"guardrails", opts.Guardrails,
 	)
 
+	var g run.Group
+
+	ctx, cancel := context.WithCancel(context.Background())
+	g.Add(func() error {
+		<-ctx.Done()
+		return ctx.Err()
+	}, func(error) {
+		cancel()
+	})
+
+	// Add signal handler to run group
+	{
+		cancelCh := make(chan struct{})
+		g.Add(func() error {
+			return interrupt(cancelCh)
+		}, func(error) {
+			close(cancelCh)
+		})
+	}
+
+	// Add internal health server to run group
+	if listenInternal != nil && *listenInternal != "" {
+		healthServer := health.NewServer(reg)
+		httpServer, shutdown := healthServer.ListenAndServe(*listenInternal)
+		g.Add(func() error {
+			slog.Info("Internal health server starting", "listen_addr", *listenInternal)
+			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				return fmt.Errorf("internal health server failed: %w", err)
+			}
+			return nil
+		}, shutdown)
+	}
+
 	// Choose server mode based on flags
 	if *listen != "" {
 		// HTTP mode
-		ctx := context.Background()
-		if err := mcpserver.Serve(ctx, mcpServer, *listen, opts.AuthMode); err != nil {
-			log.Fatalf("HTTP server failed: %v", err)
-		}
+		httpServer, shutdown := mcpserver.NewHTTPServer(mcpServer, *listen, reg, parsedAuthMode)
+		g.Add(func() error {
+			slog.Info("HTTP server starting", "listen_addr", *listen)
+			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				return fmt.Errorf("HTTP server failed: %w", err)
+			}
+			return nil
+		}, shutdown)
 	} else {
-		// Start server on stdio (default mode)
-		if err := mcpServer.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
-			log.Fatalf("Server failed: %v", err)
-		}
+		// stdio mode
+		transport := &mcp.StdioTransport{}
+		g.Add(func() error {
+			slog.Info("Starting stdio MCP server")
+			if _, err := mcpServer.Connect(ctx, transport, nil); err != nil {
+				return fmt.Errorf("stdio server failed: %w", err)
+			}
+			return nil
+		}, func(error) {
+			slog.Info("Shutting down stdio MCP server")
+			// Context cancellation handled by the context actor above
+		})
+	}
+
+	if err := g.Run(); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
+	slog.Info("Exiting")
+}
+
+func interrupt(cancel <-chan struct{}) error {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case s := <-c:
+		slog.Info("Caught signal, exiting", "signal", s)
+		return nil
+	case <-cancel:
+		return errors.New("canceled")
 	}
 }
 

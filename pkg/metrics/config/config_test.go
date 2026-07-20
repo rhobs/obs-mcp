@@ -7,7 +7,7 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
-	"github.com/rhobs/obs-mcp/pkg/prometheus"
+	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
 )
 
 func parseConfig(t *testing.T, tomlStr string) *Config {

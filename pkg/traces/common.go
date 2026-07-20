@@ -1,6 +1,7 @@
 package traces
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,12 +10,20 @@ import (
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/google/jsonschema-go/jsonschema"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
-	"github.com/rhobs/obs-mcp/pkg/prometheus"
+	"github.com/rhobs/obs-mcp/pkg/instrumentation"
+	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/traces/discovery"
 	tempoclient "github.com/rhobs/obs-mcp/pkg/traces/tempo"
 )
+
+var tempoStackGVK = schema.GroupVersionKind{
+	Group:   "tempo.grafana.com",
+	Version: "v1alpha1",
+	Kind:    "TempoStack",
+}
 
 var (
 	tempoNamespaceSchema = &jsonschema.Schema{
@@ -30,6 +39,14 @@ var (
 		Description: "The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance.",
 	}
 )
+
+func hasTempoStackCRD(p api.FilteringProvider) func() bool {
+	return func() bool {
+		return p.AnyTargetHasGVKs(context.TODO(), []schema.GroupVersionKind{
+			tempoStackGVK,
+		})
+	}
+}
 
 // getTempoClient returns a Tempo client based on the config and tempoNamespace, tempoName and tenant parameters.
 // When a static TempoURL is configured, it is used directly without discovery.
@@ -47,6 +64,8 @@ func getTempoClient(params api.ToolHandlerParams) (tempoclient.Loader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create round tripper: %w", err)
 	}
+
+	rt = instrumentation.RoundTripper(rt, cfg.ClientMetrics, "tempo")
 
 	httpClient := &http.Client{
 		Timeout:   tempoclient.RequestTimeout,

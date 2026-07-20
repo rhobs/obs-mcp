@@ -31,11 +31,35 @@ check-tools: ## Check if required tools are installed
 
 .PHONY: build
 build: ## Build obs-mcp binary for local development
-	go build -mod=mod -tags strictfipsruntime -o obs-mcp ./cmd/obs-mcp
+	@VERSION=$$(cat VERSION) && \
+	REVISION=$$(git rev-parse HEAD) && \
+	BRANCH=$$(git rev-parse --abbrev-ref HEAD) && \
+	BUILDUSER=$$(whoami)@$$HOSTNAME && \
+	BUILDDATE=$$(date +%Y%m%d-%H:%M:%S) && \
+	go build -mod=mod -tags strictfipsruntime -o obs-mcp \
+		-ldflags="-s -w \
+		-X github.com/prometheus/common/version.Version=$$VERSION \
+		-X github.com/prometheus/common/version.Revision=$$REVISION \
+		-X github.com/prometheus/common/version.Branch=$$BRANCH \
+		-X github.com/prometheus/common/version.BuildUser=$$BUILDUSER \
+		-X github.com/prometheus/common/version.BuildDate=$$BUILDDATE" \
+		./cmd/obs-mcp
 
 .PHONY: build-linux
 build-linux: ## Build obs-mcp binary for linux/amd64
-	GOOS=linux GOARCH=amd64 go build -mod=mod -tags strictfipsruntime -o obs-mcp ./cmd/obs-mcp
+	@VERSION=$$(cat VERSION) && \
+	REVISION=$$(git rev-parse HEAD) && \
+	BRANCH=$$(git rev-parse --abbrev-ref HEAD) && \
+	BUILDUSER=$$(whoami)@$$HOSTNAME && \
+	BUILDDATE=$$(date +%Y%m%d-%H:%M:%S) && \
+	GOOS=linux GOARCH=amd64 go build -mod=mod -tags strictfipsruntime -o obs-mcp \
+		-ldflags="-s -w \
+		-X github.com/prometheus/common/version.Version=$$VERSION \
+		-X github.com/prometheus/common/version.Revision=$$REVISION \
+		-X github.com/prometheus/common/version.Branch=$$BRANCH \
+		-X github.com/prometheus/common/version.BuildUser=$$BUILDUSER \
+		-X github.com/prometheus/common/version.BuildDate=$$BUILDDATE" \
+		./cmd/obs-mcp
 
 .PHONY: test-unit
 test-unit: ## Run obs-mcp unit tests
@@ -57,7 +81,19 @@ GO_VERSION := $(shell awk '/^go /{print $$2}' go.mod | cut -d. -f1,2)
 
 .PHONY: container
 container: build-linux ## Build obs-mcp container image
-	$(CONTAINER_CLI) build --build-arg GOLANG_BUILDER=$(GO_VERSION) --load -f Containerfile -t $(IMAGE_REF) .
+	@VERSION=$$(cat VERSION) && \
+	REVISION=$$(git rev-parse HEAD) && \
+	BRANCH=$$(git rev-parse --abbrev-ref HEAD) && \
+	BUILDUSER=$$(whoami)@$$HOSTNAME && \
+	BUILDDATE=$$(date +%Y%m%d-%H:%M:%S) && \
+	$(CONTAINER_CLI) build --load \
+	    --build-arg GOLANG_BUILDER=$(GO_VERSION) \
+		--build-arg VERSION=$$VERSION \
+		--build-arg REVISION=$$REVISION \
+		--build-arg BRANCH=$$BRANCH \
+		--build-arg BUILDUSER=$$BUILDUSER \
+		--build-arg BUILDDATE=$$BUILDDATE \
+		-f Containerfile -t $(IMAGE_REF) .
 
 .PHONY: format
 format: ## Format all code

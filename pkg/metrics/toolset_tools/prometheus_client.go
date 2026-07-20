@@ -1,4 +1,4 @@
-package tools
+package toolset_tools
 
 import (
 	"fmt"
@@ -8,10 +8,10 @@ import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	promapi "github.com/prometheus/client_golang/api"
 
-	"github.com/rhobs/obs-mcp/pkg/alertmanager"
 	"github.com/rhobs/obs-mcp/pkg/auth"
-	"github.com/rhobs/obs-mcp/pkg/prometheus"
-	toolsetconfig "github.com/rhobs/obs-mcp/pkg/toolset/config"
+	"github.com/rhobs/obs-mcp/pkg/metrics/alertmanager"
+	toolsetconfig "github.com/rhobs/obs-mcp/pkg/metrics/config"
+	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
 )
 
 const (
