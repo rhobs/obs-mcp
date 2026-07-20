@@ -15,6 +15,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	prom "github.com/prometheus/client_golang/prometheus"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanagement"
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/instrumentation"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
@@ -28,13 +29,14 @@ import (
 type Toolset string
 
 const (
-	ToolsetMetrics Toolset = "observability/metrics"
-	ToolsetTraces  Toolset = "observability/traces"
-	ToolsetLogs    Toolset = "observability/logs"
-	ToolsetOtelcol Toolset = "observability/otelcol"
+	ToolsetMetrics         Toolset = "observability/metrics"
+	ToolsetTraces          Toolset = "observability/traces"
+	ToolsetLogs            Toolset = "observability/logs"
+	ToolsetOtelcol         Toolset = "observability/otelcol"
+	ToolsetAlertManagement Toolset = "observability/alert-management"
 )
 
-var AllToolsets = []string{string(ToolsetMetrics), string(ToolsetTraces), string(ToolsetLogs), string(ToolsetOtelcol)}
+var AllToolsets = []string{string(ToolsetMetrics), string(ToolsetTraces), string(ToolsetLogs), string(ToolsetOtelcol), string(ToolsetAlertManagement)}
 
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
@@ -48,6 +50,7 @@ type ObsMCPOptions struct {
 	Traces                 *traces.Config
 	Otelcol                *otelcol.Config
 	Logs                   *logs.Config
+	AlertManagement        *alertmanagement.Config
 	Registry               prom.Registerer
 	clientMetrics          *instrumentation.ClientMetrics
 	toolMetrics            *instrumentation.ToolMetrics
@@ -89,6 +92,9 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 	if slices.Contains(opts.Toolsets, ToolsetOtelcol) {
 		instructions = append(instructions, otelcol.ServerPrompt)
 	}
+	if slices.Contains(opts.Toolsets, ToolsetAlertManagement) {
+		instructions = append(instructions, alertmanagement.ServerPrompt)
+	}
 
 	serverOpts := &mcp.ServerOptions{
 		Instructions: strings.Join(instructions, "\n"),
@@ -105,7 +111,7 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 
 func needsKubernetes(toolsets []Toolset) bool {
 	for _, ts := range toolsets {
-		if ts == ToolsetTraces || ts == ToolsetLogs || ts == ToolsetOtelcol {
+		if ts == ToolsetTraces || ts == ToolsetLogs || ts == ToolsetOtelcol || ts == ToolsetAlertManagement {
 			return true
 		}
 	}
@@ -176,6 +182,16 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		}
 		opts.Logs.ClientMetrics = opts.clientMetrics
 		err := addToolset(mcpServer, mgr, &logs.Toolset{}, opts.Logs, opts.toolMetrics)
+		if err != nil {
+			return err
+		}
+	}
+
+	if slices.Contains(opts.Toolsets, ToolsetAlertManagement) {
+		if opts.AlertManagement == nil {
+			return errors.New("configuration for alert-management toolset is missing")
+		}
+		err := addToolset(mcpServer, mgr, &alertmanagement.Toolset{}, opts.AlertManagement, opts.toolMetrics)
 		if err != nil {
 			return err
 		}

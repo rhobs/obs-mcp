@@ -6,6 +6,7 @@ import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanagement"
 	"github.com/rhobs/obs-mcp/pkg/logs"
 	"github.com/rhobs/obs-mcp/pkg/metrics/config"
 	"github.com/rhobs/obs-mcp/pkg/metrics/toolset_tools"
@@ -65,4 +66,5 @@ func init() {
 	toolsets.Register(&tempo.Toolset{})
 	toolsets.Register(&logs.Toolset{})
 	toolsets.Register(&otelcol.Toolset{})
+	toolsets.Register(&alertmanagement.Toolset{})
 }

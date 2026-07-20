@@ -64,6 +64,7 @@ This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager,
   - [`otelcol_get_component_schema`](#otelcol_get_component_schema)
   - [`otelcol_validate_config`](#otelcol_validate_config)
   - [`otelcol_get_versions`](#otelcol_get_versions)
+- **🛡️ [Alert Management](#alert-management)** (0 tools)
 
 ---
 
@@ -875,4 +876,10 @@ _No parameters._
 | `versions` | `string[]` | List of available OpenTelemetry Collector versions |
 
 </details>
+
+---
+
+<a id="alert-management"></a>
+
+## 🛡️ Alert Management
 

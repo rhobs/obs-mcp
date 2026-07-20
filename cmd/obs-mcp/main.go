@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/common/promslog"
 	"github.com/prometheus/common/version"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanagement"
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/health"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
@@ -36,6 +37,7 @@ const (
 	defaultPrometheusURL   = "http://localhost:9090"
 	defaultAlertmanagerURL = "http://localhost:9093"
 	defaultLokiURL         = "http://localhost:3100"
+	defaultAlertMgmtAPIURL = "http://localhost:9444"
 )
 
 func main() { //nolint:gocyclo // main wires up flags, config, and run group
@@ -66,6 +68,7 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 	var tracesUseRoute = flag.Bool("traces.use-route", false, "Use Route instead of internal service DNS when connecting to Tempo API")
 	var lokiURL = flag.String("loki-url", "", "Loki API base URL (overrides LOKI_URL when explicitly set)")
 	var lokiUseRoute = flag.Bool("loki.use-route", false, "Use OpenShift Routes when discovering LokiStack endpoints")
+	var alertMgmtAPIURL = flag.String("alert-mgmt-api-url", "", "Monitoring-plugin alert management API base URL (overrides ALERT_MGMT_API_URL when explicitly set)")
 	flag.Parse()
 
 	if *showVersion {
@@ -131,6 +134,13 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 		}
 	}
 
+	// Determine alert management API URL only when alert-management toolset is enabled.
+	alertMgmtResolvedURL := ""
+	alertMgmtURLSource := ""
+	if slices.Contains(parsedToolsets, mcpserver.ToolsetAlertManagement) {
+		alertMgmtResolvedURL, alertMgmtURLSource = determineAlertMgmtAPIURL(*alertMgmtAPIURL)
+	}
+
 	// Parse guardrails configuration
 	parsedGuardrails, err := prometheus.ParseGuardrails(*guardrails)
 	if err != nil {
@@ -188,6 +198,11 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 			UseRoute: *tracesUseRoute,
 		},
 		Otelcol: otelcol.NewDefaultConfig(),
+		AlertManagement: &alertmanagement.Config{
+			AuthMode:         parsedAuthMode,
+			ManagementAPIURL: alertMgmtResolvedURL,
+			Insecure:         *insecure,
+		},
 		Logs: &logs.Config{
 			AuthMode: parsedAuthMode,
 			Insecure: *insecure,
@@ -216,6 +231,8 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 		"loki_url_source", lokiURLSource,
 		"tempo_url", tempoResolvedURL,
 		"tempo_url_source", tempoURLSource,
+		"alert_mgmt_api_url", alertMgmtResolvedURL,
+		"alert_mgmt_api_url_source", alertMgmtURLSource,
 		"guardrails", opts.Guardrails,
 	)
 
@@ -407,6 +424,17 @@ func isFlagExplicitlySet(name string) bool {
 		}
 	})
 	return found
+}
+
+func determineAlertMgmtAPIURL(flagURL string) (url, source string) {
+	if flagURL != "" {
+		return flagURL, "--alert-mgmt-api-url flag"
+	}
+	if envURL := os.Getenv("ALERT_MGMT_API_URL"); envURL != "" {
+		return envURL, "ALERT_MGMT_API_URL env var"
+	}
+	slog.Warn("No alert management API URL configured, falling back to default", "default", defaultAlertMgmtAPIURL)
+	return defaultAlertMgmtAPIURL, "default"
 }
 
 // configureLogging sets up the slog logger with the specified log level
