@@ -9,8 +9,8 @@ import (
 
 	"github.com/rhobs/obs-mcp/pkg/alertmanager"
 	"github.com/rhobs/obs-mcp/pkg/auth"
+	"github.com/rhobs/obs-mcp/pkg/instrumentation"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
-	"github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 )
 
@@ -41,7 +41,7 @@ func getPromClient(ctx context.Context, opts ObsMCPOptions) (prometheus.Loader, 
 
 	// Instrument the RoundTripper for Prometheus client
 	if opts.clientMetrics != nil && apiConfig.RoundTripper != nil {
-		apiConfig.RoundTripper = metrics.InstrumentedRoundTripper(apiConfig.RoundTripper, opts.clientMetrics, "prometheus")
+		apiConfig.RoundTripper = instrumentation.RoundTripper(apiConfig.RoundTripper, opts.clientMetrics, "prometheus")
 	}
 
 	promClient, err := prometheus.NewPrometheusLoader(apiConfig)
@@ -72,7 +72,7 @@ func getAlertmanagerClient(ctx context.Context, opts ObsMCPOptions) (alertmanage
 
 	// Instrument the RoundTripper for Alertmanager client
 	if opts.clientMetrics != nil && apiConfig.RoundTripper != nil {
-		apiConfig.RoundTripper = metrics.InstrumentedRoundTripper(apiConfig.RoundTripper, opts.clientMetrics, "alertmanager")
+		apiConfig.RoundTripper = instrumentation.RoundTripper(apiConfig.RoundTripper, opts.clientMetrics, "alertmanager")
 	}
 
 	amClient, err := alertmanager.NewAlertmanagerClient(apiConfig)

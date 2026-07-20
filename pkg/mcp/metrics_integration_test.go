@@ -14,7 +14,7 @@ import (
 	prom "github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 
-	"github.com/rhobs/obs-mcp/pkg/metrics"
+	"github.com/rhobs/obs-mcp/pkg/instrumentation"
 )
 
 // TestStreamableHTTPWithMetrics verifies that metrics are properly collected
@@ -31,7 +31,7 @@ func TestStreamableHTTPWithMetrics(t *testing.T) {
 	registry := prom.NewRegistry()
 
 	// Create metrics instrumentation middleware
-	instrMiddleware := metrics.NewInstrumentationMiddleware(registry, nil)
+	instrMiddleware := instrumentation.NewMiddleware(registry, nil)
 
 	// Create streamable HTTP handler
 	streamableHandler := mcp.NewStreamableHTTPHandler(
@@ -51,11 +51,14 @@ func TestStreamableHTTPWithMetrics(t *testing.T) {
 	defer ts.Close()
 
 	// Get initial metric values
-	initialRequestCount := getMetricValue(t, registry, "http_requests_total", map[string]string{
+	var initialRequestCount float64
+	if m := getMetric(t, registry, "http_requests_total", map[string]string{
 		"handler": "mcp",
 		"code":    "202",
 		"method":  "post",
-	})
+	}); m.GetCounter() != nil {
+		initialRequestCount = m.GetCounter().GetValue()
+	}
 
 	// Test 1: Send a POST request with initialize
 	t.Run("POST_initialize", func(t *testing.T) {
@@ -94,11 +97,14 @@ func TestStreamableHTTPWithMetrics(t *testing.T) {
 		// Verify metrics were incremented
 		time.Sleep(100 * time.Millisecond) // Give metrics time to update
 
-		newRequestCount := getMetricValue(t, registry, "http_requests_total", map[string]string{
+		var newRequestCount float64
+		if m := getMetric(t, registry, "http_requests_total", map[string]string{
 			"handler": "mcp",
 			"code":    "200",
 			"method":  "post",
-		})
+		}); m.GetCounter() != nil {
+			newRequestCount = m.GetCounter().GetValue()
+		}
 
 		if newRequestCount <= initialRequestCount {
 			t.Errorf("Expected request count to increase, got initial=%f, new=%f",
@@ -108,39 +114,41 @@ func TestStreamableHTTPWithMetrics(t *testing.T) {
 
 	// Test 2: Verify request duration metrics exist
 	t.Run("request_duration_metrics", func(t *testing.T) {
-		duration := getHistogramCount(t, registry, "http_request_duration_seconds", map[string]string{
+		m := getMetric(t, registry, "http_request_duration_seconds", map[string]string{
 			"handler": "mcp",
 		})
 
-		if duration == 0 {
+		if m.GetHistogram().GetSampleCount() == 0 {
 			t.Error("Expected request duration metrics to be recorded")
 		}
 	})
 
 	// Test 3: Verify in-flight metrics
 	t.Run("in_flight_metrics", func(t *testing.T) {
-		// The metric should exist even if value is 0
-		hasMetric := hasGaugeMetric(t, registry, "http_inflight_requests", map[string]string{
+		m := getMetric(t, registry, "http_inflight_requests", map[string]string{
 			"handler": "mcp",
 			"method":  "POST",
 		})
 
-		if !hasMetric {
+		if m == nil || m.Gauge == nil {
 			t.Error("Expected in-flight request metrics to exist")
 		}
 	})
 
 	// Test 4: Verify request/response size metrics
 	t.Run("size_metrics", func(t *testing.T) {
-		requestSize := getSummaryCount(t, registry, "http_request_size_bytes", map[string]string{
+		var requestSize, responseSize uint64
+		if m := getMetric(t, registry, "http_request_size_bytes", map[string]string{
 			"handler": "mcp",
-		})
-		responseSize := getSummaryCount(t, registry, "http_response_size_bytes", map[string]string{
+		}); m.GetSummary() != nil {
+			requestSize = m.GetSummary().GetSampleCount()
+		}
+		if m := getMetric(t, registry, "http_response_size_bytes", map[string]string{
 			"handler": "mcp",
-		})
+		}); m.GetSummary() != nil {
+			responseSize = m.GetSummary().GetSampleCount()
+		}
 
-		// Size metrics might be 0 if the underlying middleware doesn't track them
-		// This is OK - we just log for informational purposes
 		t.Logf("Request size count: %d, Response size count: %d", requestSize, responseSize)
 	})
 
@@ -190,7 +198,7 @@ func TestStreamableHTTPWithMetrics_SSEStream(t *testing.T) {
 	registry := prom.NewRegistry()
 
 	// Create metrics instrumentation middleware
-	instrMiddleware := metrics.NewInstrumentationMiddleware(registry, nil)
+	instrMiddleware := instrumentation.NewMiddleware(registry, nil)
 
 	// Create streamable HTTP handler (non-stateless for SSE support)
 	streamableHandler := mcp.NewStreamableHTTPHandler(
@@ -275,10 +283,13 @@ func TestStreamableHTTPWithMetrics_SSEStream(t *testing.T) {
 		// Verify that both POST and GET metrics were recorded
 		time.Sleep(100 * time.Millisecond)
 
-		postCount := getMetricValue(t, registry, "http_requests_total", map[string]string{
+		var postCount float64
+		if m := getMetric(t, registry, "http_requests_total", map[string]string{
 			"handler": "mcp",
 			"method":  "post",
-		})
+		}); m.GetCounter() != nil {
+			postCount = m.GetCounter().GetValue()
+		}
 
 		if postCount == 0 {
 			t.Error("Expected POST request metrics to be recorded")
@@ -288,8 +299,8 @@ func TestStreamableHTTPWithMetrics_SSEStream(t *testing.T) {
 	})
 }
 
-// getMetricValue retrieves a counter metric value with specific labels.
-func getMetricValue(t *testing.T, registry *prom.Registry, name string, labels map[string]string) float64 {
+// getMetric finds the first metric matching name and labels from the registry.
+func getMetric(t *testing.T, registry *prom.Registry, name string, labels map[string]string) *dto.Metric {
 	t.Helper()
 	metricFamilies, err := registry.Gather()
 	if err != nil {
@@ -300,78 +311,12 @@ func getMetricValue(t *testing.T, registry *prom.Registry, name string, labels m
 		if mf.GetName() == name {
 			for _, m := range mf.GetMetric() {
 				if labelsMatch(m.GetLabel(), labels) {
-					if m.Counter != nil {
-						return m.Counter.GetValue()
-					}
+					return m
 				}
 			}
 		}
 	}
-	return 0
-}
-
-// getHistogramCount retrieves a histogram's sample count.
-func getHistogramCount(t *testing.T, registry *prom.Registry, name string, labels map[string]string) uint64 {
-	t.Helper()
-	metricFamilies, err := registry.Gather()
-	if err != nil {
-		t.Fatalf("Failed to gather metrics: %v", err)
-	}
-
-	for _, mf := range metricFamilies {
-		if mf.GetName() == name {
-			for _, m := range mf.GetMetric() {
-				if labelsMatch(m.GetLabel(), labels) {
-					if m.Histogram != nil {
-						return m.Histogram.GetSampleCount()
-					}
-				}
-			}
-		}
-	}
-	return 0
-}
-
-// getSummaryCount retrieves a summary's sample count.
-func getSummaryCount(t *testing.T, registry *prom.Registry, name string, labels map[string]string) uint64 {
-	t.Helper()
-	metricFamilies, err := registry.Gather()
-	if err != nil {
-		t.Fatalf("Failed to gather metrics: %v", err)
-	}
-
-	for _, mf := range metricFamilies {
-		if mf.GetName() == name {
-			for _, m := range mf.GetMetric() {
-				if labelsMatch(m.GetLabel(), labels) {
-					if m.Summary != nil {
-						return m.Summary.GetSampleCount()
-					}
-				}
-			}
-		}
-	}
-	return 0
-}
-
-// hasGaugeMetric checks if a gauge metric exists with specific labels.
-func hasGaugeMetric(t *testing.T, registry *prom.Registry, name string, labels map[string]string) bool {
-	t.Helper()
-	metricFamilies, err := registry.Gather()
-	if err != nil {
-		t.Fatalf("Failed to gather metrics: %v", err)
-	}
-
-	for _, mf := range metricFamilies {
-		if mf.GetName() == name {
-			for _, m := range mf.GetMetric() {
-				if labelsMatch(m.GetLabel(), labels) {
-					return m.Gauge != nil
-				}
-			}
-		}
-	}
-	return false
+	return nil
 }
 
 // labelsMatch checks if metric labels match the expected labels.

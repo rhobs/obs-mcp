@@ -16,9 +16,9 @@ import (
 	prom "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
+	"github.com/rhobs/obs-mcp/pkg/instrumentation"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/logs"
-	"github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/tools"
@@ -49,8 +49,8 @@ type ObsMCPOptions struct {
 	Otelcol                *otelcol.Config
 	Logs                   *logs.Config
 	Registry               prom.Registerer
-	clientMetrics          *metrics.ClientMetrics
-	toolMetrics            *metrics.ToolMetrics
+	clientMetrics          *instrumentation.ClientMetrics
+	toolMetrics            *instrumentation.ToolMetrics
 }
 
 const (
@@ -64,11 +64,11 @@ const (
 func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 	// Initialize shared HTTP client metrics once
 	if opts.Registry != nil && opts.clientMetrics == nil {
-		opts.clientMetrics = metrics.NewClientMetrics(opts.Registry)
+		opts.clientMetrics = instrumentation.NewClientMetrics(opts.Registry)
 	}
 
 	if opts.Registry != nil && opts.toolMetrics == nil {
-		opts.toolMetrics = metrics.NewToolMetrics(opts.Registry)
+		opts.toolMetrics = instrumentation.NewToolMetrics(opts.Registry)
 	}
 
 	impl := &mcp.Implementation{
@@ -129,23 +129,23 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 
 	if slices.Contains(opts.Toolsets, ToolsetMetrics) {
 		mcp.AddTool(mcpServer, tools.ListMetrics.ToMCPTool(),
-			metrics.InstrumentToolHandler(tools.ListMetrics.Name, opts.toolMetrics, ListMetricsHandler(opts)))
+			instrumentation.ToolHandler(tools.ListMetrics.Name, opts.toolMetrics, ListMetricsHandler(opts)))
 		mcp.AddTool(mcpServer, tools.ExecuteInstantQuery.ToMCPTool(),
-			metrics.InstrumentToolHandler(tools.ExecuteInstantQuery.Name, opts.toolMetrics, ExecuteInstantQueryHandler(opts)))
+			instrumentation.ToolHandler(tools.ExecuteInstantQuery.Name, opts.toolMetrics, ExecuteInstantQueryHandler(opts)))
 		mcp.AddTool(mcpServer, tools.ExecuteRangeQuery.ToMCPTool(),
-			metrics.InstrumentToolHandler(tools.ExecuteRangeQuery.Name, opts.toolMetrics, ExecuteRangeQueryHandler(opts)))
+			instrumentation.ToolHandler(tools.ExecuteRangeQuery.Name, opts.toolMetrics, ExecuteRangeQueryHandler(opts)))
 		mcp.AddTool(mcpServer, tools.ShowTimeseries.ToMCPTool(),
-			metrics.InstrumentToolHandler(tools.ShowTimeseries.Name, opts.toolMetrics, ShowTimeseriesHandler(opts)))
+			instrumentation.ToolHandler(tools.ShowTimeseries.Name, opts.toolMetrics, ShowTimeseriesHandler(opts)))
 		mcp.AddTool(mcpServer, tools.GetLabelNames.ToMCPTool(),
-			metrics.InstrumentToolHandler(tools.GetLabelNames.Name, opts.toolMetrics, GetLabelNamesHandler(opts)))
+			instrumentation.ToolHandler(tools.GetLabelNames.Name, opts.toolMetrics, GetLabelNamesHandler(opts)))
 		mcp.AddTool(mcpServer, tools.GetLabelValues.ToMCPTool(),
-			metrics.InstrumentToolHandler(tools.GetLabelValues.Name, opts.toolMetrics, GetLabelValuesHandler(opts)))
+			instrumentation.ToolHandler(tools.GetLabelValues.Name, opts.toolMetrics, GetLabelValuesHandler(opts)))
 		mcp.AddTool(mcpServer, tools.GetSeries.ToMCPTool(),
-			metrics.InstrumentToolHandler(tools.GetSeries.Name, opts.toolMetrics, GetSeriesHandler(opts)))
+			instrumentation.ToolHandler(tools.GetSeries.Name, opts.toolMetrics, GetSeriesHandler(opts)))
 		mcp.AddTool(mcpServer, tools.GetAlerts.ToMCPTool(),
-			metrics.InstrumentToolHandler(tools.GetAlerts.Name, opts.toolMetrics, GetAlertsHandler(opts)))
+			instrumentation.ToolHandler(tools.GetAlerts.Name, opts.toolMetrics, GetAlertsHandler(opts)))
 		mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(),
-			metrics.InstrumentToolHandler(tools.GetSilences.Name, opts.toolMetrics, GetSilencesHandler(opts)))
+			instrumentation.ToolHandler(tools.GetSilences.Name, opts.toolMetrics, GetSilencesHandler(opts)))
 	}
 
 	if slices.Contains(opts.Toolsets, ToolsetTraces) {
@@ -183,7 +183,7 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	return nil
 }
 
-func addToolset(mcpServer *mcp.Server, mgr *kubernetes.Manager, toolset api.Toolset, toolsetConfig api.ExtendedConfig, toolMetrics *metrics.ToolMetrics) error {
+func addToolset(mcpServer *mcp.Server, mgr *kubernetes.Manager, toolset api.Toolset, toolsetConfig api.ExtendedConfig, toolMetrics *instrumentation.ToolMetrics) error {
 	baseConfig := &mcpBaseConfig{toolsetConfig: toolsetConfig}
 	serverTools := toolset.GetTools(nil)
 	for i := range serverTools {
@@ -191,7 +191,7 @@ func addToolset(mcpServer *mcp.Server, mgr *kubernetes.Manager, toolset api.Tool
 		if err != nil {
 			return err
 		}
-		mcpServer.AddTool(goSdkTool, metrics.InstrumentToolHandlerUntyped(goSdkTool.Name, toolMetrics, goSdkHandler))
+		mcpServer.AddTool(goSdkTool, instrumentation.ToolHandlerUntyped(goSdkTool.Name, toolMetrics, goSdkHandler))
 	}
 	return nil
 }
@@ -220,11 +220,11 @@ func loggingMiddleware(next http.Handler) http.Handler {
 func NewHTTPServer(mcpServer *mcp.Server, listenAddr string, registry prom.Registerer, authMode auth.AuthMode) (httpServer *http.Server, shutdown func(error)) {
 	mux := http.NewServeMux()
 
-	var instrMiddleware metrics.InstrumentationMiddleware
+	var instrMiddleware instrumentation.Middleware
 	if registry != nil {
-		instrMiddleware = metrics.NewInstrumentationMiddleware(registry, nil)
+		instrMiddleware = instrumentation.NewMiddleware(registry, nil)
 	} else {
-		instrMiddleware = metrics.NewNopInstrumentationMiddleware()
+		instrMiddleware = instrumentation.NewNopMiddleware()
 	}
 
 	handler := loggingMiddleware(mux)
