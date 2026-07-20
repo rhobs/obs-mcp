@@ -86,7 +86,7 @@ container: build-linux ## Build obs-mcp container image
 	BRANCH=$$(git rev-parse --abbrev-ref HEAD) && \
 	BUILDUSER=$$(whoami)@$$HOSTNAME && \
 	BUILDDATE=$$(date +%Y%m%d-%H:%M:%S) && \
-	$(CONTAINER_TOOL) build --load \
+	$(CONTAINER_CLI) build --load \
 	    --build-arg GOLANG_BUILDER=$(GO_VERSION) \
 		--build-arg VERSION=$$VERSION \
 		--build-arg REVISION=$$REVISION \
