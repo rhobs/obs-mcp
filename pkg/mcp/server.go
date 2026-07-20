@@ -217,7 +217,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 // NewHTTPServer creates an HTTP server for MCP over SSE.
 // Returns the server and a shutdown function to be used with run.Group.
-func NewHTTPServer(mcpServer *mcp.Server, listenAddr string, registry prom.Registerer, authMode auth.AuthMode) (*http.Server, func(error)) {
+func NewHTTPServer(mcpServer *mcp.Server, listenAddr string, registry prom.Registerer, authMode auth.AuthMode) (httpServer *http.Server, shutdown func(error)) {
 	mux := http.NewServeMux()
 
 	var instrMiddleware metrics.InstrumentationMiddleware
@@ -232,7 +232,7 @@ func NewHTTPServer(mcpServer *mcp.Server, listenAddr string, registry prom.Regis
 		handler = authMiddleware(handler)
 	}
 
-	httpServer := &http.Server{
+	httpServer = &http.Server{
 		Addr:    listenAddr,
 		Handler: handler,
 	}
@@ -252,7 +252,7 @@ func NewHTTPServer(mcpServer *mcp.Server, listenAddr string, registry prom.Regis
 		_, _ = w.Write([]byte("OK"))
 	})
 
-	shutdown := func(err error) {
+	shutdown = func(err error) {
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
 		defer shutdownCancel()
 

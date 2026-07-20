@@ -38,7 +38,7 @@ const (
 	defaultLokiURL         = "http://localhost:3100"
 )
 
-func main() {
+func main() { //nolint:gocyclo // main wires up flags, config, and run group
 	var showVersion = flag.Bool("version", false, "Print version and exit")
 	var listen = flag.String("listen", "", "Listen address for HTTP mode (e.g., :9100, 127.0.0.1:8080)")
 	var listenInternal = flag.String("listen-internal", ":8081", "Listen address for internal health server (metrics, pprof, health)")

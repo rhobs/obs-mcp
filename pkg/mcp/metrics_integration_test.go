@@ -160,13 +160,14 @@ func TestStreamableHTTPWithMetrics(t *testing.T) {
 				}
 
 				var value any
-				if m.Counter != nil {
+				switch {
+				case m.Counter != nil:
 					value = m.Counter.GetValue()
-				} else if m.Gauge != nil {
+				case m.Gauge != nil:
 					value = m.Gauge.GetValue()
-				} else if m.Histogram != nil {
+				case m.Histogram != nil:
 					value = m.Histogram.GetSampleCount()
-				} else if m.Summary != nil {
+				case m.Summary != nil:
 					value = m.Summary.GetSampleCount()
 				}
 

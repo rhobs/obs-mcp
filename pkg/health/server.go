@@ -62,13 +62,13 @@ func (s *Server) setupRoutes() {
 
 // ListenAndServe starts the internal HTTP server on the given address
 // Returns a server and a shutdown function compatible with oklog/run.Group
-func (s *Server) ListenAndServe(listenAddr string) (*http.Server, func(error)) {
-	httpServer := &http.Server{
+func (s *Server) ListenAndServe(listenAddr string) (httpServer *http.Server, shutdown func(error)) {
+	httpServer = &http.Server{
 		Addr:    listenAddr,
 		Handler: s.mux,
 	}
 
-	shutdown := func(err error) {
+	shutdown = func(err error) {
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
 		defer shutdownCancel()
 
