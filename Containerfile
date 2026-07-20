@@ -5,6 +5,13 @@ FROM golang:${GOLANG_BUILDER} AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
+# Build variables
+ARG VERSION
+ARG REVISION
+ARG BRANCH
+ARG BUILDUSER
+ARG BUILDDATE
+
 WORKDIR /app
 
 COPY go.mod go.sum ./
@@ -25,7 +32,14 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 RUN --mount=type=cache,target=/go/pkg/mod \
       --mount=type=cache,target=/root/.cache/go-build \
-      go build -trimpath -tags strictfipsruntime -ldflags '-s -w' -o obs-mcp ./cmd/obs-mcp
+      go build -trimpath -tags strictfipsruntime \
+      -ldflags="-s -w \
+      -X github.com/prometheus/common/version.Version=${VERSION} \
+      -X github.com/prometheus/common/version.Revision=${REVISION} \
+      -X github.com/prometheus/common/version.Branch=${BRANCH} \
+      -X github.com/prometheus/common/version.BuildUser=${BUILDUSER} \
+      -X github.com/prometheus/common/version.BuildDate=${BUILDDATE}" \
+      -o obs-mcp ./cmd/obs-mcp
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
