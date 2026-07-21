@@ -75,7 +75,9 @@ func ServerToolToGoSdkTool(mgr *kubernetes.Manager, cfg api.BaseConfig, tool api
 			return nil, fmt.Errorf("%v for tool %s", err, tool.Tool.Name)
 		}
 
-		// get the correct derived Kubernetes client for the target specified in the request
+		// Create a Kubernetes client with the bearer token of the incoming request (must be set in the context).
+		// If the context doesn't have an Authorization token set, fall back to the token in the kubeconfig,
+		// unless require_oauth is set.
 		k, err := mgr.Derived(ctx)
 		if err != nil {
 			return nil, err

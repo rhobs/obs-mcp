@@ -121,7 +121,10 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 			return err
 		}
 		var mgrErr error
-		mgr, mgrErr = kubernetes.NewManager(context.Background(), config.BaseDefault(), restConfig, clientCmdConfig)
+		cfg := config.BaseDefault()
+		// In header auth mode, require the caller's OAuth token instead of falling back to the kubeconfig token.
+		cfg.RequireOAuth = opts.AuthMode == auth.AuthModeHeader
+		mgr, mgrErr = kubernetes.NewManager(context.Background(), cfg, restConfig, clientCmdConfig)
 		if mgrErr != nil {
 			return mgrErr
 		}
