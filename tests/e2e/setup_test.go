@@ -38,7 +38,13 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	mcpClient = NewMCPClient(testConfig.MCPURL)
+	token, err := createServiceAccountToken(testConfig.Namespace, testConfig.ServiceAccountName)
+	if err != nil {
+		fmt.Printf("Failed to get bearer token: %v\n", err)
+		os.Exit(1)
+	}
+
+	mcpClient = NewMCPClient(testConfig.MCPURL, token)
 	setupThanosDetection()
 
 	code := m.Run()

@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -21,23 +22,25 @@ import (
 )
 
 const (
-	defaultNamespace        = "obs-mcp"
-	defaultServiceName      = "obs-mcp"
-	defaultServicePort      = 9100
-	defaultLocalPort        = 9100
-	defaultPodLabelSelector = "app.kubernetes.io/name=obs-mcp"
-	defaultTimeout          = 30 * time.Second
+	defaultNamespace          = "obs-mcp"
+	defaultServiceName        = "obs-mcp"
+	defaultServiceAccountName = "obs-mcp"
+	defaultServicePort        = 9100
+	defaultLocalPort          = 9100
+	defaultPodLabelSelector   = "app.kubernetes.io/name=obs-mcp"
+	defaultTimeout            = 30 * time.Second
 )
 
 // TestConfig holds configuration and runtime state for e2e tests
 type TestConfig struct {
 	// Configuration
-	Namespace        string
-	ServiceName      string
-	ServicePort      int
-	LocalPort        int
-	PodLabelSelector string
-	Timeout          time.Duration
+	Namespace          string
+	ServiceName        string
+	ServiceAccountName string
+	ServicePort        int
+	LocalPort          int
+	PodLabelSelector   string
+	Timeout            time.Duration
 
 	// Runtime state
 	MCPURL          string
@@ -53,12 +56,13 @@ func NewTestConfig() *TestConfig {
 		namespace = defaultNamespace
 	}
 	config := &TestConfig{
-		Namespace:        namespace,
-		ServiceName:      defaultServiceName,
-		ServicePort:      defaultServicePort,
-		LocalPort:        defaultLocalPort,
-		PodLabelSelector: defaultPodLabelSelector,
-		Timeout:          defaultTimeout,
+		Namespace:          namespace,
+		ServiceName:        defaultServiceName,
+		ServiceAccountName: defaultServiceAccountName,
+		ServicePort:        defaultServicePort,
+		LocalPort:          defaultLocalPort,
+		PodLabelSelector:   defaultPodLabelSelector,
+		Timeout:            defaultTimeout,
 	}
 	fmt.Printf("Test config: namespace=%s, service=%s, port=%d, timeout=%v\n",
 		config.Namespace, config.ServiceName, config.ServicePort, config.Timeout)
@@ -222,6 +226,31 @@ func findRunningPod(pods []corev1.Pod) string {
 		}
 	}
 	return ""
+}
+
+// createServiceAccountToken requests a bearer token for the given service account via the TokenRequest API.
+func createServiceAccountToken(namespace, serviceAccountName string) (string, error) {
+	config, err := getKubeConfig()
+	if err != nil {
+		return "", fmt.Errorf("failed to get kube config: %w", err)
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return "", fmt.Errorf("failed to create kubernetes client: %w", err)
+	}
+
+	tokenReq, err := clientset.CoreV1().ServiceAccounts(namespace).CreateToken(
+		context.Background(),
+		serviceAccountName,
+		&authv1.TokenRequest{},
+		metav1.CreateOptions{},
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to request token via TokenRequest API: %w", err)
+	}
+
+	return tokenReq.Status.Token, nil
 }
 
 // waitForReady polls the target URL until it returns HTTP 200, timeout occurs, or context is cancelled
