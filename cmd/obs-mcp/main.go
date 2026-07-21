@@ -320,6 +320,9 @@ func validateConfigs(opts mcpserver.ObsMCPOptions) error {
 }
 
 func parseToolsets(toolsets string) []string {
+	if toolsets == "" {
+		return []string{}
+	}
 	parts := strings.Split(toolsets, ",")
 	for i, p := range parts {
 		p = strings.TrimSpace(p)
