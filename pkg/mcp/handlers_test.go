@@ -145,7 +145,7 @@ func TestExecuteRangeQueryHandler_ExplicitTimeRange_RFC3339(t *testing.T) {
 	}
 
 	ctx := withMockClient(context.Background(), mockClient)
-	handler := ExecuteRangeQueryHandler(ObsMCPOptions{})
+	handler := ExecuteRangeQueryHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 
 	paramsMap := map[string]any{
 		"query": "up{job=\"api\"}",
@@ -169,7 +169,7 @@ func TestExecuteRangeQueryHandler_StepParsing_ValidSteps(t *testing.T) {
 	}
 
 	ctx := withMockClient(t.Context(), mockClient)
-	handler := ExecuteRangeQueryHandler(ObsMCPOptions{})
+	handler := ExecuteRangeQueryHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 
 	paramsMap := map[string]any{
 		"query": "up{job=\"api\"}",
@@ -284,7 +284,7 @@ func TestExecuteRangeQueryHandler_RequiredParameters(t *testing.T) {
 			mockClient := &MockedLoader{}
 
 			ctx := withMockClient(t.Context(), mockClient)
-			handler := ExecuteRangeQueryHandler(ObsMCPOptions{})
+			handler := ExecuteRangeQueryHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 			req := newMockRequest(tt.params)
 
 			input := tools.BuildRangeQueryInput(tt.params)
@@ -321,7 +321,7 @@ func TestExecuteRangeQueryHandler_DurationMode_DefaultOneHour(t *testing.T) {
 	}
 
 	ctx := withMockClient(t.Context(), mockClient)
-	handler := ExecuteRangeQueryHandler(ObsMCPOptions{})
+	handler := ExecuteRangeQueryHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	paramsMap := map[string]any{
 		"query": "up{job=\"api\"}",
 		"step":  "1m",
@@ -353,7 +353,7 @@ func TestExecuteRangeQueryHandler_DurationMode_CustomDuration(t *testing.T) {
 	}
 
 	ctx := withMockClient(t.Context(), mockClient)
-	handler := ExecuteRangeQueryHandler(ObsMCPOptions{})
+	handler := ExecuteRangeQueryHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	paramsMap := map[string]any{
 		"query":    "rate(http_requests_total{job=\"api\"}[5m])",
 		"step":     "30s",
@@ -379,7 +379,7 @@ func TestExecuteRangeQueryHandler_DurationMode_NOWKeyword(t *testing.T) {
 	}
 
 	ctx := withMockClient(t.Context(), mockClient)
-	handler := ExecuteRangeQueryHandler(ObsMCPOptions{})
+	handler := ExecuteRangeQueryHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	paramsMap := map[string]any{
 		"query":    "up{job=\"api\"}",
 		"step":     "1m",
@@ -415,7 +415,7 @@ func TestExecuteRangeQueryHandler_NOWKeyword_CaseInsensitive(t *testing.T) {
 			}
 
 			ctx := withMockClient(context.Background(), mockClient)
-			handler := ExecuteRangeQueryHandler(ObsMCPOptions{})
+			handler := ExecuteRangeQueryHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 			paramsMap := map[string]any{
 				"query": "up{job=\"api\"}",
 				"step":  "1m",
@@ -449,7 +449,7 @@ func TestExecuteInstantQueryHandler_NOWKeyword_CaseInsensitive(t *testing.T) {
 			}
 
 			ctx := withMockClient(context.Background(), mockClient)
-			handler := ExecuteInstantQueryHandler(ObsMCPOptions{})
+			handler := ExecuteInstantQueryHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 			paramsMap := map[string]any{
 				"query": "up{job=\"api\"}",
 				"time":  nowStr,
@@ -546,7 +546,7 @@ func TestExecuteRangeQueryHandler_RelativeTime(t *testing.T) {
 			}
 
 			ctx := withMockClient(context.Background(), mockClient)
-			handler := ExecuteRangeQueryHandler(ObsMCPOptions{})
+			handler := ExecuteRangeQueryHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 			paramsMap := map[string]any{
 				"query": "up{job=\"api\"}",
 				"step":  "1m",
@@ -577,7 +577,7 @@ func TestShowTimeseriesHandler(t *testing.T) {
 	}
 
 	ctx := withMockClient(context.Background(), mockClient)
-	handler := ShowTimeseriesHandler(ObsMCPOptions{})
+	handler := ShowTimeseriesHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	req := newMockRequest(map[string]any{
 		"query": "up{job=\"api\"}",
 		"step":  "1m",
@@ -664,7 +664,7 @@ func TestExecuteInstantQueryHandler_RelativeTime(t *testing.T) {
 			}
 
 			ctx := withMockClient(context.Background(), mockClient)
-			handler := ExecuteInstantQueryHandler(ObsMCPOptions{})
+			handler := ExecuteInstantQueryHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 			paramsMap := map[string]any{
 				"query": "up{job=\"api\"}",
 				"time":  tt.time,
@@ -719,7 +719,7 @@ func TestGetAlertsHandler_AllAlerts(t *testing.T) {
 	}
 
 	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
-	handler := GetAlertsHandler(ObsMCPOptions{})
+	handler := GetAlertsHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	req := newMockRequest(map[string]any{})
 
 	input := tools.BuildAlertsInput(map[string]any{})
@@ -761,7 +761,7 @@ func TestGetAlertsHandler_WithActiveFilter(t *testing.T) {
 	}
 
 	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
-	handler := GetAlertsHandler(ObsMCPOptions{})
+	handler := GetAlertsHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	paramsMap := map[string]any{
 		"active": active,
 	}
@@ -805,7 +805,7 @@ func TestGetAlertsHandler_WithFilter(t *testing.T) {
 	}
 
 	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
-	handler := GetAlertsHandler(ObsMCPOptions{})
+	handler := GetAlertsHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	paramsMap := map[string]any{
 		"filter": "alertname=HighCPU",
 	}
@@ -849,7 +849,7 @@ func TestGetAlertsHandler_WithReceiver(t *testing.T) {
 	}
 
 	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
-	handler := GetAlertsHandler(ObsMCPOptions{})
+	handler := GetAlertsHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	paramsMap := map[string]any{
 		"receiver": "team-notifications",
 	}
@@ -898,7 +898,7 @@ func TestGetSilencesHandler_AllSilences(t *testing.T) {
 	}
 
 	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
-	handler := GetSilencesHandler(ObsMCPOptions{})
+	handler := GetSilencesHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	req := newMockRequest(map[string]any{})
 
 	input := tools.BuildSilencesInput(map[string]any{})
@@ -945,7 +945,7 @@ func TestGetSilencesHandler_WithFilter(t *testing.T) {
 	}
 
 	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
-	handler := GetSilencesHandler(ObsMCPOptions{})
+	handler := GetSilencesHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	paramsMap := map[string]any{
 		"filter": "alertname=HighCPU",
 	}
@@ -966,7 +966,7 @@ func TestGetSilencesHandler_EmptyResult(t *testing.T) {
 	}
 
 	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
-	handler := GetSilencesHandler(ObsMCPOptions{})
+	handler := GetSilencesHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	req := newMockRequest(map[string]any{})
 
 	input := tools.BuildSilencesInput(map[string]any{})
@@ -984,7 +984,7 @@ func TestGetAlertsHandler_ClientError(t *testing.T) {
 	}
 
 	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
-	handler := GetAlertsHandler(ObsMCPOptions{})
+	handler := GetAlertsHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	req := newMockRequest(map[string]any{})
 
 	input := tools.BuildAlertsInput(map[string]any{})
@@ -1036,7 +1036,7 @@ func TestGetAlertsHandler_WithMultipleFilters(t *testing.T) {
 	}
 
 	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
-	handler := GetAlertsHandler(ObsMCPOptions{})
+	handler := GetAlertsHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	paramsMap := map[string]any{
 		"filter": "alertname=HighCPU, severity=critical",
 	}
@@ -1087,7 +1087,7 @@ func TestGetAlertsHandler_WithMultipleFiltersNoSpaces(t *testing.T) {
 	}
 
 	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
-	handler := GetAlertsHandler(ObsMCPOptions{})
+	handler := GetAlertsHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	paramsMap := map[string]any{
 		"filter": "alertname=HighCPU,severity=warning,job=api",
 	}
@@ -1108,7 +1108,7 @@ func TestGetAlertsHandler_EmptyResult(t *testing.T) {
 	}
 
 	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
-	handler := GetAlertsHandler(ObsMCPOptions{})
+	handler := GetAlertsHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	req := newMockRequest(map[string]any{})
 
 	input := tools.BuildAlertsInput(map[string]any{})
@@ -1126,7 +1126,7 @@ func TestGetSilencesHandler_ClientError(t *testing.T) {
 	}
 
 	ctx := withMockAlertmanagerClient(context.Background(), mockClient)
-	handler := GetSilencesHandler(ObsMCPOptions{})
+	handler := GetSilencesHandler(ObsMCPOptions{Metrics: &tools.Config{}})
 	req := newMockRequest(map[string]any{})
 
 	input := tools.BuildSilencesInput(map[string]any{})

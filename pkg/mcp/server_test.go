@@ -13,6 +13,7 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
+	"github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
 )
 
@@ -103,8 +104,10 @@ func TestHeaderAuthRejectsUnauthenticatedToolCall(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mcpServer, err := NewMCPServer(ObsMCPOptions{
-				Toolsets:               []string{otelcol.ToolsetName},
-				AuthMode:               tt.authMode,
+				Toolsets: []string{otelcol.ToolsetName},
+				Metrics: &metrics.Config{
+					AuthMode: tt.authMode,
+				},
 				Otelcol:                otelcol.NewDefaultConfig(),
 				KubernetesClientConfig: kubeClientConfig,
 			})

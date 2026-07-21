@@ -14,34 +14,25 @@ import (
 	"github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	prom "github.com/prometheus/client_golang/prometheus"
-
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/instrumentation"
 	"github.com/rhobs/obs-mcp/pkg/logs"
-	tools "github.com/rhobs/obs-mcp/pkg/metrics"
-	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
+	"github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/traces"
 )
 
-const ToolsetMetrics = "observability/metrics"
-
-var AllToolsets = []string{ToolsetMetrics, logs.ToolsetName, traces.ToolsetName, otelcol.ToolsetName}
+var AllToolsets = []string{metrics.ToolsetName, logs.ToolsetName, traces.ToolsetName, otelcol.ToolsetName}
 
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
 	Toolsets               []string
-	AuthMode               auth.AuthMode
-	MetricsBackendURL      string
-	AlertmanagerURL        string
-	Insecure               bool
-	Guardrails             *prometheus.Guardrails
-	FullRangeQueryResponse bool
+	Metrics                *metrics.Config
+	Logs                   *logs.Config
 	Traces                 *traces.Config
 	Otelcol                *otelcol.Config
-	Logs                   *logs.Config
 	KubernetesClientConfig clientcmd.ClientConfig
 	Registry               prom.Registerer
 	clientMetrics          *instrumentation.ClientMetrics
@@ -72,8 +63,8 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 	}
 
 	var instructions []string
-	if slices.Contains(opts.Toolsets, ToolsetMetrics) {
-		instructions = append(instructions, tools.ServerPrompt)
+	if slices.Contains(opts.Toolsets, metrics.ToolsetName) {
+		instructions = append(instructions, metrics.ServerPrompt)
 	}
 	if slices.Contains(opts.Toolsets, traces.ToolsetName) {
 		instructions = append(instructions, traces.ServerPrompt)
@@ -117,32 +108,33 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		var mgrErr error
 		cfg := config.BaseDefault()
 		// In header auth mode, require the caller's OAuth token instead of falling back to the kubeconfig token.
-		cfg.RequireOAuth = opts.AuthMode == auth.AuthModeHeader
+		// In standalone mode, all toolset configs have the same AuthMode, because it's a single CLI flag.
+		cfg.RequireOAuth = opts.Metrics.AuthMode == auth.AuthModeHeader
 		mgr, mgrErr = kubernetes.NewManager(context.Background(), cfg, restConfig, opts.KubernetesClientConfig)
 		if mgrErr != nil {
 			return mgrErr
 		}
 	}
 
-	if slices.Contains(opts.Toolsets, ToolsetMetrics) {
-		mcp.AddTool(mcpServer, tools.ListMetrics.ToMCPTool(),
-			instrumentation.ToolHandler(tools.ListMetrics.Name, opts.toolMetrics, ListMetricsHandler(opts)))
-		mcp.AddTool(mcpServer, tools.ExecuteInstantQuery.ToMCPTool(),
-			instrumentation.ToolHandler(tools.ExecuteInstantQuery.Name, opts.toolMetrics, ExecuteInstantQueryHandler(opts)))
-		mcp.AddTool(mcpServer, tools.ExecuteRangeQuery.ToMCPTool(),
-			instrumentation.ToolHandler(tools.ExecuteRangeQuery.Name, opts.toolMetrics, ExecuteRangeQueryHandler(opts)))
-		mcp.AddTool(mcpServer, tools.ShowTimeseries.ToMCPTool(),
-			instrumentation.ToolHandler(tools.ShowTimeseries.Name, opts.toolMetrics, ShowTimeseriesHandler(opts)))
-		mcp.AddTool(mcpServer, tools.GetLabelNames.ToMCPTool(),
-			instrumentation.ToolHandler(tools.GetLabelNames.Name, opts.toolMetrics, GetLabelNamesHandler(opts)))
-		mcp.AddTool(mcpServer, tools.GetLabelValues.ToMCPTool(),
-			instrumentation.ToolHandler(tools.GetLabelValues.Name, opts.toolMetrics, GetLabelValuesHandler(opts)))
-		mcp.AddTool(mcpServer, tools.GetSeries.ToMCPTool(),
-			instrumentation.ToolHandler(tools.GetSeries.Name, opts.toolMetrics, GetSeriesHandler(opts)))
-		mcp.AddTool(mcpServer, tools.GetAlerts.ToMCPTool(),
-			instrumentation.ToolHandler(tools.GetAlerts.Name, opts.toolMetrics, GetAlertsHandler(opts)))
-		mcp.AddTool(mcpServer, tools.GetSilences.ToMCPTool(),
-			instrumentation.ToolHandler(tools.GetSilences.Name, opts.toolMetrics, GetSilencesHandler(opts)))
+	if slices.Contains(opts.Toolsets, metrics.ToolsetName) {
+		mcp.AddTool(mcpServer, metrics.ListMetrics.ToMCPTool(),
+			instrumentation.ToolHandler(metrics.ListMetrics.Name, opts.toolMetrics, ListMetricsHandler(opts)))
+		mcp.AddTool(mcpServer, metrics.ExecuteInstantQuery.ToMCPTool(),
+			instrumentation.ToolHandler(metrics.ExecuteInstantQuery.Name, opts.toolMetrics, ExecuteInstantQueryHandler(opts)))
+		mcp.AddTool(mcpServer, metrics.ExecuteRangeQuery.ToMCPTool(),
+			instrumentation.ToolHandler(metrics.ExecuteRangeQuery.Name, opts.toolMetrics, ExecuteRangeQueryHandler(opts)))
+		mcp.AddTool(mcpServer, metrics.ShowTimeseries.ToMCPTool(),
+			instrumentation.ToolHandler(metrics.ShowTimeseries.Name, opts.toolMetrics, ShowTimeseriesHandler(opts)))
+		mcp.AddTool(mcpServer, metrics.GetLabelNames.ToMCPTool(),
+			instrumentation.ToolHandler(metrics.GetLabelNames.Name, opts.toolMetrics, GetLabelNamesHandler(opts)))
+		mcp.AddTool(mcpServer, metrics.GetLabelValues.ToMCPTool(),
+			instrumentation.ToolHandler(metrics.GetLabelValues.Name, opts.toolMetrics, GetLabelValuesHandler(opts)))
+		mcp.AddTool(mcpServer, metrics.GetSeries.ToMCPTool(),
+			instrumentation.ToolHandler(metrics.GetSeries.Name, opts.toolMetrics, GetSeriesHandler(opts)))
+		mcp.AddTool(mcpServer, metrics.GetAlerts.ToMCPTool(),
+			instrumentation.ToolHandler(metrics.GetAlerts.Name, opts.toolMetrics, GetAlertsHandler(opts)))
+		mcp.AddTool(mcpServer, metrics.GetSilences.ToMCPTool(),
+			instrumentation.ToolHandler(metrics.GetSilences.Name, opts.toolMetrics, GetSilencesHandler(opts)))
 	}
 
 	if slices.Contains(opts.Toolsets, traces.ToolsetName) {

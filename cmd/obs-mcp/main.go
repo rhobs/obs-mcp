@@ -27,6 +27,7 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/logs"
 	mcpserver "github.com/rhobs/obs-mcp/pkg/mcp"
+	"github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/traces"
@@ -37,11 +38,11 @@ const (
 	defaultAlertmanagerURL = "http://localhost:9093"
 )
 
-func main() { //nolint:gocyclo // main wires up flags, config, and run group
+func main() {
 	var showVersion = flag.Bool("version", false, "Print version and exit")
 	var listen = flag.String("listen", "", "Listen address for HTTP mode (e.g., :9100, 127.0.0.1:8080)")
 	var listenInternal = flag.String("listen-internal", "", "Listen address for internal health server (metrics, pprof, health e.g., :8081, 127.0.0.1:8081). Off by default.")
-	var toolsets = flag.String("toolsets", string(mcpserver.ToolsetMetrics), fmt.Sprintf("Comma-separated list of enabled toolsets: %s", strings.Join(mcpserver.AllToolsets, ", ")))
+	var toolsets = flag.String("toolsets", metrics.ToolsetName, fmt.Sprintf("Comma-separated list of enabled toolsets: %s", strings.Join(mcpserver.AllToolsets, ", ")))
 	var authMode = flag.String("auth-mode", "", "Authentication mode: kubeconfig or header")
 	var insecure = flag.Bool("insecure", false, "Skip TLS certificate verification")
 	var logLevel = flag.String("log-level", "info", "Log level: debug, info, warn, error")
@@ -104,7 +105,7 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 
 	metricsBackendURL := ""
 	metricsURLSource := ""
-	if slices.Contains(parsedToolsets, mcpserver.ToolsetMetrics) {
+	if slices.Contains(parsedToolsets, metrics.ToolsetName) {
 		metricsBackendURL, metricsURLSource, err = determineMetricsBackendURL(parsedAuthMode, parsedMetricsBackend)
 		if err != nil {
 			log.Fatalf("%v", err)
@@ -113,7 +114,7 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 
 	alertmanagerURL := ""
 	alertmanagerURLSource := ""
-	if slices.Contains(parsedToolsets, mcpserver.ToolsetMetrics) {
+	if slices.Contains(parsedToolsets, metrics.ToolsetName) {
 		alertmanagerURL, alertmanagerURLSource, err = determineAlertmanagerURL(parsedAuthMode)
 		if err != nil {
 			log.Fatalf("%v", err)
@@ -130,40 +131,6 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 		}
 	}
 
-	// Parse guardrails configuration
-	parsedGuardrails, err := prometheus.ParseGuardrails(*guardrails)
-	if err != nil {
-		log.Fatalf("Invalid guardrails configuration: %v", err)
-	}
-
-	// Reject deprecated use of 0 to disable the metric cardinality guardrail.
-	if isFlagExplicitlySet("guardrails.max-metric-cardinality") && *maxMetricCardinality == 0 {
-		log.Fatalf("--guardrails.max-metric-cardinality=0 is no longer supported to disable the guardrail; "+
-			"use '!%s' in --guardrails instead", prometheus.GuardrailMaxMetricCardinality)
-	}
-
-	// Reject cardinality flags that have no effect given the active guardrails.
-	if isFlagExplicitlySet("guardrails.max-metric-cardinality") &&
-		(parsedGuardrails == nil || !parsedGuardrails.ForceMaxMetricCardinality) {
-		log.Fatalf("--guardrails.max-metric-cardinality has no effect: add %q to --guardrails to enable the metric cardinality guardrail",
-			prometheus.GuardrailMaxMetricCardinality)
-	}
-	if isFlagExplicitlySet("guardrails.max-label-cardinality") &&
-		(parsedGuardrails == nil || !parsedGuardrails.DisallowBlanketRegex) {
-		log.Fatalf("--guardrails.max-label-cardinality has no effect: add %q to --guardrails to enable the blanket-regex guardrail",
-			prometheus.GuardrailDisallowBlanketRegex)
-	}
-
-	// Set max metric cardinality and max label cardinality if the corresponding guardrails are enabled.
-	if parsedGuardrails != nil {
-		if parsedGuardrails.ForceMaxMetricCardinality {
-			parsedGuardrails.MaxMetricCardinality = *maxMetricCardinality
-		}
-		if parsedGuardrails.DisallowBlanketRegex {
-			parsedGuardrails.MaxLabelCardinality = *maxLabelCardinality
-		}
-	}
-
 	// Determine Tempo URL only when traces toolset is enabled.
 	tempoResolvedURL := ""
 	tempoURLSource := ""
@@ -173,13 +140,15 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 
 	// Create MCP options
 	opts := mcpserver.ObsMCPOptions{
-		Toolsets:               parsedToolsets,
-		AuthMode:               parsedAuthMode,
-		MetricsBackendURL:      metricsBackendURL,
-		AlertmanagerURL:        alertmanagerURL,
-		Insecure:               *insecure,
-		Guardrails:             parsedGuardrails,
-		FullRangeQueryResponse: *fullRangeQueryResponse,
+		Toolsets: parsedToolsets,
+		Metrics: &metrics.Config{
+			AuthMode:               parsedAuthMode,
+			Insecure:               *insecure,
+			PrometheusURL:          metricsBackendURL,
+			AlertmanagerURL:        alertmanagerURL,
+			Guardrails:             *guardrails,
+			RangeQueryFullResponse: *fullRangeQueryResponse,
+		},
 		Traces: &traces.Config{
 			AuthMode: parsedAuthMode,
 			Insecure: *insecure,
@@ -197,6 +166,16 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 		Registry:               reg,
 	}
 
+	// Only pass cardinality overrides to the config when the flags are explicitly set.
+	// flag.Uint64 always returns a non-nil pointer (pointing to the default value),
+	// but the config treats non-nil as "override", so we nil them out when unset.
+	if isFlagExplicitlySet("guardrails.max-metric-cardinality") {
+		opts.Metrics.MaxMetricCardinality = maxMetricCardinality
+	}
+	if isFlagExplicitlySet("guardrails.max-label-cardinality") {
+		opts.Metrics.MaxLabelCardinality = maxLabelCardinality
+	}
+
 	if err := validateConfigs(opts); err != nil {
 		log.Fatalf("%v", err)
 	}
@@ -211,16 +190,16 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 
 	slog.Info("Starting server",
 		"toolsets", opts.Toolsets,
-		"auth_mode", opts.AuthMode,
-		"metrics_backend_url", opts.MetricsBackendURL,
+		"auth_mode", parsedAuthMode,
+		"metrics_backend_url", opts.Metrics.PrometheusURL,
 		"metrics_backend_url_source", metricsURLSource,
-		"alertmanager_url", opts.AlertmanagerURL,
+		"alertmanager_url", opts.Metrics.AlertmanagerURL,
 		"alertmanager_url_source", alertmanagerURLSource,
 		"loki_url", opts.Logs.LokiURL,
 		"loki_url_source", lokiURLSource,
 		"tempo_url", tempoResolvedURL,
 		"tempo_url_source", tempoURLSource,
-		"guardrails", opts.Guardrails,
+		"guardrails", opts.Metrics.Guardrails,
 	)
 
 	var g run.Group
@@ -301,6 +280,11 @@ func interrupt(cancel <-chan struct{}) error {
 }
 
 func validateConfigs(opts mcpserver.ObsMCPOptions) error {
+	if slices.Contains(opts.Toolsets, metrics.ToolsetName) {
+		if err := opts.Metrics.Validate(); err != nil {
+			return fmt.Errorf("invalid metrics config: %w", err)
+		}
+	}
 	if slices.Contains(opts.Toolsets, logs.ToolsetName) {
 		if err := opts.Logs.Validate(); err != nil {
 			return fmt.Errorf("invalid logs config: %w", err)

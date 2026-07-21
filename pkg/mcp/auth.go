@@ -34,7 +34,7 @@ func getPromClient(ctx context.Context, opts ObsMCPOptions) (prometheus.Loader, 
 
 	// Normal production path
 
-	apiConfig, err := createAPIConfig(ctx, opts, opts.MetricsBackendURL)
+	apiConfig, err := createAPIConfig(ctx, opts, opts.Metrics.PrometheusURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API config: %w", err)
 	}
@@ -49,7 +49,11 @@ func getPromClient(ctx context.Context, opts ObsMCPOptions) (prometheus.Loader, 
 		return nil, fmt.Errorf("failed to create Prometheus client: %w", err)
 	}
 
-	promClient.WithGuardrails(opts.Guardrails)
+	guardrails, err := opts.Metrics.GetGuardrails()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse guardrails: %w", err)
+	}
+	promClient.WithGuardrails(guardrails)
 
 	return promClient, nil
 }
@@ -62,13 +66,10 @@ func getAlertmanagerClient(ctx context.Context, opts ObsMCPOptions) (alertmanage
 		}
 	}
 
-	apiConfig, err := createAPIConfig(ctx, opts, opts.AlertmanagerURL)
+	apiConfig, err := createAPIConfig(ctx, opts, opts.Metrics.AlertmanagerURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API config: %w", err)
 	}
-
-	// Update the address to use AlertmanagerURL instead of MetricsBackendURL
-	apiConfig.Address = opts.AlertmanagerURL
 
 	// Instrument the RoundTripper for Alertmanager client
 	if opts.clientMetrics != nil && apiConfig.RoundTripper != nil {
@@ -90,7 +91,7 @@ func createAPIConfig(ctx context.Context, opts ObsMCPOptions, url string) (proma
 	}
 
 	tls := strings.HasPrefix(url, "https://")
-	rt, err := auth.BuildRoundTripper(ctx, restConfig, opts.AuthMode, tls, opts.Insecure)
+	rt, err := auth.BuildRoundTripper(ctx, restConfig, opts.Metrics.GetAuthMode(), tls, opts.Metrics.Insecure)
 	if err != nil {
 		return promapi.Config{}, fmt.Errorf("failed to create round tripper: %w", err)
 	}
