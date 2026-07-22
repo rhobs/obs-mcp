@@ -15,9 +15,10 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	prom "github.com/prometheus/client_golang/prometheus"
 
+	"k8s.io/client-go/tools/clientcmd"
+
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/instrumentation"
-	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/logs"
 	tools "github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
@@ -48,6 +49,7 @@ type ObsMCPOptions struct {
 	Traces                 *traces.Config
 	Otelcol                *otelcol.Config
 	Logs                   *logs.Config
+	KubernetesClientConfig clientcmd.ClientConfig
 	Registry               prom.Registerer
 	clientMetrics          *instrumentation.ClientMetrics
 	toolMetrics            *instrumentation.ToolMetrics
@@ -115,8 +117,7 @@ func needsKubernetes(toolsets []Toolset) bool {
 func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	var mgr *kubernetes.Manager
 	if needsKubernetes(opts.Toolsets) {
-		clientCmdConfig := k8s.GetClientCmdConfig()
-		restConfig, err := clientCmdConfig.ClientConfig()
+		restConfig, err := opts.KubernetesClientConfig.ClientConfig()
 		if err != nil {
 			return err
 		}
@@ -124,7 +125,7 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		cfg := config.BaseDefault()
 		// In header auth mode, require the caller's OAuth token instead of falling back to the kubeconfig token.
 		cfg.RequireOAuth = opts.AuthMode == auth.AuthModeHeader
-		mgr, mgrErr = kubernetes.NewManager(context.Background(), cfg, restConfig, clientCmdConfig)
+		mgr, mgrErr = kubernetes.NewManager(context.Background(), cfg, restConfig, opts.KubernetesClientConfig)
 		if mgrErr != nil {
 			return mgrErr
 		}
