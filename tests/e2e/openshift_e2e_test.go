@@ -16,7 +16,7 @@ import (
 // Route discovery tests below exercise pkg/k8s directly using the kubeconfig
 // available to the test runner. They validate the auto-discovery path used when
 // obs-mcp runs locally with --auth-mode kubeconfig. The deployed server in CI
-// uses --auth-mode serviceaccount with URLs hardcoded in the configmap instead.
+// uses --auth-mode kubeconfig with URLs hardcoded in the configmap instead.
 
 // TestRouteDiscovery_ThanosQuerier verifies that the thanos-querier route in
 // openshift-monitoring can be discovered and returns a valid https:// URL.

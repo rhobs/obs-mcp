@@ -74,7 +74,7 @@ func TestParseMetricsBackend(t *testing.T) {
 }
 
 // TestDetermineMetricsBackendURL_RequiresURLForNonKubeconfigModes verifies that
-// serviceaccount and header modes return an error when PROMETHEUS_URL is not set,
+// header mode returns an error when PROMETHEUS_URL is not set,
 // rather than silently falling back to localhost.
 func TestDetermineMetricsBackendURL_RequiresURLForNonKubeconfigModes(t *testing.T) {
 	t.Setenv("PROMETHEUS_URL", "")
@@ -84,16 +84,6 @@ func TestDetermineMetricsBackendURL_RequiresURLForNonKubeconfigModes(t *testing.
 		authMode auth.AuthMode
 		backend  k8s.MetricsBackend
 	}{
-		{
-			name:     "serviceaccount mode with thanos backend",
-			authMode: auth.AuthModeServiceAccount,
-			backend:  k8s.MetricsBackendThanos,
-		},
-		{
-			name:     "serviceaccount mode with prometheus backend",
-			authMode: auth.AuthModeServiceAccount,
-			backend:  k8s.MetricsBackendPrometheus,
-		},
 		{
 			name:     "header mode with thanos backend",
 			authMode: auth.AuthModeHeader,
@@ -125,7 +115,6 @@ func TestDetermineMetricsBackendURL_EnvVarOverridesAll(t *testing.T) {
 
 	authModes := []auth.AuthMode{
 		auth.AuthModeKubeConfig,
-		auth.AuthModeServiceAccount,
 		auth.AuthModeHeader,
 	}
 

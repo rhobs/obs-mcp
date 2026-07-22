@@ -4,7 +4,7 @@ metadata:
   name: obs-mcp-config
   namespace: obs-mcp
 data:
-  auth-mode: "serviceaccount"
+  auth-mode: "kubeconfig"
   toolsets: "observability/metrics,observability/traces,observability/otelcol"
   # OpenShift monitoring Prometheus URL (port 9091 for OAuth proxy)
   prometheus-url: "https://prometheus-k8s.openshift-monitoring.svc:9091"

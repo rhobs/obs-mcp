@@ -43,24 +43,15 @@ The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Promethe
 
 | Mode             | Token Source                                                                 | Use Case                                                  |
 | ---------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `kubeconfig`     | Bearer token from `~/.kube/config`                                           | Local development, accessing cluster via routes           |
-| `serviceaccount` | Pod's mounted token at `/var/run/secrets/kubernetes.io/serviceaccount/token` | In-cluster deployment on OpenShift/Kubernetes             |
+| `kubeconfig`     | Bearer token from `~/.kube/config` or mounted service account token          | Local development or in-cluster deployment                |
 | `header`         | Forwarded from incoming MCP request's `Authorization` header                 | Pass-through auth or when Prometheus doesn't require auth |
 
 ### `kubeconfig` mode
 
-- Extracts the bearer token from your local kubeconfig
+- Extracts the bearer token from your local kubeconfig or from the mounted service account token file
 - **Auto-discovers** Prometheus/Thanos routes in OpenShift (only mode with auto-discovery)
-- Requires token-based auth (`oc whoami -t` must return a token)
-- Best for: **Local development** when logged into a cluster
-
-### `serviceaccount` mode
-
-- Reads the service account token mounted inside the pod
-- Requires explicit `PROMETHEUS_URL` (no auto-discovery)
-- If `observability/logs` toolset is enabled, either set `LOKI_URL`/`--loki-url` or use LokiStack discovery parameters (`lokiNamespace`, `lokiName`)
-- The ServiceAccount must have RBAC permissions to query the metrics endpoint
-- Best for: **In-cluster deployment** on OpenShift with RBAC-protected Thanos/Prometheus
+- Requires token-based auth (`oc whoami -t` must return a token when running locally)
+- Best for: **Local development** when logged into a cluster, or **in-cluster deployment** on OpenShift with RBAC-protected Thanos/Prometheus
 
 ### `header` mode
 
@@ -149,9 +140,9 @@ When deploying in-cluster, you must configure:
 1. **`PROMETHEUS_URL`**: Set the environment variable to your Prometheus/Thanos endpoint
 2. **`LOKI_URL`**: Optional when using the `observability/logs` toolset (or pass `--loki-url`). If omitted, use LokiStack discovery (`loki_list_instances` + `lokiNamespace`/`lokiName` tool arguments)
 3. **`--auth-mode`**: Choose based on your backend authentication requirements:
-   - `serviceaccount` if your Prometheus requires RBAC/token auth
+   - `kubeconfig` if your Prometheus requires RBAC/token auth
    - `header` if your Prometheus doesn't require authentication
-4. **ServiceAccount RBAC**: If using `serviceaccount` mode, ensure the ServiceAccount has permissions to query your metrics/logs endpoints
+4. **ServiceAccount RBAC**: If using `kubeconfig` mode in-cluster, ensure the ServiceAccount has permissions to query your metrics/logs endpoints
 
 ### Configuring the Prometheus URL
 
@@ -159,11 +150,11 @@ The metrics backend URL is determined in the following order:
 
 1. `PROMETHEUS_URL` environment variable (if set, always used regardless of auth mode)
 2. Route discovery via the OpenShift Route API (only in `kubeconfig` mode, respects `--metrics-backend`)
-3. Fatal error — `serviceaccount` and `header` modes require `PROMETHEUS_URL` to be set explicitly
+3. Fatal error — `header` mode requires `PROMETHEUS_URL` to be set explicitly
 
 > [!NOTE]
 >
-> Auto-discovery only works in `kubeconfig` mode. For `serviceaccount` and `header` modes, the server
+> Auto-discovery only works in `kubeconfig` mode. For `header` mode, the server
 > will fail at startup if `PROMETHEUS_URL` is not set. The same applies to `ALERTMANAGER_URL` when alert tools are used.
 
 ### Guardrails and Thanos Compatibility
