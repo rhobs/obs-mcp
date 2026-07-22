@@ -4,6 +4,7 @@ import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanagement"
 	"github.com/rhobs/obs-mcp/pkg/logs"
 	tools "github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
@@ -54,6 +55,7 @@ func GroupedTools() []ToolGroup {
 		{Name: "Tempo (Distributed Tracing)", Icon: "🔍", Tools: toolsetToMCPTools(&traces.Toolset{})},
 		{Name: "Loki (Log Management)", Icon: "📋", Tools: toolsetToMCPTools(&logs.Toolset{})},
 		{Name: "OpenTelemetry Collector", Icon: "⚙️", Tools: toolsetToMCPTools(&otelcol.Toolset{})},
+		{Name: "Alert Management", Icon: "🛡️", Tools: toolsetToMCPTools(&alertmanagement.Toolset{})},
 	}
 }
 
