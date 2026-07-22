@@ -195,7 +195,7 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 			UseRoute: *lokiUseRoute,
 		},
 		KubernetesClientConfig: k8s.GetClientCmdConfig(),
-		Registry:        reg,
+		Registry:               reg,
 	}
 
 	// Create MCP server
