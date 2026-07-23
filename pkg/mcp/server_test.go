@@ -103,7 +103,7 @@ func TestHeaderAuthRejectsUnauthenticatedToolCall(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mcpServer, err := NewMCPServer(ObsMCPOptions{
-				Toolsets:               []Toolset{ToolsetOtelcol},
+				Toolsets:               []string{otelcol.ToolsetName},
 				AuthMode:               tt.authMode,
 				Otelcol:                otelcol.NewDefaultConfig(),
 				KubernetesClientConfig: kubeClientConfig,

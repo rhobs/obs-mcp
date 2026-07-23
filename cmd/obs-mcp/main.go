@@ -123,7 +123,7 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 	// Determine Loki URL only when logs toolset is enabled.
 	lokiResolvedURL := ""
 	lokiURLSource := ""
-	if slices.Contains(parsedToolsets, mcpserver.ToolsetLogs) {
+	if slices.Contains(parsedToolsets, logs.ToolsetName) {
 		lokiResolvedURL, lokiURLSource, err = determineLokiURL(*lokiURL)
 		if err != nil {
 			log.Fatalf("%v", err)
@@ -167,7 +167,7 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 	// Determine Tempo URL only when traces toolset is enabled.
 	tempoResolvedURL := ""
 	tempoURLSource := ""
-	if slices.Contains(parsedToolsets, mcpserver.ToolsetTraces) {
+	if slices.Contains(parsedToolsets, traces.ToolsetName) {
 		tempoResolvedURL, tempoURLSource = determineTempoURL(*tempoURL)
 	}
 
@@ -195,6 +195,10 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 		},
 		KubernetesClientConfig: k8s.GetClientCmdConfig(),
 		Registry:               reg,
+	}
+
+	if err := validateConfigs(opts); err != nil {
+		log.Fatalf("%v", err)
 	}
 
 	// Create MCP server
@@ -296,18 +300,38 @@ func interrupt(cancel <-chan struct{}) error {
 	}
 }
 
-func parseToolsets(toolsets string) []mcpserver.Toolset {
+func validateConfigs(opts mcpserver.ObsMCPOptions) error {
+	if slices.Contains(opts.Toolsets, logs.ToolsetName) {
+		if err := opts.Logs.Validate(); err != nil {
+			return fmt.Errorf("invalid logs config: %w", err)
+		}
+	}
+	if slices.Contains(opts.Toolsets, traces.ToolsetName) {
+		if err := opts.Traces.Validate(); err != nil {
+			return fmt.Errorf("invalid traces config: %w", err)
+		}
+	}
+	if slices.Contains(opts.Toolsets, otelcol.ToolsetName) {
+		if err := opts.Otelcol.Validate(); err != nil {
+			return fmt.Errorf("invalid otelcol config: %w", err)
+		}
+	}
+	return nil
+}
+
+func parseToolsets(toolsets string) []string {
+	if toolsets == "" {
+		return []string{}
+	}
 	parts := strings.Split(toolsets, ",")
-	result := make([]mcpserver.Toolset, len(parts))
 	for i, p := range parts {
 		p = strings.TrimSpace(p)
 		if !slices.Contains(mcpserver.AllToolsets, p) {
 			log.Fatalf("Unknown toolset %q, must be one of: %s", p, strings.Join(mcpserver.AllToolsets, ", "))
 		}
-
-		result[i] = mcpserver.Toolset(p)
+		parts[i] = p
 	}
-	return result
+	return parts
 }
 
 func parseMetricsBackend(backend string) (k8s.MetricsBackend, error) {

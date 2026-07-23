@@ -2,7 +2,7 @@ package mcp
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -26,20 +26,13 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/traces"
 )
 
-type Toolset string
+const ToolsetMetrics = "observability/metrics"
 
-const (
-	ToolsetMetrics Toolset = "observability/metrics"
-	ToolsetTraces  Toolset = "observability/traces"
-	ToolsetLogs    Toolset = "observability/logs"
-	ToolsetOtelcol Toolset = "observability/otelcol"
-)
-
-var AllToolsets = []string{string(ToolsetMetrics), string(ToolsetTraces), string(ToolsetLogs), string(ToolsetOtelcol)}
+var AllToolsets = []string{ToolsetMetrics, logs.ToolsetName, traces.ToolsetName, otelcol.ToolsetName}
 
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
-	Toolsets               []Toolset
+	Toolsets               []string
 	AuthMode               auth.AuthMode
 	MetricsBackendURL      string
 	AlertmanagerURL        string
@@ -82,13 +75,13 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 	if slices.Contains(opts.Toolsets, ToolsetMetrics) {
 		instructions = append(instructions, tools.ServerPrompt)
 	}
-	if slices.Contains(opts.Toolsets, ToolsetTraces) {
+	if slices.Contains(opts.Toolsets, traces.ToolsetName) {
 		instructions = append(instructions, traces.ServerPrompt)
 	}
-	if slices.Contains(opts.Toolsets, ToolsetLogs) {
+	if slices.Contains(opts.Toolsets, logs.ToolsetName) {
 		instructions = append(instructions, logs.ServerPrompt)
 	}
-	if slices.Contains(opts.Toolsets, ToolsetOtelcol) {
+	if slices.Contains(opts.Toolsets, otelcol.ToolsetName) {
 		instructions = append(instructions, otelcol.ServerPrompt)
 	}
 
@@ -105,9 +98,9 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 	return mcpServer, nil
 }
 
-func needsKubernetes(toolsets []Toolset) bool {
+func needsKubernetes(toolsets []string) bool {
 	for _, ts := range toolsets {
-		if ts == ToolsetTraces || ts == ToolsetLogs || ts == ToolsetOtelcol {
+		if ts == traces.ToolsetName || ts == logs.ToolsetName || ts == otelcol.ToolsetName {
 			return true
 		}
 	}
@@ -152,11 +145,7 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 			instrumentation.ToolHandler(tools.GetSilences.Name, opts.toolMetrics, GetSilencesHandler(opts)))
 	}
 
-	if slices.Contains(opts.Toolsets, ToolsetTraces) {
-		if opts.Traces == nil {
-			return errors.New("configuration for traces toolset is missing")
-		}
-
+	if slices.Contains(opts.Toolsets, traces.ToolsetName) {
 		opts.Traces.ClientMetrics = opts.clientMetrics
 		err := addToolset(mcpServer, mgr, &traces.Toolset{}, opts.Traces, opts.toolMetrics)
 		if err != nil {
@@ -164,20 +153,14 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 		}
 	}
 
-	if slices.Contains(opts.Toolsets, ToolsetOtelcol) {
-		if opts.Otelcol == nil {
-			return errors.New("configuration for otelcol toolset is missing")
-		}
+	if slices.Contains(opts.Toolsets, otelcol.ToolsetName) {
 		err := addToolset(mcpServer, mgr, &otelcol.Toolset{}, opts.Otelcol, opts.toolMetrics)
 		if err != nil {
 			return err
 		}
 	}
 
-	if slices.Contains(opts.Toolsets, ToolsetLogs) {
-		if opts.Logs == nil {
-			return errors.New("configuration for logs toolset is missing")
-		}
+	if slices.Contains(opts.Toolsets, logs.ToolsetName) {
 		opts.Logs.ClientMetrics = opts.clientMetrics
 		err := addToolset(mcpServer, mgr, &logs.Toolset{}, opts.Logs, opts.toolMetrics)
 		if err != nil {
@@ -188,6 +171,10 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 }
 
 func addToolset(mcpServer *mcp.Server, mgr *kubernetes.Manager, toolset api.Toolset, toolsetConfig api.ExtendedConfig, toolMetrics *instrumentation.ToolMetrics) error {
+	if toolsetConfig == nil {
+		return fmt.Errorf("configuration for %s toolset is missing", toolset.GetName())
+	}
+
 	baseConfig := &mcpBaseConfig{toolsetConfig: toolsetConfig}
 	serverTools := toolset.GetTools(nil)
 	for i := range serverTools {
