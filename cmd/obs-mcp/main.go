@@ -35,7 +35,6 @@ import (
 const (
 	defaultPrometheusURL   = "http://localhost:9090"
 	defaultAlertmanagerURL = "http://localhost:9093"
-	defaultLokiURL         = "http://localhost:3100"
 )
 
 func main() { //nolint:gocyclo // main wires up flags, config, and run group
@@ -125,7 +124,7 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 	lokiResolvedURL := ""
 	lokiURLSource := ""
 	if slices.Contains(parsedToolsets, mcpserver.ToolsetLogs) {
-		lokiResolvedURL, lokiURLSource, err = determineLokiURL(parsedAuthMode, *lokiURL, *lokiUseRoute)
+		lokiResolvedURL, lokiURLSource, err = determineLokiURL(*lokiURL)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
@@ -382,16 +381,12 @@ func determineTempoURL(flagURL string) (url, source string) {
 	return "", "unset"
 }
 
-func determineLokiURL(authMode auth.AuthMode, flagURL string, useRoute bool) (url, source string, err error) {
+func determineLokiURL(flagURL string) (url, source string, err error) {
 	if flagURL != "" {
 		return flagURL, "--loki-url flag", nil
 	}
 	if lokiURL := os.Getenv("LOKI_URL"); lokiURL != "" {
 		return lokiURL, "LOKI_URL env var", nil
-	}
-	if authMode == auth.AuthModeKubeConfig && !useRoute {
-		slog.Warn("No Loki URL configured, falling back to default", "default", defaultLokiURL)
-		return defaultLokiURL, "default", nil
 	}
 	slog.Warn("No Loki URL configured; Loki tools require lokiNamespace+lokiName discovery parameters or explicit Loki URL")
 	return "", "unset", nil
