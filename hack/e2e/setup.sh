@@ -568,7 +568,7 @@ phase_deploy_oms() {
     phase "deploy-oms"
 
     step "Building openshift-mcp-server container image"
-    _run ${CONTAINER_CLI} build --load \
+    _run "${CONTAINER_CLI}" build --load \
         -f "${ROOT_DIR}/Containerfile.openshift-mcp-server" \
         -t "${OPENSHIFT_MCP_SERVER_IMAGE_REF}" "${ROOT_DIR}"
 
