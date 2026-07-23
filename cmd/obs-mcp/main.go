@@ -35,7 +35,6 @@ import (
 const (
 	defaultPrometheusURL   = "http://localhost:9090"
 	defaultAlertmanagerURL = "http://localhost:9093"
-	defaultLokiURL         = "http://localhost:3100"
 )
 
 func main() { //nolint:gocyclo // main wires up flags, config, and run group
@@ -43,7 +42,7 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 	var listen = flag.String("listen", "", "Listen address for HTTP mode (e.g., :9100, 127.0.0.1:8080)")
 	var listenInternal = flag.String("listen-internal", "", "Listen address for internal health server (metrics, pprof, health e.g., :8081, 127.0.0.1:8081). Off by default.")
 	var toolsets = flag.String("toolsets", string(mcpserver.ToolsetMetrics), fmt.Sprintf("Comma-separated list of enabled toolsets: %s", strings.Join(mcpserver.AllToolsets, ", ")))
-	var authMode = flag.String("auth-mode", "", "Authentication mode: kubeconfig, serviceaccount, or header")
+	var authMode = flag.String("auth-mode", "", "Authentication mode: kubeconfig or header")
 	var insecure = flag.Bool("insecure", false, "Skip TLS certificate verification")
 	var logLevel = flag.String("log-level", "info", "Log level: debug, info, warn, error")
 	var metricsBackend = flag.String("metrics-backend", "thanos", "Metrics backend: thanos (default, with prometheus fallback) or prometheus (strict, no fallback)")
@@ -125,7 +124,7 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 	lokiResolvedURL := ""
 	lokiURLSource := ""
 	if slices.Contains(parsedToolsets, logs.ToolsetName) {
-		lokiResolvedURL, lokiURLSource, err = determineLokiURL(parsedAuthMode, *lokiURL, *lokiUseRoute)
+		lokiResolvedURL, lokiURLSource, err = determineLokiURL(*lokiURL)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
@@ -194,7 +193,8 @@ func main() { //nolint:gocyclo // main wires up flags, config, and run group
 			LokiURL:  lokiResolvedURL,
 			UseRoute: *lokiUseRoute,
 		},
-		Registry: reg,
+		KubernetesClientConfig: k8s.GetClientCmdConfig(),
+		Registry:               reg,
 	}
 
 	if err := validateConfigs(opts); err != nil {
@@ -362,7 +362,7 @@ func determineMetricsBackendURL(authMode auth.AuthMode, backend k8s.MetricsBacke
 		return url, "route discovery", nil
 	}
 
-	// serviceaccount and header modes are designed for deployments where the URL
+	// header mode is designed for deployments where the URL
 	// is always known ahead of time. Falling back to localhost is never correct.
 	return "", "", fmt.Errorf(
 		"PROMETHEUS_URL must be set when using --auth-mode %s\n"+
@@ -406,16 +406,12 @@ func determineTempoURL(flagURL string) (url, source string) {
 	return "", "unset"
 }
 
-func determineLokiURL(authMode auth.AuthMode, flagURL string, useRoute bool) (url, source string, err error) {
+func determineLokiURL(flagURL string) (url, source string, err error) {
 	if flagURL != "" {
 		return flagURL, "--loki-url flag", nil
 	}
 	if lokiURL := os.Getenv("LOKI_URL"); lokiURL != "" {
 		return lokiURL, "LOKI_URL env var", nil
-	}
-	if authMode == auth.AuthModeKubeConfig && !useRoute {
-		slog.Warn("No Loki URL configured, falling back to default", "default", defaultLokiURL)
-		return defaultLokiURL, "default", nil
 	}
 	slog.Warn("No Loki URL configured; Loki tools require lokiNamespace+lokiName discovery parameters or explicit Loki URL")
 	return "", "unset", nil

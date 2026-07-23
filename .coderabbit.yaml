@@ -4,7 +4,7 @@
 ---
 inheritance: true
 reviews:
-  high_level_summary: false
+  high_level_summary: true
   high_level_summary_in_walkthrough: true
   sequence_diagrams: false
   collapse_walkthrough: true
