@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/instrumentation"
+	"github.com/rhobs/obs-mcp/pkg/korrel8r"
 	"github.com/rhobs/obs-mcp/pkg/logs"
 	tools "github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
@@ -28,7 +30,13 @@ import (
 
 const ToolsetMetrics = "observability/metrics"
 
-var AllToolsets = []string{ToolsetMetrics, logs.ToolsetName, traces.ToolsetName, otelcol.ToolsetName}
+var AllToolsets = []string{
+	ToolsetMetrics,
+	logs.ToolsetName,
+	traces.ToolsetName,
+	otelcol.ToolsetName,
+	korrel8r.ToolsetName,
+}
 
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
@@ -46,6 +54,7 @@ type ObsMCPOptions struct {
 	Registry               prom.Registerer
 	clientMetrics          *instrumentation.ClientMetrics
 	toolMetrics            *instrumentation.ToolMetrics
+	Korrel8r               *korrel8r.Config
 }
 
 const (
@@ -83,6 +92,9 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 	}
 	if slices.Contains(opts.Toolsets, otelcol.ToolsetName) {
 		instructions = append(instructions, otelcol.ServerPrompt)
+	}
+	if slices.Contains(opts.Toolsets, korrel8r.ToolsetName) {
+		instructions = append(instructions, korrel8r.Instructions)
 	}
 
 	serverOpts := &mcp.ServerOptions{
@@ -167,6 +179,18 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 			return err
 		}
 	}
+
+	if slices.Contains(opts.Toolsets, korrel8r.ToolsetName) {
+		if opts.Korrel8r == nil {
+			return errors.New("configuration for korrel8r toolset is missing")
+		}
+		client, err := korrel8r.NewClient(opts.Korrel8r)
+		if err != nil {
+			return fmt.Errorf("failed to create korrel8r client: %w", err)
+		}
+		korrel8r.AddTools(mcpServer, client)
+	}
+
 	return nil
 }
 

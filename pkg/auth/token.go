@@ -19,7 +19,7 @@ func readToken(ctx context.Context, restConfig *rest.Config, authMode AuthMode) 
 	case AuthModeHeader:
 		// Read token from context.
 		// The caller is responsible for putting the token from the request header into the context.
-		token := readTokenFromContext(ctx)
+		token := ReadTokenFromContext(ctx)
 		if token == "" {
 			slog.Warn("no bearer token found in request context authorization header")
 		}
@@ -51,8 +51,8 @@ func readTokenFromRestConfig(restConfig *rest.Config) (string, error) {
 	return "", nil
 }
 
-// readTokenFromContext reads a token from the context and strips the Bearer prefix
-func readTokenFromContext(ctx context.Context) string {
+// ReadTokenFromContext reads a token from the context and strips the Bearer prefix
+func ReadTokenFromContext(ctx context.Context) string {
 	authHeader, ok := ctx.Value(kubernetes.OAuthAuthorizationHeader).(string)
 	if !ok {
 		return ""

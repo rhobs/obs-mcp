@@ -79,7 +79,7 @@ func createRoundTripperWithToken(restConfig *rest.Config, token string, useTLS, 
 			InsecureSkipVerify: true,
 		}
 	} else {
-		certs, err := createCertPoolFromRESTConfig(restConfig)
+		certs, err := CertPoolFromRESTConfig(restConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -97,8 +97,8 @@ func createRoundTripperWithToken(restConfig *rest.Config, token string, useTLS, 
 	return rt, nil
 }
 
-// createCertPoolFromRESTConfig creates a cert pool from Kubernetes REST config.
-func createCertPoolFromRESTConfig(restConfig *rest.Config) (*x509.CertPool, error) {
+// CertPoolFromRESTConfig creates a cert pool from Kubernetes REST config.
+func CertPoolFromRESTConfig(restConfig *rest.Config) (*x509.CertPool, error) {
 	var certPool *x509.CertPool
 
 	// Start with system cert pool if available

@@ -31,6 +31,14 @@ This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager,
 | [`otelcol_get_component_schema`](#otelcol_get_component_schema) | ⚙️ OpenTelemetry Collector | Get the JSON schema for an OpenTelemetry Collector component's configuration options. |
 | [`otelcol_validate_config`](#otelcol_validate_config) | ⚙️ OpenTelemetry Collector | Validate an OpenTelemetry Collector component configuration against its JSON schema. |
 | [`otelcol_get_versions`](#otelcol_get_versions) | ⚙️ OpenTelemetry Collector | List available OpenTelemetry Collector versions and identify the latest. |
+| [`list_domains`](#list_domains) | 🔗 Korrel8r (Signal Correlation) | Returns a list of Korrel8r domains with descriptions. |
+| [`list_domain_classes`](#list_domain_classes) | 🔗 Korrel8r (Signal Correlation) | List the classes in a domain. |
+| [`help`](#help) | 🔗 Korrel8r (Signal Correlation) | Get help about korrel8r domains, classes, and query syntax. |
+| [`create_neighbors_graph`](#create_neighbors_graph) | 🔗 Korrel8r (Signal Correlation) | Search for correlated observability signals and resources starting from known objects. |
+| [`create_goals_graph`](#create_goals_graph) | 🔗 Korrel8r (Signal Correlation) | Search for correlations between start objects and specific goal classes. |
+| [`get_objects`](#get_objects) | 🔗 Korrel8r (Signal Correlation) | Execute a query and return matching objects as complete JSON. |
+| [`get_console`](#get_console) | 🔗 Korrel8r (Signal Correlation) | If the user refers to a console, use this tool to find out what the user is looking at. |
+| [`show_in_console`](#show_in_console) | 🔗 Korrel8r (Signal Correlation) | If the user refers to a console, use this tool to update the console to display new data. |
 
 > [!NOTE]
 > **Types in the tables** follow JSON Schema: `object` is a JSON object (string keys with JSON values); `object[]` is an array of those objects. Scalar types use their usual names (`string`, `number`, `boolean`, and so on). When a field has no explicit schema type (for example a Go `any` payload), this document shows `object` as shorthand for "structured JSON," not a guarantee that only objects are returned at runtime.
@@ -64,6 +72,15 @@ This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager,
   - [`otelcol_get_component_schema`](#otelcol_get_component_schema)
   - [`otelcol_validate_config`](#otelcol_validate_config)
   - [`otelcol_get_versions`](#otelcol_get_versions)
+- **🔗 [Korrel8r (Signal Correlation)](#korrel8r-signal-correlation)** (8 tools)
+  - [`list_domains`](#list_domains)
+  - [`list_domain_classes`](#list_domain_classes)
+  - [`help`](#help)
+  - [`create_neighbors_graph`](#create_neighbors_graph)
+  - [`create_goals_graph`](#create_goals_graph)
+  - [`get_objects`](#get_objects)
+  - [`get_console`](#get_console)
+  - [`show_in_console`](#show_in_console)
 
 ---
 
@@ -873,6 +890,201 @@ _No parameters._
 | :--- | :--- | :--- |
 | `latest_version` | `string` | The latest available version |
 | `versions` | `string[]` | List of available OpenTelemetry Collector versions |
+
+</details>
+
+---
+
+<a id="korrel8r-signal-correlation"></a>
+
+## 🔗 Korrel8r (Signal Correlation)
+
+### `list_domains`
+
+> Returns a list of Korrel8r domains with descriptions.
+> A domain contains observable signals or resources that use the same query syntax and data store.
+> Use this first to discover available domains, then use list_domain_classes to explore a domain.
+
+_No parameters._
+
+---
+
+### `list_domain_classes`
+
+> List the classes in a domain.
+> A class represents objects with a specific structure within a domain.
+> Some domains have a single class (e.g. metric:metric), others like k8s have many classes.
+> Use 'help' to get more details about a domain and its classes and queries.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- Class names are used in queries and as goal parameters. The full class name is "domain:class".
+
+</details>
+
+**Parameters:**
+
+**Required:**
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `domain` | `string` | Name of the domain to list |
+
+---
+
+### `help`
+
+> Get help about korrel8r domains, classes, and query syntax.
+> Omitting the domain parameter returns help about all domains.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- Class strings have the form "domain:class", where the legal values of "class" depend on the domain.
+- Query strings have the form "domain:class:selector". The "domain:class" part indicates the class of data returned by the query. The "selector" part is a domain-specific query string.
+- Use this tool to learn how to construct valid class names and queries for a domain before using tools that have class or query parameters. For example: create_neighbors_graph, create_goals_graph, get_console or show_in_console.
+
+</details>
+
+**Parameters:**
+
+<details>
+<summary><strong>Optional Parameters</strong></summary>
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `domain` | `string` | If specified, get help for this domain only. |
+
+</details>
+
+---
+
+### `create_neighbors_graph`
+
+> Search for correlated observability signals and resources starting from known objects.
+> Follows correlation rules outward from the start objects up to the specified depth.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- Returns a graph where nodes represent classes (each with queries and result counts) and edges represent correlation rules that were applied.
+- Use this for open-ended exploration: "what is related to this pod?" or "what resources are related to these traces?"
+- The start parameter requires queries in the format "domain:class:selector". Use 'help' to learn the class and query syntax for each domain. Depth controls how many correlation steps to follow (1 = direct correlations only). Higher depths cast a wider net: depth 1 finds directly correlated objects, depth 2-3 typically reaches related signals like logs, metrics, and alerts.
+
+</details>
+
+**Parameters:**
+
+**Required:**
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `depth` | `integer` | Maximum number of correlation steps to follow from the start. Depth 1 returns direct correlations only. |
+| `start` | `object` | Starting point for the search. |
+
+---
+
+### `create_goals_graph`
+
+> Search for correlations between start objects and specific goal classes.
+> Only follows paths from the start objects that lead to one of the specified goal classes.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- Returns a graph where nodes represent classes (each with queries and result counts) and edges represent correlation rules that were applied.
+- Use this for targeted investigation: "find logs related to this pod" or "what alerts fired for this deployment?"
+- The start parameter uses queries in "domain:class:selector" format. Use 'help' to learn the class and query syntax for each domain. Goals are full class names, e.g. ["log:application"], ["alert:alert", "metric:metric"].
+- Example: to find logs for a crashing pod, use: start: {"queries": ["k8s:Pod:{\"namespace\":\"myapp\",\"name\":\"web-0\"}"]} goals: ["log:application"]
+
+</details>
+
+**Parameters:**
+
+**Required:**
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `goals` | `string[]` | Goal classes in DOMAIN:CLASS format, e.g. log:application, alert:alert. |
+| `start` | `object` | Starting point for the search. |
+
+---
+
+### `get_objects`
+
+> Execute a query and return matching objects as complete JSON.
+> The query must be in the format "domain:class:selector".
+> Use 'help' to learn the query syntax for each domain.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- The returned objects are self-contained: all relevant labels and fields are included in each object. This differs from direct back-end APIs (e.g. Loki, Tempo) which use a compact "stream" format where common labels are sent once per stream. The complete format is more verbose but each object can be processed independently.
+- Use the optional constraint parameter to control result size: - limit: maximum number of objects to return. - start/end: time range (RFC 3339) to restrict results by timestamp. Use constraints to avoid excessively large results, especially for high-volume domains like logs, metrics, and traces.
+
+</details>
+
+**Parameters:**
+
+**Required:**
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `query` | `string` | Query string in the form 'domain:class:selector'. Use 'help' to learn query syntax for each domain. |
+
+<details>
+<summary><strong>Optional Parameters</strong></summary>
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `constraint` | `object` | Optional constraint to limit results by time range and/or count. |
+
+</details>
+
+---
+
+### `get_console`
+
+> If the user refers to a console, use this tool to find out what the user is looking at.
+> The result includes:
+> - view: a korrel8r query selecting data displayed in the main console view.
+>   Not set if the console is not displaying data.
+> - search: parameters for the correlation search displayed in the troubleshooting panel.
+>   Not set if the troubleshooting panel is not open.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- Use view and search to understand what the user is looking at, and include it as context for further planning or actions.
+
+</details>
+
+_No parameters._
+
+---
+
+### `show_in_console`
+
+> If the user refers to a console, use this tool to update the console to display new data.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- - view: setting this field to a query updates the main view of the console to display the results of the query. - search: setting this field displays a correlation graph in the console troubleshooting panel.
+- Use 'help' to learn the class and query syntax for each domain.
+
+</details>
+
+**Parameters:**
+
+<details>
+<summary><strong>Optional Parameters</strong></summary>
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `search` | `object` | The troubleshooting panel displays the results of this correlation search. |
+| `view` | `string` | Query for the main console view, in DOMAIN:CLASS:SELECTOR format. |
 
 </details>
 
