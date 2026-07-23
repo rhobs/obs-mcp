@@ -33,6 +33,18 @@ jobs:
             - name: Run E2E tests
               run: make test-e2e
 
+            - name: Verify usage with openshift-mcp-server
+              run: |
+                ./hack/e2e/setup.sh deploy-oms --profile kind
+                kubectl port-forward -n openshift-mcp-server svc/openshift-mcp-server 9100:9100 &
+                sleep 3
+                TOOLS=$(npx @modelcontextprotocol/inspector --cli http://localhost:9100/mcp --method tools/list)
+                echo "$TOOLS"
+                echo "$TOOLS" | grep -q 'list_metrics' || (echo "ERROR: no list_metrics tool found"; exit 1)
+                echo "$TOOLS" | grep -q 'tempo_' || (echo "ERROR: no tempo_ tools found"; exit 1)
+                echo "$TOOLS" | grep -q 'loki_' || (echo "ERROR: no loki_ tools found"; exit 1)
+                echo "$TOOLS" | grep -q 'otelcol_' || (echo "ERROR: no otelcol_ tools found"; exit 1)
+
             - name: Collect diagnostics on failure
               if: ${{ failure() }}
               run: |
@@ -40,6 +52,8 @@ jobs:
                   kubectl get pods -A
                   echo "=== obs-mcp logs ==="
                   kubectl logs -n obs-mcp -l app.kubernetes.io/name=obs-mcp --tail=100 || true
+                  echo "=== openshift-mcp-server logs ==="
+                  kubectl logs -n openshift-mcp-server -l app.kubernetes.io/name=openshift-mcp-server --tail=100 || true
                   echo "=== Prometheus logs ==="
                   kubectl logs -n monitoring -l app.kubernetes.io/name=prometheus --tail=50 || true
                   echo "=== Events ==="

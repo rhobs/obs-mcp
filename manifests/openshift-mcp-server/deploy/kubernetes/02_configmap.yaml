@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openshift-mcp-server
+data:
+  config.toml: |
+    toolsets = ["observability/metrics", "observability/logs", "observability/traces", "observability/otelcol"]
+    experimental_enable_target_compatibility_tool_filters = true
+
+    [toolset_configs."observability/metrics"]
+    prometheus_url = "http://prometheus-k8s.monitoring.svc:9090"
+    alertmanager_url = "http://alertmanager-main.monitoring.svc:9093"
