@@ -185,5 +185,5 @@ func TestOtelcolToolset(t *testing.T) {
 	if mcpURL == "" {
 		t.Skip("OBS_MCP_URL not set; skipping (set OBS_MCP_URL to run against a deployed or local obs-mcp)")
 	}
-	runOtelcolToolsetTests(t, NewMCPClient(mcpURL))
+	runOtelcolToolsetTests(t, NewMCPClient(mcpURL, ""))
 }

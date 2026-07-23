@@ -5,6 +5,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -38,7 +39,14 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	mcpClient = NewMCPClient(testConfig.MCPURL)
+	// Token creation fails in OpenShift Prow e2e tests due to limited permissions of the serviceaccount running the tests,
+	// however there we use kubeconfig auth mode on OpenShift and therefore do not need to send an auth header.
+	token, err := createServiceAccountToken(testConfig.Namespace, testConfig.ServiceAccountName)
+	if err != nil {
+		slog.Warn("Failed to create a service account token, continuing without authenticating MCP tool calls", "err", err)
+	}
+
+	mcpClient = NewMCPClient(testConfig.MCPURL, token)
 	setupThanosDetection()
 
 	code := m.Run()

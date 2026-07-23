@@ -39,15 +39,21 @@ type MCPError struct {
 
 // MCPClient provides methods for interacting with the MCP server
 type MCPClient struct {
-	baseURL string
-	client  *http.Client
+	baseURL    string
+	client     *http.Client
+	authHeader string
 }
 
-// NewMCPClient creates a new MCP client with the given base URL
-func NewMCPClient(baseURL string) *MCPClient {
+// NewMCPClient creates a new MCP client with the given base URL and bearer token.
+func NewMCPClient(baseURL string, bearerToken string) *MCPClient {
+	var authHeader string
+	if bearerToken != "" {
+		authHeader = "Bearer " + bearerToken
+	}
 	return &MCPClient{
-		baseURL: baseURL,
-		client:  &http.Client{Timeout: defaultTimeout},
+		baseURL:    baseURL,
+		client:     &http.Client{Timeout: defaultTimeout},
+		authHeader: authHeader,
 	}
 }
 
@@ -78,6 +84,9 @@ func (c *MCPClient) SendRequest(t *testing.T, req MCPRequest) (*MCPResponse, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "application/json, text/event-stream")
+	if c.authHeader != "" {
+		httpReq.Header.Set("Authorization", c.authHeader)
+	}
 
 	resp, err := c.client.Do(httpReq)
 	if err != nil {
@@ -150,6 +159,9 @@ func (c *MCPClient) callToolRaw(id int, toolName string, args map[string]any) (m
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "application/json, text/event-stream")
+	if c.authHeader != "" {
+		httpReq.Header.Set("Authorization", c.authHeader)
+	}
 
 	resp, err := c.client.Do(httpReq)
 	if err != nil {
