@@ -83,7 +83,6 @@ go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-b
 >
 > 1. `--loki-url` flag (if set)
 > 2. `LOKI_URL` environment variable
-> 3. Default: `http://localhost:3100` (kubeconfig mode only)
 >
 > In `header` and `serviceaccount` modes, you can either set `--loki-url`/`LOKI_URL` **or** use LokiStack discovery (`loki_list_instances` + `lokiNamespace`/`lokiName` arguments).
 
