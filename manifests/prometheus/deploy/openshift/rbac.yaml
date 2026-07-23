@@ -3,7 +3,7 @@ kind: ClusterRole
 metadata:
   name: obs-mcp-monitoring-reader
 rules:
-  # Required for Prometheus API access with serviceaccount auth mode
+  # Required for Prometheus API access with kubeconfig auth mode
   # 'create' is needed because Prometheus uses HTTP POST for some query endpoints
   # and the Kubernetes API proxy maps POST to 'create'.
   - apiGroups: ["monitoring.coreos.com"]

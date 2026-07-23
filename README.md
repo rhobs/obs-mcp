@@ -79,12 +79,18 @@ go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-b
   ```
 
 > [!IMPORTANT]
-> **How the Loki URL is Determined (when `observability/logs` toolset is enabled):**
+> **How the Loki URL is determined (when `observability/logs` toolset is enabled):**
 >
-> 1. `--loki-url` flag (if set)
+> 1. `--loki-url` flag
 > 2. `LOKI_URL` environment variable
+> 3. `lokiNamespace`/`lokiName` tool parameters for each MCP tool call (except `loki_list_instances`)
+
+> [!IMPORTANT]
+> **How the Tempo URL is determined (when `observability/traces` toolset is enabled):**
 >
-> In `header` and `serviceaccount` modes, you can either set `--loki-url`/`LOKI_URL` **or** use LokiStack discovery (`loki_list_instances` + `lokiNamespace`/`lokiName` arguments).
+> 1. `--traces.tempo-url` flag
+> 2. `TEMPO_URL` environment variable
+> 3. `tempoNamespace`/`tempoName` tool parameters for each MCP tool call (except `tempo_list_instances`)
 
 ### 2. Port-forwarding alternative
 
