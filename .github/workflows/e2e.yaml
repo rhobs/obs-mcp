@@ -44,3 +44,39 @@ jobs:
                   kubectl logs -n monitoring -l app.kubernetes.io/name=prometheus --tail=50 || true
                   echo "=== Events ==="
                   kubectl get events -n obs-mcp --sort-by='.lastTimestamp' || true
+
+    e2e-openshift-mcp-server:
+        name: E2E tests with openshift-mcp-server
+        needs: changed-files
+        if: ${{ needs.changed-files.outputs.non-markdown-files }}
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v6
+
+            - name: Setup E2E environment
+              uses: ./.github/actions/setup-e2e
+
+            - name: Deploy openshift-mcp-server
+              run: ./hack/e2e/setup.sh provision prereqs deploy-oms --profile kind
+
+            - name: Verify tools
+              run: |
+                kubectl port-forward -n openshift-mcp-server svc/openshift-mcp-server 9100:9100 &
+                sleep 3
+                TOOLS=$(npx @modelcontextprotocol/inspector --cli http://localhost:9100/mcp --method tools/list)
+                echo "$TOOLS"
+                echo "$TOOLS" | grep -q 'list_metrics' || (echo "ERROR: no list_metrics tool found"; exit 1)
+                echo "$TOOLS" | grep -q 'tempo_' || (echo "ERROR: no tempo_ tools found"; exit 1)
+                echo "$TOOLS" | grep -q 'loki_' || (echo "ERROR: no loki_ tools found"; exit 1)
+                echo "$TOOLS" | grep -q 'otelcol_' || (echo "ERROR: no otelcol_ tools found"; exit 1)
+
+            - name: Collect diagnostics on failure
+              if: ${{ failure() }}
+              run: |
+                  echo "=== Pod status ==="
+                  kubectl get pods -A
+                  echo "=== openshift-mcp-server logs ==="
+                  kubectl logs -n openshift-mcp-server -l app.kubernetes.io/name=openshift-mcp-server --tail=100 || true
+                  echo "=== Events ==="
+                  kubectl get events -n openshift-mcp-server --sort-by='.lastTimestamp' || true

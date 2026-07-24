@@ -20,6 +20,7 @@ integration-tests/screenshots
 tmp/*
 manifests/core/deploy/overlay
 manifests/loki/extras/overlay
+manifests/openshift-mcp-server/deploy/overlay
 /vendor
 /.claude/settings.local.json
 

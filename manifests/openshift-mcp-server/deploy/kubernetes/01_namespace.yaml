@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-mcp-server
+  labels:
+    kubernetes.io/metadata.name: openshift-mcp-server
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: openshift-mcp-server

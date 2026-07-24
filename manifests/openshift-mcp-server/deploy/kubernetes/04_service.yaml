@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshift-mcp-server
+  labels:
+    app.kubernetes.io/name: openshift-mcp-server
+spec:
+  ports:
+    - name: mcp
+      port: 9100
+      targetPort: mcp
+  selector:
+    app.kubernetes.io/name: openshift-mcp-server

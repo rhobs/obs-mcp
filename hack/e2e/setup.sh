@@ -69,7 +69,7 @@ _relativepath() {
 PHASE_DEFAULT="up"
 PROFILE="kind"
 STACKS="prometheus,tempo,loki"
-SUPPORTED_PHASES=(provision prereqs extras upload deploy run clean unprovision)
+SUPPORTED_PHASES=(provision prereqs extras upload deploy deploy-oms run clean unprovision)
 SUPPORTED_PROFILES=(kind k8s openshift)
 SUPPORTED_STACKS=(prometheus tempo loki)
 
@@ -390,45 +390,44 @@ EOF
     fi
 }
 
-phase_upload() {
-    phase "upload"
+_upload_image() {
+    local _image_name="$1"
+    local _image_ref="$2"
+    local _namespace="$3"
+    local _result
 
-    if [ -z "${IMAGE_REF:-}" ]; then
-        info "IMAGE_REF not set, skipping image upload."
-        return
-    fi
-
+    {
     case "${PROFILE}" in
         kind)
-            step "Loading obs-mcp image into Kind cluster '${KIND_CLUSTER_NAME}'"
+            step "Loading ${_image_name} image into Kind cluster '${KIND_CLUSTER_NAME}'"
             if [ "${CONTAINER_CLI}" == "podman" ]; then
                 mkdir -p "${ROOT_DIR}/tmp"
-                _run "${CONTAINER_CLI}" save --quiet -o "${ROOT_DIR}/tmp/obs-mcp.tar" "${IMAGE_REF}"
-                _run kind load image-archive --name "${KIND_CLUSTER_NAME}" "${ROOT_DIR}/tmp/obs-mcp.tar"
-                rm -f "${ROOT_DIR}/tmp/obs-mcp.tar"
+                _run "${CONTAINER_CLI}" save --quiet -o "${ROOT_DIR}/tmp/${_image_name}.tar" "${_image_ref}"
+                _run kind load image-archive --name "${KIND_CLUSTER_NAME}" "${ROOT_DIR}/tmp/${_image_name}.tar"
+                rm -f "${ROOT_DIR}/tmp/${_image_name}.tar"
             else
-                _run kind load docker-image --name "${KIND_CLUSTER_NAME}" "${IMAGE_REF}"
+                _run kind load docker-image --name "${KIND_CLUSTER_NAME}" "${_image_ref}"
             fi
-            _run kubectl delete pod -l app=obs-mcp --ignore-not-found=true
+            _result="${_image_ref}"
             ;;
         openshift)
-            step "Pushing obs-mcp image to OpenShift internal registry"
+            step "Pushing ${_image_name} image to OpenShift internal registry"
 
             if ! command -v skopeo >/dev/null; then
                 fail "skopeo is needed for the upload functionality to work"
             fi
 
-            # Derive the image tag from IMAGE_REF (use the tag portion, or fall back to 'latest')
+            # Derive the image tag from the ref (use the tag portion, or fall back to 'latest')
             local _img_tag
-            _img_tag=${IMAGE_REF##*:}
-            if [ "${_img_tag}" == "${IMAGE_REF}" ]; then
+            _img_tag=${_image_ref##*:}
+            if [ "${_img_tag}" == "${_image_ref}" ]; then
                # no substitution = tag not found, use latest;
                _img_tag="latest"
             fi
 
             # Ensure the target namespace exists (otherwise pushing an image fails with "denied")
-            if ! $KUBECTL get namespace obs-mcp &>/dev/null; then
-                _run $KUBECTL create namespace obs-mcp
+            if ! $KUBECTL get namespace "${_namespace}" &>/dev/null; then
+                _run $KUBECTL create namespace "${_namespace}"
             fi
 
             # Enable the default external route for the image registry (idempotent)
@@ -446,8 +445,8 @@ phase_upload() {
             # docker-archive: transport, which avoids the docker-daemon: transport's
             # hard-coded /var/tmp dependency (may not exist in all environments).
             local _tmp_tar
-            _tmp_tar=$(mktemp -t obs-mcp-XXXXXX.tar)
-            _run "${CONTAINER_CLI}" save "${IMAGE_REF}" -o "${_tmp_tar}"
+            _tmp_tar=$(mktemp -t "${_image_name}-XXXXXX.tar")
+            _run "${CONTAINER_CLI}" save "${_image_ref}" -o "${_tmp_tar}"
 
             # Copy directly with skopeo — no separate login or tag step needed.
             # The token is fed via an anonymous pipe (<(...)) so it never touches
@@ -458,17 +457,32 @@ phase_upload() {
                     "${_ext_registry}" \
                     "$(printf 'unused:%s' "$(oc whoami -t)" | base64 -w0)") \
                 "docker-archive:${_tmp_tar}" \
-                "docker://${_ext_registry}/obs-mcp/obs-mcp:${_img_tag}"
+                "docker://${_ext_registry}/${_namespace}/${_image_name}:${_img_tag}"
             rm -f "${_tmp_tar}"
 
-            # Override IMAGE_REF to the in-cluster registry address used by the deployment
-            IMAGE_REF="image-registry.openshift-image-registry.svc:5000/obs-mcp/obs-mcp:${_img_tag}"
-            info "Updated IMAGE_REF for deployment: ${IMAGE_REF}"
+            _result="image-registry.openshift-image-registry.svc:5000/${_namespace}/${_image_name}:${_img_tag}"
             ;;
         *)
             info "Image upload not supported for profile '${PROFILE}', skipping."
+            _result="${_image_ref}"
             ;;
     esac
+    } >&2
+
+    echo "${_result}"
+}
+
+phase_upload() {
+    phase "upload"
+
+    if [ -z "${IMAGE_REF:-}" ]; then
+        info "IMAGE_REF not set, skipping image upload."
+        return
+    fi
+
+    IMAGE_REF=$(_upload_image "obs-mcp" "${IMAGE_REF}" "obs-mcp")
+    info "Image ref for deployment: ${IMAGE_REF}"
+    _run kubectl delete pod -n obs-mcp -l app.kubernetes.io/name=obs-mcp --ignore-not-found=true
 }
 
 phase_deploy() {
@@ -545,6 +559,49 @@ EOF
 
     step "Waiting for obs-mcp rollout"
     _wait_rollout obs-mcp deployment/obs-mcp 3m
+}
+
+OPENSHIFT_MCP_SERVER_IMAGE_NAME="${OPENSHIFT_MCP_SERVER_IMAGE_NAME:-ghcr.io/rhobs/openshift-mcp-server}"
+OPENSHIFT_MCP_SERVER_IMAGE_REF="${OPENSHIFT_MCP_SERVER_IMAGE_REF:-${OPENSHIFT_MCP_SERVER_IMAGE_NAME}:${TAG:-latest}}"
+
+phase_deploy_oms() {
+    phase "deploy-oms"
+
+    step "Building openshift-mcp-server container image"
+    _run "${CONTAINER_CLI}" build --load \
+        -f "${ROOT_DIR}/Containerfile.openshift-mcp-server" \
+        -t "${OPENSHIFT_MCP_SERVER_IMAGE_REF}" "${ROOT_DIR}"
+
+    OPENSHIFT_MCP_SERVER_IMAGE_REF=$(_upload_image "openshift-mcp-server" "${OPENSHIFT_MCP_SERVER_IMAGE_REF}" "openshift-mcp-server")
+    info "Image ref for deployment: ${OPENSHIFT_MCP_SERVER_IMAGE_REF}"
+    _run kubectl delete pod -n openshift-mcp-server -l app.kubernetes.io/name=openshift-mcp-server --ignore-not-found=true
+
+    step "Deploying openshift-mcp-server"
+    _overlay="${ROOT_DIR}/manifests/openshift-mcp-server/deploy/overlay"
+    mkdir -p "${_overlay}"
+    cat > "${_overlay}/kustomization.yaml" <<EOF
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../kubernetes
+patches:
+  - patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: openshift-mcp-server
+        namespace: openshift-mcp-server
+      spec:
+        template:
+          spec:
+            containers:
+              - name: openshift-mcp-server
+                image: "${OPENSHIFT_MCP_SERVER_IMAGE_REF}"
+EOF
+    _run $KUBECTL apply -k "${_overlay}"
+
+    step "Waiting for openshift-mcp-server rollout"
+    _wait_rollout openshift-mcp-server deployment/openshift-mcp-server 3m
 }
 
 phase_run() {
@@ -677,6 +734,7 @@ for phase in "${PHASES[@]}"; do
         extras)      phase_extras ;;
         upload)      phase_upload ;;
         deploy)      phase_deploy ;;
+        deploy-oms)  phase_deploy_oms ;;
         run)         phase_run ;;
         clean)       phase_clean ;;
         unprovision) phase_unprovision ;;
