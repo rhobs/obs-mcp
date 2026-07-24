@@ -73,7 +73,7 @@ func ExecuteRangeQueryHandler(opts ObsMCPOptions) mcp.ToolHandlerFor[tools.Range
 			return nil, tools.RangeQueryOutput{}, fmt.Errorf("failed to create Prometheus client: %w", err)
 		}
 
-		result := tools.ExecuteRangeQueryHandler(ctx, promClient, input, opts.FullRangeQueryResponse)
+		result := tools.ExecuteRangeQueryHandler(ctx, promClient, input, opts.Metrics.RangeQueryFullResponse)
 		output, err := resultutil.Unwrap[tools.RangeQueryOutput](result)
 		if err != nil {
 			return nil, tools.RangeQueryOutput{}, err
