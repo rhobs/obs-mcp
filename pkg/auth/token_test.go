@@ -41,7 +41,7 @@ func TestReadTokenFromContext(t *testing.T) {
 			if tt.ctxValue != nil {
 				ctx = context.WithValue(ctx, kubernetes.OAuthAuthorizationHeader, tt.ctxValue)
 			}
-			got := readTokenFromContext(ctx)
+			got := ReadTokenFromContext(ctx)
 			if got != tt.want {
 				t.Errorf("readTokenFromCtx() = %q, want %q", got, tt.want)
 			}

@@ -4,6 +4,7 @@ import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/rhobs/obs-mcp/pkg/korrel8r"
 	"github.com/rhobs/obs-mcp/pkg/logs"
 	tools "github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
@@ -54,6 +55,7 @@ func GroupedTools() []ToolGroup {
 		{Name: "Tempo (Distributed Tracing)", Icon: "🔍", Tools: toolsetToMCPTools(&traces.Toolset{})},
 		{Name: "Loki (Log Management)", Icon: "📋", Tools: toolsetToMCPTools(&logs.Toolset{})},
 		{Name: "OpenTelemetry Collector", Icon: "⚙️", Tools: toolsetToMCPTools(&otelcol.Toolset{})},
+		{Name: "Korrel8r (Signal Correlation)", Icon: "🔗", Tools: korrel8rTools()},
 	}
 }
 
@@ -93,6 +95,16 @@ func CreateGetAlertsTool() mcp.Tool {
 
 func CreateGetSilencesTool() mcp.Tool {
 	return *tools.GetSilences.ToMCPTool()
+}
+
+// korrel8rTools returns full tool definitions from the korrel8r module for documentation.
+func korrel8rTools() []mcp.Tool {
+	ptrs := korrel8r.AddTools(nil, nil)
+	out := make([]mcp.Tool, len(ptrs))
+	for i, t := range ptrs {
+		out[i] = *t
+	}
+	return out
 }
 
 // toolsetToMCPTools converts a Toolset's tools to mcp.Tool for documentation generation.
