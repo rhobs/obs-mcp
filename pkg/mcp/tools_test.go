@@ -10,6 +10,15 @@ import (
 	tools "github.com/rhobs/obs-mcp/pkg/metrics"
 )
 
+func getToolByName(name string) mcp.Tool {
+	for _, t := range toolsetToMCPTools(&tools.Toolset{}) {
+		if t.Name == name {
+			return t
+		}
+	}
+	panic("tool not found: " + name)
+}
+
 func TestListMetricsOutputSerialization(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -170,25 +179,25 @@ func TestSeriesResultSerialization(t *testing.T) {
 
 func TestToolParameters(t *testing.T) {
 	tests := []struct {
-		tool             mcp.Tool
+		toolName         string
 		expectedRequired []string
 		expectedOptional []string
 	}{
 		{
-			tool:             CreateListMetricsTool(),
+			toolName:         "list_metrics",
 			expectedRequired: []string{"name_regex"},
 			expectedOptional: []string{},
 		},
 		{
-			tool:             CreateExecuteRangeQueryTool(),
+			toolName:         "execute_range_query",
 			expectedRequired: []string{"query", "step"},
 			expectedOptional: []string{"start", "end", "duration"},
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.tool.Name, func(t *testing.T) {
-			tool := tt.tool
+		t.Run(tt.toolName, func(t *testing.T) {
+			tool := getToolByName(tt.toolName)
 
 			// Convert InputSchema to map to access properties
 			inputSchemaMap, ok := tool.InputSchema.(map[string]any)
@@ -254,15 +263,15 @@ type paramPatternTest struct {
 
 func TestToolPatternValidation(t *testing.T) {
 	tests := []struct {
-		tool   mcp.Tool
-		params []paramPatternTest
+		toolName string
+		params   []paramPatternTest
 	}{
 		{
-			tool:   CreateListMetricsTool(),
-			params: []paramPatternTest{}, // no parameters
+			toolName: "list_metrics",
+			params:   []paramPatternTest{}, // no parameters
 		},
 		{
-			tool: CreateExecuteRangeQueryTool(),
+			toolName: "execute_range_query",
 			params: []paramPatternTest{
 				{
 					param:         "step",
@@ -293,11 +302,11 @@ func TestToolPatternValidation(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.tool.Name, func(t *testing.T) {
+		t.Run(tt.toolName, func(t *testing.T) {
+			tool := getToolByName(tt.toolName)
 			for _, pt := range tt.params {
 				t.Run(pt.param, func(t *testing.T) {
-					// Convert InputSchema to map to access properties
-					inputSchemaMap, ok := tt.tool.InputSchema.(map[string]any)
+					inputSchemaMap, ok := tool.InputSchema.(map[string]any)
 					if !ok {
 						t.Fatalf("InputSchema is not a map")
 					}
@@ -353,16 +362,13 @@ func TestToolPatternValidation(t *testing.T) {
 }
 
 func TestToolsHaveOutputSchema(t *testing.T) {
-	toolsToTest := []mcp.Tool{
-		CreateListMetricsTool(),
-		CreateExecuteRangeQueryTool(),
-	}
+	allTools := toolsetToMCPTools(&tools.Toolset{})
 
-	if len(toolsToTest) == 0 {
+	if len(allTools) == 0 {
 		t.Fatal("expected at least one tool")
 	}
 
-	for _, tool := range toolsToTest {
+	for _, tool := range allTools {
 		t.Run(tool.Name, func(t *testing.T) {
 			// In the new SDK, OutputSchema is any and may be nil
 			// if not using typed AddTool[In,Out] approach

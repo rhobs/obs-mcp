@@ -5,7 +5,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/rhobs/obs-mcp/pkg/logs"
-	tools "github.com/rhobs/obs-mcp/pkg/metrics"
+	"github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/traces"
 )
@@ -18,7 +18,7 @@ type ToolGroup struct {
 }
 
 // AllTools returns all available MCP tools.
-// When adding a new tool, add it to pkg/tools/definitions.go to keep both MCP and Toolset in sync, as well as docs.
+// When adding a new tool, add it to the respective toolset's GetTools() method.
 func AllTools() []mcp.Tool {
 	var all []mcp.Tool
 	for _, g := range GroupedTools() {
@@ -29,17 +29,9 @@ func AllTools() []mcp.Tool {
 
 // GroupedTools returns tools organized by category for documentation.
 func GroupedTools() []ToolGroup {
-	toMCP := func(defs []tools.ToolDefInterface) []mcp.Tool {
-		out := make([]mcp.Tool, len(defs))
-		for i, d := range defs {
-			out[i] = *d.ToMCPTool()
-		}
-		return out
-	}
-
-	promDefs := tools.AllTools()
+	allMetricsTools := toolsetToMCPTools(&metrics.Toolset{})
 	var promTools, alertTools []mcp.Tool
-	for _, t := range toMCP(promDefs) {
+	for _, t := range allMetricsTools {
 		switch t.Name {
 		case "get_alerts", "get_silences":
 			alertTools = append(alertTools, t)
@@ -57,46 +49,7 @@ func GroupedTools() []ToolGroup {
 	}
 }
 
-// Individual tool creation functions for backward compatibility and testing
-func CreateListMetricsTool() mcp.Tool {
-	return *tools.ListMetrics.ToMCPTool()
-}
-
-func CreateExecuteInstantQueryTool() mcp.Tool {
-	return *tools.ExecuteInstantQuery.ToMCPTool()
-}
-
-func CreateExecuteRangeQueryTool() mcp.Tool {
-	return *tools.ExecuteRangeQuery.ToMCPTool()
-}
-
-func CreateShowTimeseriesTool() mcp.Tool {
-	// For UI purposes only, no additional data to be sent to the LLM context.
-	return *tools.ShowTimeseries.ToMCPTool()
-}
-
-func CreateGetLabelNamesTool() mcp.Tool {
-	return *tools.GetLabelNames.ToMCPTool()
-}
-
-func CreateGetLabelValuesTool() mcp.Tool {
-	return *tools.GetLabelValues.ToMCPTool()
-}
-
-func CreateGetSeriesTool() mcp.Tool {
-	return *tools.GetSeries.ToMCPTool()
-}
-
-func CreateGetAlertsTool() mcp.Tool {
-	return *tools.GetAlerts.ToMCPTool()
-}
-
-func CreateGetSilencesTool() mcp.Tool {
-	return *tools.GetSilences.ToMCPTool()
-}
-
 // toolsetToMCPTools converts a Toolset's tools to mcp.Tool for documentation generation.
-// TODO: remove once all toolsets are converted to the Toolset API.
 func toolsetToMCPTools(ts api.Toolset) []mcp.Tool {
 	serverTools := ts.GetTools(nil)
 	out := make([]mcp.Tool, len(serverTools))
@@ -144,6 +97,9 @@ func apiToolToMCPTool(t api.Tool) mcp.Tool {
 	}
 	if t.Annotations.Title != "" {
 		tool.Title = t.Annotations.Title
+	}
+	if t.Meta != nil {
+		tool.Meta = mcp.Meta(t.Meta)
 	}
 	return tool
 }
