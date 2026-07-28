@@ -5,15 +5,16 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/containers/kubernetes-mcp-server/pkg/api"
 
 	tools "github.com/rhobs/obs-mcp/pkg/metrics"
 )
 
-func getToolByName(name string) mcp.Tool {
-	for _, t := range toolsetToMCPTools(&tools.Toolset{}) {
-		if t.Name == name {
-			return t
+func getToolByName(name string) api.Tool {
+	allTools := (&tools.Toolset{}).GetTools(nil)
+	for i := range allTools {
+		if allTools[i].Tool.Name == name {
+			return allTools[i].Tool
 		}
 	}
 	panic("tool not found: " + name)
@@ -199,34 +200,18 @@ func TestToolParameters(t *testing.T) {
 		t.Run(tt.toolName, func(t *testing.T) {
 			tool := getToolByName(tt.toolName)
 
-			// Convert InputSchema to map to access properties
-			inputSchemaMap, ok := tool.InputSchema.(map[string]any)
-			if !ok {
-				t.Fatalf("InputSchema is not a map")
-			}
-
-			var requiredList []string
-			if required, exists := inputSchemaMap["required"]; exists {
-				switch req := required.(type) {
-				case []any:
-					for _, r := range req {
-						if rStr, ok := r.(string); ok {
-							requiredList = append(requiredList, rStr)
-						}
-					}
-				case []string:
-					requiredList = req
-				}
+			if tool.InputSchema == nil {
+				t.Fatalf("InputSchema is nil")
 			}
 
 			requiredSet := make(map[string]bool)
-			for _, r := range requiredList {
+			for _, r := range tool.InputSchema.Required {
 				requiredSet[r] = true
 			}
 
-			if len(requiredList) != len(tt.expectedRequired) {
+			if len(tool.InputSchema.Required) != len(tt.expectedRequired) {
 				t.Errorf("expected %d required params, got %d",
-					len(tt.expectedRequired), len(requiredList))
+					len(tt.expectedRequired), len(tool.InputSchema.Required))
 			}
 
 			for _, param := range tt.expectedRequired {
@@ -235,15 +220,8 @@ func TestToolParameters(t *testing.T) {
 				}
 			}
 
-			var properties map[string]any
-			if props, exists := inputSchemaMap["properties"]; exists {
-				if propsMap, ok := props.(map[string]any); ok {
-					properties = propsMap
-				}
-			}
-
 			for _, param := range tt.expectedOptional {
-				if _, exists := properties[param]; !exists {
+				if _, exists := tool.InputSchema.Properties[param]; !exists {
 					t.Errorf("optional parameter %q not found", param)
 				}
 				if requiredSet[param] {
@@ -306,29 +284,16 @@ func TestToolPatternValidation(t *testing.T) {
 			tool := getToolByName(tt.toolName)
 			for _, pt := range tt.params {
 				t.Run(pt.param, func(t *testing.T) {
-					inputSchemaMap, ok := tool.InputSchema.(map[string]any)
-					if !ok {
-						t.Fatalf("InputSchema is not a map")
+					if tool.InputSchema == nil {
+						t.Fatalf("InputSchema is nil")
 					}
 
-					var properties map[string]any
-					if props, exists := inputSchemaMap["properties"]; exists {
-						if propsMap, ok := props.(map[string]any); ok {
-							properties = propsMap
-						}
-					}
-
-					prop, exists := properties[pt.param]
+					prop, exists := tool.InputSchema.Properties[pt.param]
 					if !exists {
 						t.Fatalf("parameter %q not found", pt.param)
 					}
 
-					propMap, ok := prop.(map[string]any)
-					if !ok {
-						t.Fatalf("parameter %q is not a map", pt.param)
-					}
-
-					pattern, hasPattern := propMap["pattern"].(string)
+					hasPattern := prop.Pattern != ""
 
 					if hasPattern != pt.hasPattern {
 						t.Errorf("expected hasPattern=%v, got %v", pt.hasPattern, hasPattern)
@@ -339,9 +304,9 @@ func TestToolPatternValidation(t *testing.T) {
 						return
 					}
 
-					re, err := regexp.Compile(pattern)
+					re, err := regexp.Compile(prop.Pattern)
 					if err != nil {
-						t.Fatalf("invalid pattern %q: %v", pattern, err)
+						t.Fatalf("invalid pattern %q: %v", prop.Pattern, err)
 					}
 
 					for _, input := range pt.validInputs {
@@ -362,22 +327,20 @@ func TestToolPatternValidation(t *testing.T) {
 }
 
 func TestToolsHaveOutputSchema(t *testing.T) {
-	allTools := toolsetToMCPTools(&tools.Toolset{})
+	allTools := (&tools.Toolset{}).GetTools(nil)
 
 	if len(allTools) == 0 {
 		t.Fatal("expected at least one tool")
 	}
 
-	for _, tool := range allTools {
-		t.Run(tool.Name, func(t *testing.T) {
-			// In the new SDK, OutputSchema is any and may be nil
-			// if not using typed AddTool[In,Out] approach
-			if tool.OutputSchema == nil {
-				t.Logf("tool %q has no output schema (expected for manual tool construction)", tool.Name)
+	for _, st := range allTools {
+		t.Run(st.Tool.Name, func(t *testing.T) {
+			if st.Tool.OutputSchema == nil {
+				t.Logf("tool %q has no output schema (expected for manual tool construction)", st.Tool.Name)
 			}
 
-			if tool.Description == "" {
-				t.Errorf("tool %q missing description", tool.Name)
+			if st.Tool.Description == "" {
+				t.Errorf("tool %q missing description", st.Tool.Name)
 			}
 		})
 	}

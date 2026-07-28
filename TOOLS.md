@@ -537,6 +537,16 @@ _No parameters._
 
 </details>
 
+<details>
+<summary><strong>Output Schema</strong></summary>
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `metrics` | `object` | Query performance metrics |
+| `traces` | `object[]` | List of matching traces with metadata |
+
+</details>
+
 ---
 
 ### `tempo_search_tags`
@@ -567,6 +577,15 @@ _No parameters._
 | `scope` | `string` | Filter tags to a specific scope. One of:<br>"resource" (service-level attributes like service.name),<br>"span" (individual span attributes like http.response.status_code),<br>"intrinsic" (built-in fields like duration, status, name).<br>If omitted, tags from all scopes are returned. |
 | `start` | `string` | Optional start of the time range (in RFC 3339 format, e.g. "2025-01-01T00:00:00Z") to filter which traces are considered when listing tags. |
 | `tenant` | `string` | The tenant to query. This parameter is required for multi-tenant instances. Use tempo_list_instances to discover available tenants for each instance. |
+
+</details>
+
+<details>
+<summary><strong>Output Schema</strong></summary>
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `scopes` | `object[]` | List of tag scopes with their tag names |
 
 </details>
 
