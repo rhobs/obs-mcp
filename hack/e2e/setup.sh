@@ -572,25 +572,29 @@ phase_deploy_oms() {
         -f "${ROOT_DIR}/Containerfile.openshift-mcp-server" \
         -t "${OPENSHIFT_MCP_SERVER_IMAGE_REF}" "${ROOT_DIR}"
 
-    OPENSHIFT_MCP_SERVER_IMAGE_REF=$(_upload_image "openshift-mcp-server" "${OPENSHIFT_MCP_SERVER_IMAGE_REF}" "openshift-mcp-server")
+    OPENSHIFT_MCP_SERVER_IMAGE_REF=$(_upload_image "openshift-mcp-server" "${OPENSHIFT_MCP_SERVER_IMAGE_REF}" "obs-mcp")
     info "Image ref for deployment: ${OPENSHIFT_MCP_SERVER_IMAGE_REF}"
-    _run kubectl delete pod -n openshift-mcp-server -l app.kubernetes.io/name=openshift-mcp-server --ignore-not-found=true
+    _run kubectl delete pod -n obs-mcp -l app.kubernetes.io/name=openshift-mcp-server --ignore-not-found=true
 
     step "Deploying openshift-mcp-server"
+    case ${PROFILE} in
+        openshift) _profile=openshift ;;
+        *)         _profile=kubernetes ;;
+    esac
     _overlay="${ROOT_DIR}/manifests/openshift-mcp-server/deploy/overlay"
     mkdir -p "${_overlay}"
     cat > "${_overlay}/kustomization.yaml" <<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../kubernetes
+  - ../${_profile}
 patches:
   - patch: |
       apiVersion: apps/v1
       kind: Deployment
       metadata:
         name: openshift-mcp-server
-        namespace: openshift-mcp-server
+        namespace: obs-mcp
       spec:
         template:
           spec:
@@ -601,7 +605,7 @@ EOF
     _run $KUBECTL apply -k "${_overlay}"
 
     step "Waiting for openshift-mcp-server rollout"
-    _wait_rollout openshift-mcp-server deployment/openshift-mcp-server 3m
+    _wait_rollout obs-mcp deployment/openshift-mcp-server 3m
 }
 
 phase_run() {
