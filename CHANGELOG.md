@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.7.1] - 2026-07-30
+
+### Fixed
+
+- Downgrade `github.com/modelcontextprotocol/go-sdk` to v1.6.1 to unblock linting in openshift-mcp-server until [containers/kubernetes-mcp-server#1337](https://github.com/containers/kubernetes-mcp-server/pull/1337) is merged ([#188](https://github.com/rhobs/obs-mcp/pull/188))
+
 ## [v0.7.0] - 2026-07-30
 
 ### Added
