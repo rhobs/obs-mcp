@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.7.0] - 2026-07-30
+
+### Added
+
+- Expose Go process, HTTP, and tool call metrics; pprof profiling endpoint; and `version/build_info` metric ([#139](https://github.com/rhobs/obs-mcp/pull/139))
+- Add Containerfile for usage with openshift-mcp-server, deployment manifests, and basic e2e test ([#160](https://github.com/rhobs/obs-mcp/pull/160))
+- Hide traces tools when the Tempo CRD is not installed ([#168](https://github.com/rhobs/obs-mcp/pull/168))
+- Tool filter support for logs toolset ([#179](https://github.com/rhobs/obs-mcp/pull/179))
+- Tool filter support for otelcol toolset ([#180](https://github.com/rhobs/obs-mcp/pull/180))
+
+### Changed
+
+- Refactor otelcol toolset to use Toolset API ([#164](https://github.com/rhobs/obs-mcp/pull/164))
+- Use extracted `tools.MustSchema` in traces toolset ([#165](https://github.com/rhobs/obs-mcp/pull/165))
+- Move metric toolset to `metrics` package ([#169](https://github.com/rhobs/obs-mcp/pull/169))
+- Validate toolset configs and deduplicate toolset names ([#170](https://github.com/rhobs/obs-mcp/pull/170))
+- `header` auth mode: do not fall back to kubeconfig token; handle empty toolsets arg ([#172](https://github.com/rhobs/obs-mcp/pull/172))
+- Move metric tools config from `ObsMCPOptions` to `metrics.Config` ([#173](https://github.com/rhobs/obs-mcp/pull/173))
+- Enable CodeRabbit high-level summary in PR descriptions ([#174](https://github.com/rhobs/obs-mcp/pull/174))
+- Re-use obs-mcp service account in openshift-mcp-server pod ([#185](https://github.com/rhobs/obs-mcp/pull/185))
+- Bump Go dependencies, skip `github.com/tektoncd/pipeline` v1.14.1 (requires Go >= 1.26.4) ([#186](https://github.com/rhobs/obs-mcp/pull/186))
+
+### Fixed
+
+- Fix double initialization of toolsets ([#176](https://github.com/rhobs/obs-mcp/pull/176))
+- Remove default Loki URL in `kubeconfig` mode ([#177](https://github.com/rhobs/obs-mcp/pull/177))
+- Fix compilation errors after `github.com/prometheus/client_golang` v1.24.1 bump: `LabelNames` return type, `Rules` signature, and new `TSDBBlocks`/`FormatQuery` interface methods ([#186](https://github.com/rhobs/obs-mcp/pull/186))
+
+### Breaking
+
+- Remove `serviceaccount` auth mode ([#175](https://github.com/rhobs/obs-mcp/pull/175))
+
 ## [v0.6.0] - 2026-07-15
 
 ### Added
