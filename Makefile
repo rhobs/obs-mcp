@@ -267,6 +267,8 @@ EVAL_CONFIG ?= eval.yaml
 
 .PHONY: run-mcpchecker-eval
 run-mcpchecker-eval: $(MCPCHECKER) ## Run mcpchecker eval (TASK=name, CATEGORY=..., EVAL_CONFIG=eval.yaml, RUNS=3)
+	@yq -i '.mcpServers.obs.headers.Authorization = "Bearer '"$$(kubectl -n obs-mcp create token obs-mcp)"'"' $(MCPCHECKER_EVAL_DIR)/mcp-config.yaml
+
 ifdef TASK
 	cd $(MCPCHECKER_EVAL_DIR) && $(MCPCHECKER) check $(EVAL_CONFIG) --run "$(TASK)" --runs $(RUNS) --verbose
 else ifdef CATEGORY
@@ -275,6 +277,8 @@ else
 	cd $(MCPCHECKER_EVAL_DIR) && $(MCPCHECKER) check $(EVAL_CONFIG) --runs $(RUNS) --parallel 4
 endif
 	$(MCPCHECKER) result summary $(MCPCHECKER_EVAL_DIR)/mcpchecker-obs-mcp-tools-out.json
+
+	@yq -i 'del(.mcpServers.obs.headers)' $(MCPCHECKER_EVAL_DIR)/mcp-config.yaml
 
 .PHONY: publish-mcpchecker-evals
 publish-mcpchecker-evals: $(MCPCHECKER) ## Publish mcpchecker eval results (sanitize paths, save output.json and summary.txt)
