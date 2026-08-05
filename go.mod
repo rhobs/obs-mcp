@@ -13,7 +13,7 @@ require (
 	github.com/prometheus/alertmanager v0.33.1
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/common v0.70.1
-	github.com/prometheus/prometheus v0.313.1
+	github.com/prometheus/prometheus v0.313.2
 	k8s.io/api v0.36.3
 	k8s.io/apimachinery v0.36.3
 	k8s.io/client-go v0.36.3
@@ -21,7 +21,7 @@ require (
 )
 
 require (
-	github.com/modelcontextprotocol/go-sdk v1.6.1
+	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/pavolloffay/opentelemetry-mcp-server/modules/schemagen v0.0.0-20260710124846-8bb49fd6ccc7
 	github.com/stretchr/testify v1.11.1
 )
