@@ -3,25 +3,43 @@
 package e2e
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os"
 	"strings"
 	"testing"
 
+	"k8s.io/client-go/dynamic"
+
 	"github.com/rhobs/obs-mcp/pkg/k8s"
+	"github.com/rhobs/obs-mcp/pkg/openshift"
 	"github.com/stretchr/testify/require"
 )
 
-// Route discovery tests below exercise pkg/k8s directly using the kubeconfig
+// Route discovery tests below exercise pkg/openshift directly using the kubeconfig
 // available to the test runner. They validate the auto-discovery path used when
 // obs-mcp runs locally with --auth-mode kubeconfig. The deployed server in CI
 // uses --auth-mode kubeconfig with URLs hardcoded in the configmap instead.
 
+func newMetricsResolver(t *testing.T) (*openshift.MetricsRouteResolver, dynamic.Interface) {
+	t.Helper()
+	cfg, err := k8s.GetClientConfig()
+	if err != nil {
+		t.Fatalf("Failed to load kubeconfig: %v", err)
+	}
+	dynClient, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create dynamic client: %v", err)
+	}
+	return &openshift.MetricsRouteResolver{}, dynClient
+}
+
 // TestRouteDiscovery_ThanosQuerier verifies that the thanos-querier route in
 // openshift-monitoring can be discovered and returns a valid https:// URL.
 func TestRouteDiscovery_ThanosQuerier(t *testing.T) {
-	discoveredURL, err := k8s.GetMetricsBackendURL(k8s.MetricsBackendThanos)
+	resolver, dynClient := newMetricsResolver(t)
+	discoveredURL, err := resolver.ResolveMetricsBackend(context.Background(), dynClient, "thanos")
 	if err != nil {
 		t.Fatalf("Failed to discover thanos-querier route: %v", err)
 	}
@@ -32,7 +50,8 @@ func TestRouteDiscovery_ThanosQuerier(t *testing.T) {
 // TestRouteDiscovery_PrometheusK8s verifies that the prometheus-k8s route in
 // openshift-monitoring can be discovered when using the prometheus backend.
 func TestRouteDiscovery_PrometheusK8s(t *testing.T) {
-	discoveredURL, err := k8s.GetMetricsBackendURL(k8s.MetricsBackendPrometheus)
+	resolver, dynClient := newMetricsResolver(t)
+	discoveredURL, err := resolver.ResolveMetricsBackend(context.Background(), dynClient, "prometheus")
 	if err != nil {
 		t.Fatalf("Failed to discover prometheus-k8s route: %v", err)
 	}
@@ -43,7 +62,8 @@ func TestRouteDiscovery_PrometheusK8s(t *testing.T) {
 // TestRouteDiscovery_Alertmanager verifies that the alertmanager-main route in
 // openshift-monitoring can be discovered and returns a valid https:// URL.
 func TestRouteDiscovery_Alertmanager(t *testing.T) {
-	discoveredURL, err := k8s.GetAlertmanagerURL()
+	resolver, dynClient := newMetricsResolver(t)
+	discoveredURL, err := resolver.ResolveAlertmanager(context.Background(), dynClient)
 	if err != nil {
 		t.Fatalf("Failed to discover alertmanager-main route: %v", err)
 	}
@@ -54,24 +74,32 @@ func TestRouteDiscovery_Alertmanager(t *testing.T) {
 // TestRouteDiscovery_URLsAreReachable verifies that the discovered route URLs respond
 // with HTTP 200 when accessed with a valid bearer token against a real /api endpoint.
 func TestRouteDiscovery_URLsAreReachable(t *testing.T) {
+	resolver, dynClient := newMetricsResolver(t)
+
 	tests := []struct {
 		name    string
 		getURL  func() (string, error)
 		apiPath string
 	}{
 		{
-			name:    "thanos-querier",
-			getURL:  func() (string, error) { return k8s.GetMetricsBackendURL(k8s.MetricsBackendThanos) },
+			name: "thanos-querier",
+			getURL: func() (string, error) {
+				return resolver.ResolveMetricsBackend(context.Background(), dynClient, "thanos")
+			},
 			apiPath: "/api/v1/query?query=up",
 		},
 		{
-			name:    "prometheus-k8s",
-			getURL:  func() (string, error) { return k8s.GetMetricsBackendURL(k8s.MetricsBackendPrometheus) },
+			name: "prometheus-k8s",
+			getURL: func() (string, error) {
+				return resolver.ResolveMetricsBackend(context.Background(), dynClient, "prometheus")
+			},
 			apiPath: "/api/v1/query?query=up",
 		},
 		{
-			name:    "alertmanager-main",
-			getURL:  k8s.GetAlertmanagerURL,
+			name: "alertmanager-main",
+			getURL: func() (string, error) {
+				return resolver.ResolveAlertmanager(context.Background(), dynClient)
+			},
 			apiPath: "/api/v2/status",
 		},
 	}
