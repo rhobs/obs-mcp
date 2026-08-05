@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openshift-mcp-server
+  namespace: obs-mcp
+data:
+  config.toml: |
+    toolsets = ["observability/metrics", "observability/logs", "observability/traces", "observability/otelcol"]
+    experimental_enable_target_compatibility_tool_filters = true
+
+    [toolset_configs."observability/metrics"]
+    auth_mode = "kubeconfig"
+    # OpenShift monitoring Prometheus URL (port 9091 for OAuth proxy)
+    prometheus_url = "https://prometheus-k8s.openshift-monitoring.svc:9091"
+    # OpenShift monitoring Alertmanager URL (port 9094 for kube-rbac-proxy)
+    alertmanager_url = "https://alertmanager-main.openshift-monitoring.svc:9094"
+
+    [toolset_configs."observability/logs"]
+    auth_mode = "kubeconfig"
+
+    [toolset_configs."observability/traces"]
+    auth_mode = "kubeconfig"

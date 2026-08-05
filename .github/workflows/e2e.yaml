@@ -22,7 +22,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Setup E2E environment
               uses: ./.github/actions/setup-e2e
@@ -52,7 +52,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Setup E2E environment
               uses: ./.github/actions/setup-e2e
@@ -62,7 +62,7 @@ jobs:
 
             - name: Verify tools
               run: |
-                kubectl port-forward -n openshift-mcp-server svc/openshift-mcp-server 9100:9100 &
+                kubectl port-forward -n obs-mcp svc/openshift-mcp-server 9100:9100 &
                 sleep 3
                 TOOLS=$(npx @modelcontextprotocol/inspector --cli http://localhost:9100/mcp --method tools/list)
                 echo "$TOOLS"
@@ -77,6 +77,6 @@ jobs:
                   echo "=== Pod status ==="
                   kubectl get pods -A
                   echo "=== openshift-mcp-server logs ==="
-                  kubectl logs -n openshift-mcp-server -l app.kubernetes.io/name=openshift-mcp-server --tail=100 || true
+                  kubectl logs -n obs-mcp -l app.kubernetes.io/name=openshift-mcp-server --tail=100 || true
                   echo "=== Events ==="
-                  kubectl get events -n openshift-mcp-server --sort-by='.lastTimestamp' || true
+                  kubectl get events -n obs-mcp --sort-by='.lastTimestamp' || true

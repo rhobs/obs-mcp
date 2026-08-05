@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: openshift-mcp-server
+  namespace: obs-mcp
   labels:
     app.kubernetes.io/name: openshift-mcp-server
 spec:
@@ -14,7 +15,7 @@ spec:
       labels:
         app.kubernetes.io/name: openshift-mcp-server
     spec:
-      serviceAccountName: openshift-mcp-server
+      serviceAccountName: obs-mcp
       automountServiceAccountToken: true
       containers:
         - name: openshift-mcp-server
