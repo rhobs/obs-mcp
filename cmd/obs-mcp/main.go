@@ -108,14 +108,14 @@ func main() {
 			"set PROMETHEUS_URL to point at your Thanos/Prometheus instance instead", parsedAuthMode)
 	}
 
-	dynClient, res := buildResolvers(parsedAuthMode, *lokiUseRoute, *tracesUseRoute)
+	dynClient, routeResolvers := buildResolvers(parsedAuthMode, *lokiUseRoute, *tracesUseRoute)
 
 	ctx := context.Background()
 
 	metricsBackendURL := ""
 	metricsURLSource := ""
 	if slices.Contains(parsedToolsets, metrics.ToolsetName) {
-		metricsBackendURL, metricsURLSource, err = determineMetricsBackendURL(ctx, parsedAuthMode, parsedMetricsBackend, dynClient, res.metrics)
+		metricsBackendURL, metricsURLSource, err = determineMetricsBackendURL(ctx, parsedAuthMode, parsedMetricsBackend, dynClient, routeResolvers.metrics)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
@@ -124,7 +124,7 @@ func main() {
 	alertmanagerURL := ""
 	alertmanagerURLSource := ""
 	if slices.Contains(parsedToolsets, metrics.ToolsetName) {
-		alertmanagerURL, alertmanagerURLSource, err = determineAlertmanagerURL(ctx, parsedAuthMode, dynClient, res.metrics)
+		alertmanagerURL, alertmanagerURLSource, err = determineAlertmanagerURL(ctx, parsedAuthMode, dynClient, routeResolvers.metrics)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
@@ -163,7 +163,7 @@ func main() {
 			Insecure: *insecure,
 			TempoURL: tempoResolvedURL,
 			UseRoute: *tracesUseRoute,
-			Resolver: res.traces,
+			Resolver: routeResolvers.traces,
 		},
 		Otelcol: otelcol.NewDefaultConfig(),
 		Logs: &logs.Config{
@@ -171,7 +171,7 @@ func main() {
 			Insecure: *insecure,
 			LokiURL:  lokiResolvedURL,
 			UseRoute: *lokiUseRoute,
-			Resolver: res.logs,
+			Resolver: routeResolvers.logs,
 		},
 		KubernetesClientConfig: k8s.GetClientCmdConfig(),
 		Registry:               reg,
@@ -329,7 +329,6 @@ func parseToolsets(toolsets string) []string {
 	return parts
 }
 
-// buildResolver returns a dynamic client and RouteResolver for kubeconfig mode or
 type resolvers struct {
 	logs    logsdiscovery.GatewayResolver
 	traces  tracesdiscovery.EndpointResolver
