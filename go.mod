@@ -5,7 +5,7 @@ go 1.26.3
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/blang/semver/v4 v4.0.0
-	github.com/containers/kubernetes-mcp-server v0.0.65
+	github.com/containers/kubernetes-mcp-server v0.0.66
 	github.com/go-openapi/runtime v0.33.0
 	github.com/go-openapi/strfmt v0.27.0
 	github.com/google/jsonschema-go v0.4.3
