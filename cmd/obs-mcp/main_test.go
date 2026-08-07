@@ -1,10 +1,10 @@
 package main
 
 import (
+	"context"
 	"testing"
 
 	"github.com/rhobs/obs-mcp/pkg/auth"
-	"github.com/rhobs/obs-mcp/pkg/k8s"
 )
 
 // TestParseMetricsBackend verifies the --metrics-backend flag parsing logic
@@ -12,37 +12,37 @@ func TestParseMetricsBackend(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
-		expected k8s.MetricsBackend
+		expected string
 		wantErr  bool
 	}{
 		{
 			name:     "thanos lowercase",
 			input:    "thanos",
-			expected: k8s.MetricsBackendThanos,
+			expected: "thanos",
 			wantErr:  false,
 		},
 		{
 			name:     "thanos uppercase",
 			input:    "THANOS",
-			expected: k8s.MetricsBackendThanos,
+			expected: "thanos",
 			wantErr:  false,
 		},
 		{
 			name:     "prometheus lowercase",
 			input:    "prometheus",
-			expected: k8s.MetricsBackendPrometheus,
+			expected: "prometheus",
 			wantErr:  false,
 		},
 		{
 			name:     "prometheus mixed case",
 			input:    "Prometheus",
-			expected: k8s.MetricsBackendPrometheus,
+			expected: "prometheus",
 			wantErr:  false,
 		},
 		{
 			name:     "empty defaults to thanos",
 			input:    "",
-			expected: k8s.MetricsBackendThanos,
+			expected: "thanos",
 			wantErr:  false,
 		},
 		{
@@ -82,23 +82,23 @@ func TestDetermineMetricsBackendURL_RequiresURLForNonKubeconfigModes(t *testing.
 	tests := []struct {
 		name     string
 		authMode auth.AuthMode
-		backend  k8s.MetricsBackend
+		backend  string
 	}{
 		{
 			name:     "header mode with thanos backend",
 			authMode: auth.AuthModeHeader,
-			backend:  k8s.MetricsBackendThanos,
+			backend:  "thanos",
 		},
 		{
 			name:     "header mode with prometheus backend",
 			authMode: auth.AuthModeHeader,
-			backend:  k8s.MetricsBackendPrometheus,
+			backend:  "prometheus",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, err := determineMetricsBackendURL(tt.authMode, tt.backend)
+			_, _, err := determineMetricsBackendURL(context.Background(), tt.authMode, tt.backend, nil, nil)
 			if err == nil {
 				t.Errorf("expected error for auth mode %q without PROMETHEUS_URL, got nil", tt.authMode)
 			}
@@ -120,7 +120,7 @@ func TestDetermineMetricsBackendURL_EnvVarOverridesAll(t *testing.T) {
 
 	for _, authMode := range authModes {
 		t.Run(string(authMode), func(t *testing.T) {
-			url, source, err := determineMetricsBackendURL(authMode, k8s.MetricsBackendThanos)
+			url, source, err := determineMetricsBackendURL(context.Background(), authMode, "thanos", nil, nil)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
