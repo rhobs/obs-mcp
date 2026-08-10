@@ -327,6 +327,11 @@ phase_extras() {
         esac
         _wait_rollout tracing statefulset/tempo-tempo1-ingester 5m
         _wait_rollout tracing statefulset/tempo-tempo2-ingester 5m
+        # Query-frontend serves the Tempo HTTP API used by e2e search tests.
+        # Ingester Ready alone is not enough — connection refused on :3200 is a
+        # common flake when tests start before query-frontend is accepting traffic.
+        _wait_rollout tracing deployment/tempo-tempo1-query-frontend 5m
+        _wait_rollout tracing deployment/tempo-tempo2-query-frontend 5m
 
         step "Waiting for traces to appear in Tempo"
         # Just in case the some residual pod stayed there from last attempt.

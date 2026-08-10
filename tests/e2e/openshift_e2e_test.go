@@ -182,22 +182,12 @@ func TestTempoListInstances(t *testing.T) {
 }
 
 func TestTempoSearchTraces_Multitenant(t *testing.T) {
-	resp, err := mcpClient.CallTool(t, 40, "tempo_search_traces", map[string]any{
+	resp := callTempoTool(t, 40, "tempo_search_traces", map[string]any{
 		"tempoNamespace": "tracing",
 		"tempoName":      "multitenant",
 		"tenant":         "project1",
 		"query":          "{}",
 	})
-	if err != nil {
-		t.Fatalf("Failed to call tempo_search_traces: %v", err)
-	}
-	if resp.Error != nil {
-		t.Fatalf("MCP error: %s", resp.Error.Message)
-	}
-	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
-		resultJSON, _ := json.Marshal(resp.Result)
-		t.Fatalf("tempo_search_traces returned an error result: %s", resultJSON)
-	}
 
 	structured, ok := resp.Result["structuredContent"].(map[string]any)
 	require.True(t, ok, "expected structuredContent in result")
