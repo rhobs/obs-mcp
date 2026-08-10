@@ -1,13 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
 
-	mcplib "github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/containers/kubernetes-mcp-server/pkg/api"
+	"github.com/google/jsonschema-go/jsonschema"
 
 	"github.com/rhobs/obs-mcp/pkg/mcp"
 )
@@ -30,10 +30,10 @@ func main() {
 	for _, g := range groups {
 		fmt.Printf("    %s %s (%d tools)\n", g.Icon, g.Name, len(g.Tools))
 		for i := range g.Tools {
-			fmt.Printf("      - %s\n", g.Tools[i].Name)
+			fmt.Printf("      - %s\n", g.Tools[i].Tool.Name)
 		}
 	}
-	fmt.Println("\n💡 Reminder: When adding a new tool, register it in the relevant package AllTools() list (metrics, logs, traces); pkg/mcp/tools.go GroupedTools() merges them.")
+	fmt.Println("\n💡 Reminder: When adding a new tool, register it in the relevant package GetTools() method (metrics, logs, traces); pkg/mcp/tools.go GroupedTools() merges them.")
 }
 
 type fieldInfo struct {
@@ -44,61 +44,19 @@ type fieldInfo struct {
 	Pattern     string
 }
 
-// Schema represents a JSON schema with properties and required fields
-type Schema struct {
-	Properties map[string]Property `json:"properties,omitempty"`
-	Required   []string            `json:"required,omitempty"`
-}
-
-// Property represents a JSON schema property
-type Property struct {
-	Type        any       `json:"type,omitempty"` // can be string or []string
-	Description string    `json:"description,omitempty"`
-	Pattern     string    `json:"pattern,omitempty"`
-	Items       *Property `json:"items,omitempty"`
-}
-
-// parseSchema converts the value of any type (interface{}, any) to Schema using JSON marshaling
-// and unmarshaling. The reason is that the `Tool` type (https://pkg.go.dev/github.com/modelcontextprotocol/go-sdk/mcp#Tool)
-// defines outputSchema and inputSchema as values of any type.
-func parseSchema(schemaInterface any) (*Schema, error) {
-	if schemaInterface == nil {
-		return &Schema{}, nil
-	}
-
-	data, err := json.Marshal(schemaInterface)
-	if err != nil {
-		return nil, err
-	}
-
-	var schema Schema
-	if err := json.Unmarshal(data, &schema); err != nil {
-		return nil, err
-	}
-
-	return &schema, nil
-}
-
-// getTypeString extracts type string from Property.Type
-func (p *Property) getTypeString() string {
-	switch t := p.Type.(type) {
-	case string:
-		return t
-	case []any:
-		for _, typ := range t {
-			if typeStr, ok := typ.(string); ok && typeStr != "null" {
-				return typeStr
+// getDisplayType returns the display type for a jsonschema.Schema property.
+func getDisplayType(prop *jsonschema.Schema) string {
+	baseType := prop.Type
+	if baseType == "" && len(prop.Types) > 0 {
+		for _, t := range prop.Types {
+			if t != "null" {
+				baseType = t
+				break
 			}
 		}
 	}
-	return ""
-}
-
-// getDisplayType returns the display type for the property
-func (p *Property) getDisplayType() string {
-	baseType := p.getTypeString()
-	if baseType == "array" && p.Items != nil {
-		itemType := p.Items.getTypeString()
+	if baseType == "array" && prop.Items != nil {
+		itemType := prop.Items.Type
 		if itemType != "" {
 			return itemType + "[]"
 		}
@@ -110,8 +68,8 @@ func (p *Property) getDisplayType() string {
 	return baseType
 }
 
-// extractFieldsFromSchema converts a Schema to []fieldInfo
-func extractFieldsFromSchema(schema *Schema, sortByRequired bool) []fieldInfo {
+// extractFieldsFromSchema converts a jsonschema.Schema to []fieldInfo.
+func extractFieldsFromSchema(schema *jsonschema.Schema, sortByRequired bool) []fieldInfo {
 	if schema == nil || len(schema.Properties) == 0 {
 		return nil
 	}
@@ -125,7 +83,7 @@ func extractFieldsFromSchema(schema *Schema, sortByRequired bool) []fieldInfo {
 	for name, prop := range schema.Properties {
 		field := fieldInfo{
 			Name:        name,
-			Type:        prop.getDisplayType(),
+			Type:        getDisplayType(prop),
 			Required:    requiredSet[name],
 			Description: prop.Description,
 			Pattern:     prop.Pattern,
@@ -149,20 +107,12 @@ func extractFieldsFromSchema(schema *Schema, sortByRequired bool) []fieldInfo {
 	return fields
 }
 
-func extractParams(tool *mcplib.Tool) []fieldInfo {
-	schema, err := parseSchema(tool.InputSchema)
-	if err != nil {
-		return nil
-	}
-	return extractFieldsFromSchema(schema, true)
+func extractParams(tool *api.Tool) []fieldInfo {
+	return extractFieldsFromSchema(tool.InputSchema, true)
 }
 
-func extractOutputSchema(tool *mcplib.Tool) []fieldInfo {
-	schema, err := parseSchema(tool.OutputSchema)
-	if err != nil {
-		return nil
-	}
-	return extractFieldsFromSchema(schema, false)
+func extractOutputSchema(tool *api.Tool) []fieldInfo {
+	return extractFieldsFromSchema(tool.OutputSchema, false)
 }
 
 // sanitizeTableCell makes cell content safe for a single-line GFM table row.
@@ -279,7 +229,7 @@ func generateMarkdown(groups []mcp.ToolGroup, filename string) error {
 	sb.WriteString("| :--- | :--- | :--- |\n")
 	for _, g := range groups {
 		for i := range g.Tools {
-			tool := &g.Tools[i]
+			tool := &g.Tools[i].Tool
 			paragraphs := strings.Split(strings.TrimSpace(tool.Description), "\n\n")
 			desc := firstSentence(paragraphs[0])
 			sb.WriteString(fmt.Sprintf("| [`%s`](#%s) | %s %s | %s |\n",
@@ -298,7 +248,7 @@ func generateMarkdown(groups []mcp.ToolGroup, filename string) error {
 		sb.WriteString(fmt.Sprintf("- **%s [%s](#%s)** (%d tools)\n",
 			g.Icon, g.Name, categoryAnchor(g.Name), len(g.Tools)))
 		for i := range g.Tools {
-			sb.WriteString(fmt.Sprintf("  - [`%s`](#%s)\n", g.Tools[i].Name, toolAnchor(g.Tools[i].Name)))
+			sb.WriteString(fmt.Sprintf("  - [`%s`](#%s)\n", g.Tools[i].Tool.Name, toolAnchor(g.Tools[i].Tool.Name)))
 		}
 	}
 	sb.WriteString("\n---\n\n")
@@ -310,7 +260,7 @@ func generateMarkdown(groups []mcp.ToolGroup, filename string) error {
 		sb.WriteString(fmt.Sprintf("## %s %s\n\n", g.Icon, g.Name))
 
 		for ti := range g.Tools {
-			tool := &g.Tools[ti]
+			tool := &g.Tools[ti].Tool
 			sb.WriteString(fmt.Sprintf("### `%s`\n\n", tool.Name))
 
 			paragraphs := strings.Split(strings.TrimSpace(tool.Description), "\n\n")

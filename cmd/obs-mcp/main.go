@@ -22,15 +22,20 @@ import (
 	"github.com/prometheus/common/promslog"
 	"github.com/prometheus/common/version"
 
+	"k8s.io/client-go/dynamic"
+
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/health"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
 	"github.com/rhobs/obs-mcp/pkg/logs"
+	logsdiscovery "github.com/rhobs/obs-mcp/pkg/logs/discovery"
 	mcpserver "github.com/rhobs/obs-mcp/pkg/mcp"
 	"github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
+	"github.com/rhobs/obs-mcp/pkg/openshift"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
 	"github.com/rhobs/obs-mcp/pkg/traces"
+	tracesdiscovery "github.com/rhobs/obs-mcp/pkg/traces/discovery"
 )
 
 const (
@@ -103,10 +108,14 @@ func main() {
 			"set PROMETHEUS_URL to point at your Thanos/Prometheus instance instead", parsedAuthMode)
 	}
 
+	dynClient, routeResolvers := buildResolvers(parsedAuthMode, *lokiUseRoute, *tracesUseRoute)
+
+	ctx := context.Background()
+
 	metricsBackendURL := ""
 	metricsURLSource := ""
 	if slices.Contains(parsedToolsets, metrics.ToolsetName) {
-		metricsBackendURL, metricsURLSource, err = determineMetricsBackendURL(parsedAuthMode, parsedMetricsBackend)
+		metricsBackendURL, metricsURLSource, err = determineMetricsBackendURL(ctx, parsedAuthMode, parsedMetricsBackend, dynClient, routeResolvers.metrics)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
@@ -115,7 +124,7 @@ func main() {
 	alertmanagerURL := ""
 	alertmanagerURLSource := ""
 	if slices.Contains(parsedToolsets, metrics.ToolsetName) {
-		alertmanagerURL, alertmanagerURLSource, err = determineAlertmanagerURL(parsedAuthMode)
+		alertmanagerURL, alertmanagerURLSource, err = determineAlertmanagerURL(ctx, parsedAuthMode, dynClient, routeResolvers.metrics)
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
@@ -154,6 +163,7 @@ func main() {
 			Insecure: *insecure,
 			TempoURL: tempoResolvedURL,
 			UseRoute: *tracesUseRoute,
+			Resolver: routeResolvers.traces,
 		},
 		Otelcol: otelcol.NewDefaultConfig(),
 		Logs: &logs.Config{
@@ -161,6 +171,7 @@ func main() {
 			Insecure: *insecure,
 			LokiURL:  lokiResolvedURL,
 			UseRoute: *lokiUseRoute,
+			Resolver: routeResolvers.logs,
 		},
 		KubernetesClientConfig: k8s.GetClientCmdConfig(),
 		Registry:               reg,
@@ -204,7 +215,7 @@ func main() {
 
 	var g run.Group
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	g.Add(func() error {
 		<-ctx.Done()
 		return ctx.Err()
@@ -318,12 +329,39 @@ func parseToolsets(toolsets string) []string {
 	return parts
 }
 
-func parseMetricsBackend(backend string) (k8s.MetricsBackend, error) {
+type resolvers struct {
+	logs    logsdiscovery.GatewayResolver
+	traces  tracesdiscovery.EndpointResolver
+	metrics metrics.BackendResolver
+}
+
+// buildResolvers returns a dynamic client and per-toolset resolvers for kubeconfig mode or
+// explicit --use-route flags; all resolvers are nil when route discovery is not applicable.
+func buildResolvers(authMode auth.AuthMode, lokiUseRoute, tracesUseRoute bool) (dynamic.Interface, resolvers) {
+	if authMode != auth.AuthModeKubeConfig && !lokiUseRoute && !tracesUseRoute {
+		return nil, resolvers{}
+	}
+	restCfg, err := k8s.GetClientConfig()
+	if err != nil {
+		log.Fatalf("Failed to load kubeconfig: %v", err)
+	}
+	dynClient, err := dynamic.NewForConfig(restCfg)
+	if err != nil {
+		log.Fatalf("Failed to create dynamic client: %v", err)
+	}
+	return dynClient, resolvers{
+		logs:    &openshift.LogsGatewayResolver{},
+		traces:  &openshift.RouteClient{},
+		metrics: &openshift.MetricsRouteResolver{},
+	}
+}
+
+func parseMetricsBackend(backend string) (string, error) {
 	switch strings.ToLower(backend) {
 	case "thanos", "":
-		return k8s.MetricsBackendThanos, nil
+		return "thanos", nil
 	case "prometheus":
-		return k8s.MetricsBackendPrometheus, nil
+		return "prometheus", nil
 	default:
 		return "", fmt.Errorf("unknown metrics backend %q, must be 'thanos' or 'prometheus'", backend)
 	}
@@ -331,14 +369,14 @@ func parseMetricsBackend(backend string) (k8s.MetricsBackend, error) {
 
 // determineMetricsBackendURL determines the metrics backend URL based on auth mode and environment.
 // Returns the resolved URL, a source description for logging, and an error if the configuration is invalid.
-func determineMetricsBackendURL(authMode auth.AuthMode, backend k8s.MetricsBackend) (url, source string, err error) {
+func determineMetricsBackendURL(ctx context.Context, authMode auth.AuthMode, backend string, dynClient dynamic.Interface, resolver metrics.BackendResolver) (url, source string, err error) {
 	if prometheusURL := os.Getenv("PROMETHEUS_URL"); prometheusURL != "" {
 		return prometheusURL, "PROMETHEUS_URL env var", nil
 	}
 
-	if authMode == auth.AuthModeKubeConfig {
+	if authMode == auth.AuthModeKubeConfig && resolver != nil {
 		slog.Info("No PROMETHEUS_URL set, attempting route discovery", "backend", backend)
-		url, err := k8s.GetMetricsBackendURL(backend)
+		url, err := resolver.ResolveMetricsBackend(ctx, dynClient, backend)
 		if err != nil {
 			slog.Warn("Route discovery failed, falling back to default", "err", err, "default", defaultPrometheusURL)
 			return defaultPrometheusURL, "default (route discovery failed)", nil
@@ -357,14 +395,14 @@ func determineMetricsBackendURL(authMode auth.AuthMode, backend k8s.MetricsBacke
 
 // determineAlertmanagerURL determines the Alertmanager URL based on auth mode and environment.
 // Returns the resolved URL, a source description for logging, and an error if the configuration is invalid.
-func determineAlertmanagerURL(authMode auth.AuthMode) (url, source string, err error) {
+func determineAlertmanagerURL(ctx context.Context, authMode auth.AuthMode, dynClient dynamic.Interface, resolver metrics.BackendResolver) (url, source string, err error) {
 	if alertmanagerURL := os.Getenv("ALERTMANAGER_URL"); alertmanagerURL != "" {
 		return alertmanagerURL, "ALERTMANAGER_URL env var", nil
 	}
 
-	if authMode == auth.AuthModeKubeConfig {
+	if authMode == auth.AuthModeKubeConfig && resolver != nil {
 		slog.Info("No ALERTMANAGER_URL set, attempting route discovery")
-		url, err := k8s.GetAlertmanagerURL()
+		url, err := resolver.ResolveAlertmanager(ctx, dynClient)
 		if err != nil {
 			slog.Warn("Route discovery failed, falling back to default", "err", err, "default", defaultAlertmanagerURL)
 			return defaultAlertmanagerURL, "default (route discovery failed)", nil

@@ -706,21 +706,10 @@ func TestTempoListInstances(t *testing.T) {
 }
 
 func TestTempoSearchTags(t *testing.T) {
-	resp, err := mcpClient.CallTool(t, 23, "tempo_search_tags", map[string]any{
+	resp := callTempoTool(t, 23, "tempo_search_tags", map[string]any{
 		"tempoNamespace": "tracing",
 		"tempoName":      "tempo1",
 	})
-	if err != nil {
-		t.Fatalf("Failed to call tempo_search_tags: %v", err)
-	}
-
-	if resp.Error != nil {
-		t.Fatalf("MCP error: %s", resp.Error.Message)
-	}
-	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
-		resultJSON, _ := json.Marshal(resp.Result)
-		t.Fatalf("tempo_search_tags returned an error result: %s", resultJSON)
-	}
 
 	structured := resp.Result["structuredContent"].(map[string]any)
 	scopes := structured["scopes"].([]any)
@@ -747,21 +736,11 @@ func TestTempoSearchTags(t *testing.T) {
 }
 
 func TestTempoSearchTraces(t *testing.T) {
-	resp, err := mcpClient.CallTool(t, 40, "tempo_search_traces", map[string]any{
+	resp := callTempoTool(t, 40, "tempo_search_traces", map[string]any{
 		"tempoNamespace": "tracing",
 		"tempoName":      "tempo1",
 		"query":          "{}",
 	})
-	if err != nil {
-		t.Fatalf("Failed to call tempo_search_traces: %v", err)
-	}
-	if resp.Error != nil {
-		t.Fatalf("MCP error: %s", resp.Error.Message)
-	}
-	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
-		resultJSON, _ := json.Marshal(resp.Result)
-		t.Fatalf("tempo_search_traces returned an error result: %s", resultJSON)
-	}
 
 	structured, ok := resp.Result["structuredContent"].(map[string]any)
 	require.True(t, ok, "expected structuredContent in result")
@@ -797,18 +776,12 @@ func TestTempoSearchTraces_EmptyQuery(t *testing.T) {
 
 func TestTempoGetTraceByID(t *testing.T) {
 	// First retrieve a real trace ID from the search tool.
-	searchResp, err := mcpClient.CallTool(t, 42, "tempo_search_traces", map[string]any{
+	searchResp := callTempoTool(t, 42, "tempo_search_traces", map[string]any{
 		"tempoNamespace": "tracing",
 		"tempoName":      "tempo1",
 		"query":          "{}",
 		"limit":          1,
 	})
-	if err != nil {
-		t.Fatalf("Failed to call tempo_search_traces: %v", err)
-	}
-	if searchResp.Error != nil {
-		t.Fatalf("MCP error during trace search: %s", searchResp.Error.Message)
-	}
 
 	structured, ok := searchResp.Result["structuredContent"].(map[string]any)
 	if !ok {
@@ -826,22 +799,11 @@ func TestTempoGetTraceByID(t *testing.T) {
 
 	t.Logf("Fetching trace %s", traceID)
 
-	// Now fetch that trace by ID.
-	resp, err := mcpClient.CallTool(t, 43, "tempo_get_trace_by_id", map[string]any{
+	resp := callTempoTool(t, 43, "tempo_get_trace_by_id", map[string]any{
 		"tempoNamespace": "tracing",
 		"tempoName":      "tempo1",
 		"traceid":        traceID,
 	})
-	if err != nil {
-		t.Fatalf("Failed to call tempo_get_trace_by_id: %v", err)
-	}
-	if resp.Error != nil {
-		t.Fatalf("MCP error: %s", resp.Error.Message)
-	}
-	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
-		resultJSON, _ := json.Marshal(resp.Result)
-		t.Fatalf("tempo_get_trace_by_id returned an error result: %s", resultJSON)
-	}
 
 	traceStructured, ok := resp.Result["structuredContent"].(map[string]any)
 	require.True(t, ok, "expected structuredContent in result")
@@ -874,21 +836,11 @@ func TestTempoGetTraceByID_InvalidID(t *testing.T) {
 }
 
 func TestTempoSearchTagValues(t *testing.T) {
-	resp, err := mcpClient.CallTool(t, 45, "tempo_search_tag_values", map[string]any{
+	resp := callTempoTool(t, 45, "tempo_search_tag_values", map[string]any{
 		"tempoNamespace": "tracing",
 		"tempoName":      "tempo1",
 		"tag":            "resource.service.name",
 	})
-	if err != nil {
-		t.Fatalf("Failed to call tempo_search_tag_values: %v", err)
-	}
-	if resp.Error != nil {
-		t.Fatalf("MCP error: %s", resp.Error.Message)
-	}
-	if isErr, ok := resp.Result["isError"].(bool); ok && isErr {
-		resultJSON, _ := json.Marshal(resp.Result)
-		t.Fatalf("tempo_search_tag_values returned an error result: %s", resultJSON)
-	}
 
 	structured, ok := resp.Result["structuredContent"].(map[string]any)
 	require.True(t, ok, "expected structuredContent in result")

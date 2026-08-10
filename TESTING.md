@@ -66,9 +66,9 @@ make test-e2e-teardown      # cleanup
 
 ## OpenShift E2E Tests
 
-Validates route auto-discovery (`pkg/k8s`) and tool correctness against OpenShift monitoring.
+Validates route auto-discovery (`pkg/openshift`) and tool correctness against OpenShift monitoring.
 
-`TestRouteDiscovery_*` exercises `pkg/k8s` directly using the kubeconfig — no running obs-mcp needed.
+`TestRouteDiscovery_*` exercises `pkg/openshift` directly using the kubeconfig — no running obs-mcp needed.
 `TestOpenShiftMetricsPresent` requires `OBS_MCP_URL` and is skipped when not set. In CI, `OBS_MCP_URL` is set automatically by the step registry to point at the deployed obs-mcp instance.
 
 **Authentication:** `TestRouteDiscovery_URLsAreReachable` queries monitoring routes directly. It uses `OPENSHIFT_TOKEN` if set (required in CI where the kubeconfig uses client certs that the OAuth proxy rejects), otherwise falls back to the kubeconfig bearer token (works with `oc login`).
