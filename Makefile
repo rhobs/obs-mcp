@@ -283,7 +283,9 @@ endif
 .PHONY: publish-mcpchecker-evals
 publish-mcpchecker-evals: $(MCPCHECKER) ## Publish mcpchecker eval results (sanitize paths, save output.json and summary.txt)
 	mkdir -p $(MCPCHECKER_EVAL_DIR)/results
-	sed 's|$(ROOT_DIR)|.|g' $(MCPCHECKER_EVAL_DIR)/mcpchecker-obs-mcp-tools-out.json \
+	sed -e 's|$(ROOT_DIR)|.|g' \
+	    -e 's|Bearer [^ "]*|Bearer REDACTED|g' \
+		$(MCPCHECKER_EVAL_DIR)/mcpchecker-obs-mcp-tools-out.json \
 		> $(MCPCHECKER_EVAL_DIR)/results/output.json
 	$(MCPCHECKER) result summary $(MCPCHECKER_EVAL_DIR)/mcpchecker-obs-mcp-tools-out.json \
 		| python3 $(MCPCHECKER_EVAL_DIR)/sort-summary.py \
