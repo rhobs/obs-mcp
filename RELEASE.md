@@ -9,6 +9,8 @@ This document describes how to create a new release of obs-mcp.
 
 ## Steps
 
+Use these steps for a release cut from current `main` (minor/major, or a patch when `main` *is* the tip you want to ship). If you need a **patch while `main` is ahead** with unrelated commits, use [Patch releases (when `main` is ahead)](#patch-releases-when-main-is-ahead) instead.
+
 ### 1. Update CHANGELOG.md and VERSION
 
 Ensure main is up to date:
@@ -115,6 +117,118 @@ Pushing the tag to upstream triggers the [release workflow](.github/workflows/re
   - `obs-mcp_<version>_darwin_arm64.tar.gz`
   - `checksums.txt`
   - `.bundle` signature files for each archive
+
+## Patch releases (when `main` is ahead)
+
+Use this when you need a **patch** on an already shipped minor line (for example `v0.7.2` after `v0.7.1`) but `main` has moved on with other commits you do **not** want in that patch.
+
+The fix should already be (or also be) on `main`. You ship the patch from a **release branch**, cherry-picking only the commits required for the fix.
+
+### 1. Create or update the release branch
+
+Release branches are named `release-X.Y` (no `v` prefix), for example `release-0.7` for the `0.7.x` line.
+
+Fetch upstream and check whether the branch already exists:
+
+```bash
+git fetch <upstream-remote>
+git branch -r | grep "release-X.Y" || true
+```
+
+**If the branch does not exist**, create it from the last tag on that line and push it to upstream:
+
+```bash
+# Example: patching the 0.7 line after v0.7.1
+export PREV_TAG=v0.7.1
+export RELEASE_BRANCH=release-0.7
+
+git checkout -b ${RELEASE_BRANCH} ${PREV_TAG}
+git push <upstream-remote> ${RELEASE_BRANCH}
+```
+
+**If the branch already exists**, check it out and update it:
+
+```bash
+git checkout ${RELEASE_BRANCH}
+git pull <upstream-remote> ${RELEASE_BRANCH}
+```
+
+### 2. Cherry-pick the fix from `main`
+
+The fix commit(s) should already be on `main`. You copy only those commits onto the release branch via a short-lived branch and a PR **whose base is `release-X.Y`**, not `main`.
+
+Example: shipping `v0.7.2` from `release-0.7`, cherry-picking commit `abc1234` from `main`.
+
+```bash
+# Start from the release branch (already checked out / up to date from step 1)
+git checkout -b cherry-pick-v0.7.2
+
+# Find the fix on main, then cherry-pick it
+git log --oneline main
+git cherry-pick abc1234
+# If the commit is a merge commit: git cherry-pick -m 1 <merge-sha>
+
+# Push this branch to your fork
+git push <fork> cherry-pick-v0.7.2
+```
+
+Open a pull request:
+
+| Field | Value |
+| ----- | ----- |
+| **base** (merge into) | `rhobs/obs-mcp` → `release-0.7` |
+| **compare** (your branch) | `<your-fork>` → `cherry-pick-v0.7.2` |
+
+Do **not** target `main` for this PR. After it merges into `release-X.Y`, continue with the cut steps below on that release branch.
+
+### 3. Cut CHANGELOG.md and VERSION on the release branch
+
+After the cherry-pick PR is merged, update the release branch and open a cut PR (also targeting `release-X.Y`, not `main`):
+
+```bash
+git checkout release-X.Y
+git pull <upstream-remote> release-X.Y
+git checkout -b cut-vX.Y.Z
+```
+
+- Add a `## [vX.Y.Z] - YYYY-MM-DD` section to `CHANGELOG.md` describing the patch (do **not** promote unrelated `[Unreleased]` content from `main`).
+- Set `VERSION` to `X.Y.Z` (no `v` prefix).
+
+```bash
+echo "X.Y.Z" > VERSION
+git add CHANGELOG.md VERSION
+git commit -m "chore: cut vX.Y.Z"
+git push <fork> cut-vX.Y.Z
+```
+
+Open a pull request with **base** `release-X.Y` and **compare** `cut-vX.Y.Z`, then merge.
+
+If the changelog note for the patch should also appear on `main`, open a separate PR to `main` (or rely on the fix PR’s notes under `[Unreleased]`).
+
+### 4. Tag from the release branch (GPG-signed)
+
+```bash
+git checkout release-X.Y
+git pull <upstream-remote> release-X.Y
+
+cat VERSION
+make test-unit
+make lint
+
+export VERSION=$(cat VERSION)
+export TAG="v${VERSION}"
+make tag VERSION=${VERSION}
+git verify-tag ${TAG}
+git push <upstream-remote> ${TAG}   # rhobs/obs-mcp, not your fork
+```
+
+Then verify the GitHub Release the same way as in [Steps → Verify the release](#3-verify-the-release).
+
+### Notes
+
+- Do **not** tag the patch from `main` if `main` contains commits beyond the release line.
+- Keep `release-X.Y` around for further patches on that line; create it only once per minor line (from the previous tag) if missing.
+- Minor/major releases from current `main` still follow [Steps](#steps) above (cut PR into `main`, then tag).
 
 ## Manual release (via workflow dispatch)
 
