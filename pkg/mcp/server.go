@@ -190,8 +190,9 @@ func NewHTTPServer(mcpServer *mcp.Server, listenAddr string, registry prom.Regis
 	}
 
 	httpServer = &http.Server{
-		Addr:    listenAddr,
-		Handler: handler,
+		Addr:              listenAddr,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	opts := &mcp.StreamableHTTPOptions{
