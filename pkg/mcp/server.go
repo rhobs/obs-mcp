@@ -161,10 +161,20 @@ func authMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func redactHeaders(h http.Header) http.Header {
+	redacted := h.Clone()
+	for _, key := range []string{"Authorization", "Proxy-Authorization", "Cookie"} {
+		if _, ok := redacted[key]; ok {
+			redacted.Set(key, "[REDACTED]")
+		}
+	}
+	return redacted
+}
+
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slog.Info("Incoming request", "method", r.Method, "path", r.URL.Path, "remote_addr", r.RemoteAddr)
-		slog.Debug("Request headers", "headers", r.Header)
+		slog.Debug("Request headers", "headers", redactHeaders(r.Header))
 		if r.ContentLength > 0 {
 			slog.Info("Request content length", "content_length", r.ContentLength)
 		}
