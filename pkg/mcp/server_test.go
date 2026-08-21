@@ -17,6 +17,69 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
 )
 
+func TestRedactHeaders(t *testing.T) {
+	tests := []struct {
+		name     string
+		headers  http.Header
+		wantKeys map[string]string
+	}{
+		{
+			name: "authorization header is redacted",
+			headers: http.Header{
+				"Authorization": []string{"Bearer secret-token"},
+				"Content-Type":  []string{"application/json"},
+			},
+			wantKeys: map[string]string{
+				"Authorization": "[REDACTED]",
+				"Content-Type":  "application/json",
+			},
+		},
+		{
+			name: "proxy-authorization header is redacted",
+			headers: http.Header{
+				"Proxy-Authorization": []string{"Bearer proxy-token"},
+			},
+			wantKeys: map[string]string{
+				"Proxy-Authorization": "[REDACTED]",
+			},
+		},
+		{
+			name: "cookie header is redacted",
+			headers: http.Header{
+				"Cookie": []string{"session=abc123"},
+			},
+			wantKeys: map[string]string{
+				"Cookie": "[REDACTED]",
+			},
+		},
+		{
+			name: "non-sensitive headers are preserved",
+			headers: http.Header{
+				"Accept":       []string{"text/html"},
+				"Content-Type": []string{"application/json"},
+			},
+			wantKeys: map[string]string{
+				"Accept":       "text/html",
+				"Content-Type": "application/json",
+			},
+		},
+		{
+			name:     "empty headers",
+			headers:  http.Header{},
+			wantKeys: map[string]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			redacted := redactHeaders(tt.headers)
+			for key, want := range tt.wantKeys {
+				require.Equal(t, want, redacted.Get(key), "header %s", key)
+			}
+		})
+	}
+}
+
 func TestAuthMiddleware(t *testing.T) {
 	tests := []struct {
 		name           string
