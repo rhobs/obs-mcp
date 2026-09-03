@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -78,6 +79,12 @@ func TestRedactHeaders(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewHTTPServerSetsReadHeaderTimeout(t *testing.T) {
+	mcpServer := mcpsdk.NewServer(&mcpsdk.Implementation{Name: "test", Version: "0.0.1"}, nil)
+	httpServer, _ := NewHTTPServer(mcpServer, ":0", nil, auth.AuthModeKubeConfig)
+	require.Equal(t, 10*time.Second, httpServer.ReadHeaderTimeout)
 }
 
 func TestAuthMiddleware(t *testing.T) {
