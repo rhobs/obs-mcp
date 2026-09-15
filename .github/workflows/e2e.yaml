@@ -48,7 +48,16 @@ jobs:
     e2e-openshift-mcp-server:
         name: E2E tests with openshift-mcp-server
         needs: changed-files
-        if: ${{ needs.changed-files.outputs.non-markdown-files }}
+        # Parked: this job builds openshift/openshift-mcp-server main, which no
+        # longer vendors rhobs/obs-mcp (RHOBS-1695) and does not ship
+        # observability/alert-management. Deploying the sample ConfigMap fails
+        # server startup with `unknown config key
+        # "toolset_configs.observability/alert-management"`, so the job cannot
+        # verify obs-mcp code. Re-enable once kubernetes-mcp-server ships the
+        # toolset (rhobs/obs-mcp#213); obs-mcp tools stay covered by the
+        # e2e-tests job above. Restore the condition to re-enable:
+        # if: ${{ needs.changed-files.outputs.non-markdown-files }}
+        if: ${{ false }}
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
@@ -70,6 +79,17 @@ jobs:
                 echo "$TOOLS" | grep -q 'tempo_' || (echo "ERROR: no tempo_ tools found"; exit 1)
                 echo "$TOOLS" | grep -q 'loki_' || (echo "ERROR: no loki_ tools found"; exit 1)
                 echo "$TOOLS" | grep -q 'otelcol_' || (echo "ERROR: no otelcol_ tools found"; exit 1)
+                echo "$TOOLS" | grep -q 'list_alert_rules' || (echo "ERROR: no list_alert_rules tool found"; exit 1)
+                echo "$TOOLS" | grep -q 'list_alerts' || (echo "ERROR: no list_alerts tool found"; exit 1)
+                echo "$TOOLS" | grep -q 'get_silences' || (echo "ERROR: no get_silences tool found"; exit 1)
+                if echo "$TOOLS" | grep -qE '"name": *"create_silence"'; then
+                  echo "ERROR: create_silence is registered; sample ConfigMap should set read_only=true"
+                  exit 1
+                fi
+                if echo "$TOOLS" | grep -qE '"name": *"create_alert_rule"'; then
+                  echo "ERROR: create_alert_rule is registered; sample ConfigMap should set read_only=true"
+                  exit 1
+                fi
 
             - name: Collect diagnostics on failure
               if: ${{ failure() }}

@@ -2,18 +2,68 @@ package auth
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
 	promapi "github.com/prometheus/client_golang/api"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/rest"
+	certutil "k8s.io/client-go/util/cert"
 )
+
+func TestCreateCertPoolLoadsBothAuthorities(t *testing.T) {
+	apiCA := testCertificateAuthority(t, "api-server")
+	serviceCA := testCertificateAuthority(t, "service")
+	apiPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: apiCA.Raw})
+	servicePEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: serviceCA.Raw})
+	tests := []struct {
+		name        string
+		apiData     []byte
+		serviceData []byte
+		trusted     []*x509.Certificate
+	}{
+		{name: "both authorities", apiData: apiPEM, serviceData: servicePEM, trusted: []*x509.Certificate{apiCA, serviceCA}},
+		{name: "service CA without API CA", serviceData: servicePEM, trusted: []*x509.Certificate{serviceCA}},
+		{name: "invalid API CA", apiData: []byte("invalid"), serviceData: servicePEM, trusted: []*x509.Certificate{serviceCA}},
+		{name: "invalid service CA", apiData: apiPEM, serviceData: []byte("invalid"), trusted: []*x509.Certificate{apiCA}},
+		{name: "missing service CA", apiData: apiPEM, trusted: []*x509.Certificate{apiCA}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			servicePath := filepath.Join(t.TempDir(), "service-ca.crt")
+			if tt.serviceData != nil {
+				require.NoError(t, os.WriteFile(servicePath, tt.serviceData, 0o600))
+			}
+			pool, err := createCertPool(&rest.Config{TLSClientConfig: rest.TLSClientConfig{CAData: tt.apiData}}, servicePath)
+			require.NoError(t, err)
+			for _, authority := range tt.trusted {
+				_, err := authority.Verify(x509.VerifyOptions{Roots: pool})
+				require.NoError(t, err, "authority %s must be trusted", authority.Subject.CommonName)
+			}
+		})
+	}
+}
+
+func testCertificateAuthority(t *testing.T, name string) *x509.Certificate {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	certificate, err := certutil.NewSelfSignedCACert(certutil.Config{CommonName: name}, key)
+	require.NoError(t, err)
+	return certificate
+}
 
 func TestBuildRoundTripper(t *testing.T) {
 	// Mock HTTP server which returns the same auth header value
@@ -119,6 +169,137 @@ func TestBuildRoundTripper(t *testing.T) {
 	}
 }
 
+func TestBuildRoundTripper_PlainHTTPOmitsToken(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Received-Auth", r.Header.Get("Authorization"))
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+
+	rt, err := BuildRoundTripper(t.Context(), &rest.Config{BearerToken: "kubeconfig-token"}, AuthModeKubeConfig, false, false)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/test", http.NoBody)
+	require.NoError(t, err)
+
+	resp, err := rt.RoundTrip(req)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = resp.Body.Close() })
+
+	require.Empty(t, resp.Header.Get("X-Received-Auth"))
+}
+
+func TestBuildRoundTripper_AuthedTLSRejectsHTTP(t *testing.T) {
+	var sawAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawAuth = r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+
+	rt, err := BuildRoundTripper(t.Context(), &rest.Config{BearerToken: "secret"}, AuthModeKubeConfig, true, true)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/test", http.NoBody)
+	require.NoError(t, err)
+
+	resp, err := rt.RoundTrip(req)
+	if resp != nil {
+		t.Cleanup(func() { _ = resp.Body.Close() })
+	}
+	require.EqualError(t, err, errNonTLSCredentials.Error())
+	require.Empty(t, sawAuth)
+}
+
+func TestBuildRoundTripper_InsecureRejectsRemoteHost(t *testing.T) {
+	rt, err := BuildRoundTripper(t.Context(), &rest.Config{BearerToken: "secret"}, AuthModeKubeConfig, true, true)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, "https://thanos.example.com/api/v1/query", http.NoBody)
+	require.NoError(t, err)
+
+	resp, err := rt.RoundTrip(req)
+	if resp != nil {
+		t.Cleanup(func() { _ = resp.Body.Close() })
+	}
+	require.EqualError(t, err, errInsecureRemoteCredentials.Error())
+}
+
+func TestIsLoopbackURL(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want bool
+	}{
+		{raw: "https://127.0.0.1:9443", want: true},
+		{raw: "https://localhost:9443", want: true},
+		{raw: "https://LocalHost:9443", want: true},
+		{raw: "https://[::1]:9443", want: true},
+		{raw: "https://thanos.example.com", want: false},
+		{raw: "https://192.168.1.10:9090", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.raw, func(t *testing.T) {
+			u, err := url.Parse(tt.raw)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, isLoopbackURL(u))
+		})
+	}
+	require.False(t, isLoopbackURL(nil))
+}
+
+func TestCheckRedirect(t *testing.T) {
+	httpsReq := mustHTTPRequest(t, "https://example.com/a")
+	httpReq := mustHTTPRequest(t, "http://example.com/b")
+	httpsNext := mustHTTPRequest(t, "https://example.com/c")
+
+	tests := []struct {
+		name    string
+		req     *http.Request
+		via     []*http.Request
+		wantErr string
+	}{
+		{
+			name:    "https to http",
+			req:     httpReq,
+			via:     []*http.Request{httpsReq},
+			wantErr: errHTTPSToHTTPRedirect.Error(),
+		},
+		{
+			name: "https to https",
+			req:  httpsNext,
+			via:  []*http.Request{httpsReq},
+		},
+		{
+			name: "http to http",
+			req:  httpReq,
+			via:  []*http.Request{mustHTTPRequest(t, "http://example.com/a")},
+		},
+		{
+			name:    "too many redirects",
+			req:     httpsNext,
+			via:     make([]*http.Request, maxRedirects),
+			wantErr: "stopped after 10 redirects",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := CheckRedirect(tt.req, tt.via)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.EqualError(t, err, tt.wantErr)
+		})
+	}
+}
+
+func mustHTTPRequest(t *testing.T, rawURL string) *http.Request {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodGet, rawURL, http.NoBody)
+	require.NoError(t, err)
+	return req
+}
+
 func TestCreateHeaderAPIConfig(t *testing.T) {
 	// This test validates the complete flow: context -> token extraction -> RoundTripper adds Authorization header
 	token := "test-bearer-token-12345"
@@ -160,7 +341,7 @@ func TestCreateHeaderAPIConfig(t *testing.T) {
 	}
 
 	// Step 5: Create a test request
-	testReq, err := http.NewRequest("GET", "https://prometheus.example.com/api/v1/query", http.NoBody)
+	testReq, err := http.NewRequest("GET", "https://127.0.0.1/api/v1/query", http.NoBody)
 	if err != nil {
 		t.Fatalf("failed to create test request: %v", err)
 	}

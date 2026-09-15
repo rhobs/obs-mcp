@@ -10,7 +10,9 @@ rules:
     resources: ["prometheuses/api"]
     resourceNames: ["k8s"]
     verbs: ["get", "create"]
-  # Required for Alertmanager API access (read-only)
+  # Required for Alertmanager API access (read-only). Silence writes and
+  # AlertRelabelConfig (platform drop/restore) need extra Roles bound to the
+  # caller; e2e tests grant those for the obs-mcp service account.
   - apiGroups: ["monitoring.coreos.com"]
     resources: ["alertmanagers/api"]
     resourceNames: ["main"]

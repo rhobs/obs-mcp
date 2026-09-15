@@ -194,3 +194,46 @@ func TestDetermineTempoURL(t *testing.T) {
 		}
 	})
 }
+
+func TestDetermineAlertMgmtAPIURL(t *testing.T) {
+	t.Run("explicit flag wins", func(t *testing.T) {
+		t.Setenv("ALERT_MGMT_API_URL", "http://from-env:9444")
+		got, source, err := determineAlertMgmtAPIURL(auth.AuthModeHeader, "http://from-flag:9444")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != "http://from-flag:9444" || source != "--alert-mgmt-api-url flag" {
+			t.Fatalf("unexpected result: %s (%s)", got, source)
+		}
+	})
+
+	t.Run("env used when flag missing", func(t *testing.T) {
+		t.Setenv("ALERT_MGMT_API_URL", "http://from-env:9444")
+		got, source, err := determineAlertMgmtAPIURL(auth.AuthModeHeader, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != "http://from-env:9444" || source != "ALERT_MGMT_API_URL env var" {
+			t.Fatalf("unexpected result: %s (%s)", got, source)
+		}
+	})
+
+	t.Run("kubeconfig falls back to default", func(t *testing.T) {
+		t.Setenv("ALERT_MGMT_API_URL", "")
+		got, source, err := determineAlertMgmtAPIURL(auth.AuthModeKubeConfig, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != defaultAlertMgmtAPIURL || source != "default" {
+			t.Fatalf("unexpected result: %s (%s)", got, source)
+		}
+	})
+
+	t.Run("header mode requires URL", func(t *testing.T) {
+		t.Setenv("ALERT_MGMT_API_URL", "")
+		_, _, err := determineAlertMgmtAPIURL(auth.AuthModeHeader, "")
+		if err == nil {
+			t.Fatal("expected error")
+		}
+	})
+}

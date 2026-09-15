@@ -3,6 +3,7 @@ package toolset
 import (
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanagement"
 	"github.com/rhobs/obs-mcp/pkg/logs"
 	"github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
@@ -14,4 +15,5 @@ func init() {
 	toolsets.Register(&logs.Toolset{})
 	toolsets.Register(&traces.Toolset{})
 	toolsets.Register(&otelcol.Toolset{})
+	toolsets.Register(&alertmanagement.Toolset{})
 }

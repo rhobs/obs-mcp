@@ -135,6 +135,39 @@ func (c *MCPClient) CallTool(t *testing.T, id int, toolName string, args map[str
 	return c.SendRequest(t, req)
 }
 
+// ListToolNames returns registered MCP tool names via tools/list.
+func (c *MCPClient) ListToolNames(t *testing.T) ([]string, error) {
+	t.Helper()
+	resp, err := c.SendRequest(t, MCPRequest{
+		JSONRPC: "2.0",
+		ID:      0,
+		Method:  "tools/list",
+	})
+	if err != nil {
+		return nil, err
+	}
+	if resp.Error != nil {
+		return nil, fmt.Errorf("tools/list: %s", resp.Error.Message)
+	}
+	raw, ok := resp.Result["tools"].([]any)
+	if !ok {
+		return nil, fmt.Errorf("tools/list: missing tools array")
+	}
+	names := make([]string, 0, len(raw))
+	for _, item := range raw {
+		tool, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		name, ok := tool["name"].(string)
+		if !ok || name == "" {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names, nil
+}
+
 // callToolRaw calls an MCP tool without requiring a *testing.T, for use
 // outside of individual test functions (e.g. TestMain setup).
 func (c *MCPClient) callToolRaw(id int, toolName string, args map[string]any) (map[string]any, error) {
