@@ -30,7 +30,18 @@ For metric discovery tips (e.g. regex behavior, common question → metric mappi
 
 - Are there any currently firing alerts in the cluster?
 - Are there any active silences in Alertmanager?
+- Silence alert `WidgetDown` in namespace `my-app` for two hours because of a maintenance window.
+- Expire the silence that is muting `WidgetDown`.
 - Check if there are any firing alerts. If there are, investigate the related metrics for the most critical alert and summarize what's happening.
+
+## Alert rule management
+
+Requires `--toolsets` to include `observability/alert-management`. See [ALERT_MANAGEMENT.md](../ALERT_MANAGEMENT.md). The agent should list and preview, then ask before writing.
+
+- List user-defined alert rules in namespace `my-app`.
+- Create an alert named `WidgetDown` with expr `up{job="widget"} == 0` and severity `critical` in PrometheusRule `user-alerts` in `my-app`. If a rule with that expression already exists, ask before creating another.
+- Update the severity of alert `WidgetDown` to `warning`. If more than one rule has that name, ask which one.
+- This Watchdog rule is GitOps-managed. How do I change it?
 
 ## Multi-Step Investigation
 

@@ -16,6 +16,7 @@ import (
 	prom "github.com/prometheus/client_golang/prometheus"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanagement"
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/instrumentation"
 	"github.com/rhobs/obs-mcp/pkg/logs"
@@ -24,7 +25,7 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/traces"
 )
 
-var AllToolsets = []string{metrics.ToolsetName, logs.ToolsetName, traces.ToolsetName, otelcol.ToolsetName}
+var AllToolsets = []string{metrics.ToolsetName, logs.ToolsetName, traces.ToolsetName, otelcol.ToolsetName, alertmanagement.ToolsetName}
 
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
@@ -33,6 +34,7 @@ type ObsMCPOptions struct {
 	Logs                   *logs.Config
 	Traces                 *traces.Config
 	Otelcol                *otelcol.Config
+	AlertManagement        *alertmanagement.Config
 	KubernetesClientConfig clientcmd.ClientConfig
 	Registry               prom.Registerer
 	clientMetrics          *instrumentation.ClientMetrics
@@ -75,6 +77,9 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 	if slices.Contains(opts.Toolsets, otelcol.ToolsetName) {
 		instructions = append(instructions, otelcol.ServerPrompt)
 	}
+	if slices.Contains(opts.Toolsets, alertmanagement.ToolsetName) {
+		instructions = append(instructions, alertmanagement.ServerPrompt)
+	}
 
 	serverOpts := &mcp.ServerOptions{
 		Instructions: strings.Join(instructions, "\n"),
@@ -98,7 +103,7 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	cfg := config.BaseDefault()
 	// In header auth mode, require the caller's OAuth token instead of falling back to the kubeconfig token.
 	// In standalone mode, all toolset configs have the same AuthMode, because it's a single CLI flag.
-	cfg.RequireOAuth = opts.Metrics.AuthMode == auth.AuthModeHeader
+	cfg.RequireOAuth = requireOAuth(opts)
 	mgr, err := kubernetes.NewManager(context.Background(), cfg, restConfig, opts.KubernetesClientConfig)
 	if err != nil {
 		return err
@@ -133,7 +138,36 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 			return err
 		}
 	}
+
+	if slices.Contains(opts.Toolsets, alertmanagement.ToolsetName) {
+		if opts.AlertManagement != nil {
+			opts.AlertManagement.ClientMetrics = opts.clientMetrics
+		}
+		err := addToolset(mcpServer, mgr, &alertmanagement.Toolset{}, opts.AlertManagement, opts.toolMetrics)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// requireOAuth is true when a present toolset config uses header auth.
+// Metrics is checked first so existing callers that always set it keep the
+// same RequireOAuth value even when that toolset is not enabled.
+func requireOAuth(opts ObsMCPOptions) bool {
+	if opts.Metrics != nil {
+		return opts.Metrics.AuthMode == auth.AuthModeHeader
+	}
+	if opts.Logs != nil {
+		return opts.Logs.AuthMode == auth.AuthModeHeader
+	}
+	if opts.Traces != nil {
+		return opts.Traces.AuthMode == auth.AuthModeHeader
+	}
+	if opts.AlertManagement != nil {
+		return opts.AlertManagement.AuthMode == auth.AuthModeHeader
+	}
+	return false
 }
 
 func addToolset(mcpServer *mcp.Server, mgr *kubernetes.Manager, toolset api.Toolset, toolsetConfig api.ExtendedConfig, toolMetrics *instrumentation.ToolMetrics) error {

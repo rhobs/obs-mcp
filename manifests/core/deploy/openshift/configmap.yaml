@@ -5,8 +5,10 @@ metadata:
   namespace: obs-mcp
 data:
   auth-mode: "kubeconfig"
-  toolsets: "observability/metrics,observability/traces,observability/otelcol"
+  toolsets: "observability/metrics,observability/traces,observability/otelcol,observability/alert-management"
   # OpenShift monitoring Prometheus URL (port 9091 for OAuth proxy)
   prometheus-url: "https://prometheus-k8s.openshift-monitoring.svc:9091"
   # OpenShift monitoring Alertmanager URL (port 9094 for kube-rbac-proxy)
   alertmanager-url: "https://alertmanager-main.openshift-monitoring.svc:9094"
+  # Monitoring-plugin management API (port 9443, not the Alertmanager proxy)
+  alert-mgmt-api-url: "https://monitoring-plugin.openshift-monitoring.svc:9443"

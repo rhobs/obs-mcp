@@ -68,17 +68,15 @@ func createRoundTripperWithToken(restConfig *rest.Config, token string, useTLS, 
 	}
 	rt := defaultRt.Clone()
 
-	if !useTLS {
+	switch {
+	case !useTLS:
 		slog.Warn("Connecting without TLS")
-		return rt, nil
-	}
-
-	if insecure {
+	case insecure:
 		rt.TLSClientConfig = &tls.Config{
 			MinVersion:         tls.VersionTLS12,
 			InsecureSkipVerify: true,
 		}
-	} else {
+	default:
 		certs, err := createCertPoolFromRESTConfig(restConfig)
 		if err != nil {
 			return nil, err

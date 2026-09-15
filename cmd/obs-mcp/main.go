@@ -24,6 +24,7 @@ import (
 
 	"k8s.io/client-go/dynamic"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanagement"
 	"github.com/rhobs/obs-mcp/pkg/auth"
 	"github.com/rhobs/obs-mcp/pkg/health"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
@@ -41,6 +42,7 @@ import (
 const (
 	defaultPrometheusURL   = "http://localhost:9090"
 	defaultAlertmanagerURL = "http://localhost:9093"
+	defaultAlertMgmtAPIURL = "http://localhost:9443"
 )
 
 func main() {
@@ -71,6 +73,7 @@ func main() {
 	var tracesUseRoute = flag.Bool("traces.use-route", false, "Use Route instead of internal service DNS when connecting to Tempo API")
 	var lokiURL = flag.String("loki-url", "", "Loki API base URL (overrides LOKI_URL when explicitly set)")
 	var lokiUseRoute = flag.Bool("loki.use-route", false, "Use OpenShift Routes when discovering LokiStack endpoints")
+	var alertMgmtAPIURL = flag.String("alert-mgmt-api-url", "", "Monitoring-plugin alert management API base URL (overrides ALERT_MGMT_API_URL when explicitly set)")
 	flag.Parse()
 
 	if *showVersion {
@@ -147,6 +150,15 @@ func main() {
 		tempoResolvedURL, tempoURLSource = determineTempoURL(*tempoURL)
 	}
 
+	alertMgmtResolvedURL := ""
+	alertMgmtURLSource := ""
+	if slices.Contains(parsedToolsets, alertmanagement.ToolsetName) {
+		alertMgmtResolvedURL, alertMgmtURLSource, err = determineAlertMgmtAPIURL(parsedAuthMode, *alertMgmtAPIURL)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+	}
+
 	// Create MCP options
 	opts := mcpserver.ObsMCPOptions{
 		Toolsets: parsedToolsets,
@@ -172,6 +184,11 @@ func main() {
 			LokiURL:  lokiResolvedURL,
 			UseRoute: *lokiUseRoute,
 			Resolver: routeResolvers.logs,
+		},
+		AlertManagement: &alertmanagement.Config{
+			AuthMode:         parsedAuthMode,
+			ManagementAPIURL: alertMgmtResolvedURL,
+			Insecure:         *insecure,
 		},
 		KubernetesClientConfig: k8s.GetClientCmdConfig(),
 		Registry:               reg,
@@ -210,6 +227,8 @@ func main() {
 		"loki_url_source", lokiURLSource,
 		"tempo_url", tempoResolvedURL,
 		"tempo_url_source", tempoURLSource,
+		"alert_mgmt_api_url", alertMgmtResolvedURL,
+		"alert_mgmt_api_url_source", alertMgmtURLSource,
 		"guardrails", opts.Metrics.Guardrails,
 	)
 
@@ -309,6 +328,11 @@ func validateConfigs(opts mcpserver.ObsMCPOptions) error {
 	if slices.Contains(opts.Toolsets, otelcol.ToolsetName) {
 		if err := opts.Otelcol.Validate(); err != nil {
 			return fmt.Errorf("invalid otelcol config: %w", err)
+		}
+	}
+	if slices.Contains(opts.Toolsets, alertmanagement.ToolsetName) {
+		if err := opts.AlertManagement.Validate(); err != nil {
+			return fmt.Errorf("invalid alert-management config: %w", err)
 		}
 	}
 	return nil
@@ -437,6 +461,24 @@ func determineLokiURL(flagURL string) (url, source string, err error) {
 	}
 	slog.Warn("No Loki URL configured; Loki tools require lokiNamespace+lokiName discovery parameters or explicit Loki URL")
 	return "", "unset", nil
+}
+
+func determineAlertMgmtAPIURL(authMode auth.AuthMode, flagURL string) (url, source string, err error) {
+	if flagURL != "" {
+		return flagURL, "--alert-mgmt-api-url flag", nil
+	}
+	if envURL := os.Getenv("ALERT_MGMT_API_URL"); envURL != "" {
+		return envURL, "ALERT_MGMT_API_URL env var", nil
+	}
+	if authMode == auth.AuthModeKubeConfig {
+		slog.Warn("No alert management API URL configured, falling back to default", "default", defaultAlertMgmtAPIURL)
+		return defaultAlertMgmtAPIURL, "default", nil
+	}
+	return "", "", fmt.Errorf(
+		"ALERT_MGMT_API_URL must be set when using --auth-mode %s\n"+
+			"  Set it via --alert-mgmt-api-url or environment variable, or use --auth-mode kubeconfig",
+		authMode,
+	)
 }
 
 // isFlagExplicitlySet reports whether the named flag was explicitly provided on

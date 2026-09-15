@@ -13,9 +13,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanagement"
 	"github.com/rhobs/obs-mcp/pkg/auth"
+	"github.com/rhobs/obs-mcp/pkg/logs"
 	"github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
+	"github.com/rhobs/obs-mcp/pkg/traces"
 )
 
 func TestRedactHeaders(t *testing.T) {
@@ -147,13 +150,54 @@ func TestAuthMiddleware(t *testing.T) {
 	}
 }
 
+func TestRequireOAuth(t *testing.T) {
+	tests := []struct {
+		name string
+		opts ObsMCPOptions
+		want bool
+	}{
+		{name: "all nil"},
+		{
+			name: "metrics header",
+			opts: ObsMCPOptions{Metrics: &metrics.Config{AuthMode: auth.AuthModeHeader}},
+			want: true,
+		},
+		{
+			name: "metrics kubeconfig ignores other header configs",
+			opts: ObsMCPOptions{
+				Metrics:         &metrics.Config{AuthMode: auth.AuthModeKubeConfig},
+				AlertManagement: &alertmanagement.Config{AuthMode: auth.AuthModeHeader},
+			},
+		},
+		{
+			name: "alert-management header without metrics",
+			opts: ObsMCPOptions{AlertManagement: &alertmanagement.Config{AuthMode: auth.AuthModeHeader}},
+			want: true,
+		},
+		{
+			name: "logs header without metrics",
+			opts: ObsMCPOptions{Logs: &logs.Config{AuthMode: auth.AuthModeHeader}},
+			want: true,
+		},
+		{
+			name: "traces header without metrics",
+			opts: ObsMCPOptions{Traces: &traces.Config{AuthMode: auth.AuthModeHeader}},
+			want: true,
+		},
+		{
+			name: "alert-management kubeconfig without metrics",
+			opts: ObsMCPOptions{AlertManagement: &alertmanagement.Config{AuthMode: auth.AuthModeKubeConfig}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, requireOAuth(tt.opts))
+		})
+	}
+}
+
 func TestHeaderAuthRejectsUnauthenticatedToolCall(t *testing.T) {
-	kubeClientConfig := clientcmd.NewDefaultClientConfig(clientcmdapi.Config{
-		Clusters:       map[string]*clientcmdapi.Cluster{"test": {Server: "https://localhost", InsecureSkipTLSVerify: true}},
-		AuthInfos:      map[string]*clientcmdapi.AuthInfo{"test": {Token: "kubeconfig-token"}},
-		Contexts:       map[string]*clientcmdapi.Context{"test": {Cluster: "test", AuthInfo: "test"}},
-		CurrentContext: "test",
-	}, &clientcmd.ConfigOverrides{})
+	kubeClientConfig := testKubernetesClientConfig()
 
 	tests := []struct {
 		name      string
@@ -203,4 +247,39 @@ func TestHeaderAuthRejectsUnauthenticatedToolCall(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewMCPServerAlertManagementOnlyWithoutMetrics(t *testing.T) {
+	mcpServer, err := NewMCPServer(ObsMCPOptions{
+		Toolsets: []string{alertmanagement.ToolsetName},
+		AlertManagement: &alertmanagement.Config{
+			AuthMode:         auth.AuthModeHeader,
+			ManagementAPIURL: "http://localhost:9443",
+		},
+		KubernetesClientConfig: testKubernetesClientConfig(),
+	})
+	require.NoError(t, err)
+
+	clientTransport, serverTransport := mcpsdk.NewInMemoryTransports()
+	_, err = mcpServer.Connect(context.Background(), serverTransport, nil)
+	require.NoError(t, err)
+
+	client := mcpsdk.NewClient(&mcpsdk.Implementation{Name: "test-client", Version: "0.0.1"}, nil)
+	session, err := client.Connect(context.Background(), clientTransport, nil)
+	require.NoError(t, err)
+	defer session.Close()
+
+	_, err = session.CallTool(context.Background(), &mcpsdk.CallToolParams{
+		Name: "list_alert_rules",
+	})
+	require.EqualError(t, err, `calling "tools/call": oauth token required`)
+}
+
+func testKubernetesClientConfig() clientcmd.ClientConfig {
+	return clientcmd.NewDefaultClientConfig(clientcmdapi.Config{
+		Clusters:       map[string]*clientcmdapi.Cluster{"test": {Server: "https://localhost", InsecureSkipTLSVerify: true}},
+		AuthInfos:      map[string]*clientcmdapi.AuthInfo{"test": {Token: "kubeconfig-token"}},
+		Contexts:       map[string]*clientcmdapi.Context{"test": {Cluster: "test", AuthInfo: "test"}},
+		CurrentContext: "test",
+	}, &clientcmd.ConfigOverrides{})
 }
