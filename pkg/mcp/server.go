@@ -18,6 +18,7 @@ import (
 
 	"github.com/containers/kubernetes-mcp-server/pkg/obs/auth"
 	"github.com/containers/kubernetes-mcp-server/pkg/obs/instrumentation"
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/alertmanagement"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/logs"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/metrics"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/otelcol"
@@ -26,7 +27,7 @@ import (
 	"github.com/rhobs/obs-mcp/pkg/clusterinspector"
 )
 
-var AllToolsets = []string{metrics.ToolsetName, logs.ToolsetName, traces.ToolsetName, otelcol.ToolsetName}
+var AllToolsets = []string{metrics.ToolsetName, logs.ToolsetName, traces.ToolsetName, otelcol.ToolsetName, alertmanagement.ToolsetName}
 
 // ObsMCPOptions contains configuration options for the MCP server
 type ObsMCPOptions struct {
@@ -35,10 +36,17 @@ type ObsMCPOptions struct {
 	Logs                   *logs.Config
 	Traces                 *traces.Config
 	Otelcol                *otelcol.Config
+	AlertManagement        *alertmanagement.Config
 	KubernetesClientConfig clientcmd.ClientConfig
 	Registry               prom.Registerer
-	clientMetrics          *instrumentation.ClientMetrics
-	toolMetrics            *instrumentation.ToolMetrics
+	// ReadOnly hides tools that are not annotated ReadOnlyHint=true.
+	// The standalone CLI defaults this to true; the zero value is false so
+	// tests and library callers keep write tools unless they set it.
+	ReadOnly bool
+	// DisableDestructive hides tools annotated DestructiveHint=true.
+	DisableDestructive bool
+	clientMetrics      *instrumentation.ClientMetrics
+	toolMetrics        *instrumentation.ToolMetrics
 }
 
 const (
@@ -47,6 +55,13 @@ const (
 	serverName             = "obs-mcp"
 	serverVersion          = "1.0.0"
 	defaultShutdownTimeout = 10 * time.Second
+
+	readOnlyModePrompt = `## Read-only mode
+
+This server is in read-only mode. Write tools are not registered (create_silence, update_silence, delete_silence, create_alert_rule, update_alert_rule, delete_alert_rules).
+
+If the user asks to change, create, delete, drop, restore, or silence an alert or rule: you may list and preview. Then tell them writes are disabled. They must set --read-only=false (standalone or ConfigMap read-only: "false") or, for openshift-mcp-server, read_only = false and disable_destructive = false. Do not call missing tools. Do not claim the cluster was changed.
+`
 )
 
 func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
@@ -64,7 +79,24 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 		Version: serverVersion,
 	}
 
+	serverOpts := &mcp.ServerOptions{
+		Instructions: toolsetInstructions(opts),
+	}
+
+	mcpServer := mcp.NewServer(impl, serverOpts)
+
+	if err := SetupTools(mcpServer, opts); err != nil {
+		return nil, err
+	}
+
+	return mcpServer, nil
+}
+
+func toolsetInstructions(opts ObsMCPOptions) string {
 	var instructions []string
+	if opts.ReadOnly {
+		instructions = append(instructions, readOnlyModePrompt)
+	}
 	if slices.Contains(opts.Toolsets, metrics.ToolsetName) {
 		instructions = append(instructions, metrics.ServerPrompt)
 	}
@@ -77,18 +109,10 @@ func NewMCPServer(opts ObsMCPOptions) (*mcp.Server, error) {
 	if slices.Contains(opts.Toolsets, otelcol.ToolsetName) {
 		instructions = append(instructions, otelcol.ServerPrompt)
 	}
-
-	serverOpts := &mcp.ServerOptions{
-		Instructions: strings.Join(instructions, "\n"),
+	if slices.Contains(opts.Toolsets, alertmanagement.ToolsetName) {
+		instructions = append(instructions, alertmanagement.ServerPrompt)
 	}
-
-	mcpServer := mcp.NewServer(impl, serverOpts)
-
-	if err := SetupTools(mcpServer, opts); err != nil {
-		return nil, err
-	}
-
-	return mcpServer, nil
+	return strings.Join(instructions, "\n")
 }
 
 func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
@@ -100,7 +124,7 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	cfg := config.BaseDefault()
 	// In header auth mode, require the caller's OAuth token instead of falling back to the kubeconfig token.
 	// In standalone mode, all toolset configs have the same AuthMode, because it's a single CLI flag.
-	if opts.Metrics.AuthMode == auth.AuthModeHeader {
+	if requireOAuth(opts) {
 		cfg.RequireOAuth.SetForTest(true)
 	}
 	mgr, err := kubernetes.NewManager(context.Background(), cfg, restConfig, opts.KubernetesClientConfig)
@@ -109,7 +133,7 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	}
 
 	if slices.Contains(opts.Toolsets, metrics.ToolsetName) {
-		err := addToolset(mcpServer, mgr, cfg, &metrics.Toolset{}, opts.Metrics, opts.toolMetrics)
+		err := addToolset(mcpServer, mgr, cfg, &metrics.Toolset{}, opts.Metrics, opts)
 		if err != nil {
 			return err
 		}
@@ -117,14 +141,14 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 
 	if slices.Contains(opts.Toolsets, traces.ToolsetName) {
 		opts.Traces.ClientMetrics = opts.clientMetrics
-		err := addToolset(mcpServer, mgr, cfg, &traces.Toolset{}, opts.Traces, opts.toolMetrics)
+		err := addToolset(mcpServer, mgr, cfg, &traces.Toolset{}, opts.Traces, opts)
 		if err != nil {
 			return err
 		}
 	}
 
 	if slices.Contains(opts.Toolsets, otelcol.ToolsetName) {
-		err := addToolset(mcpServer, mgr, cfg, &otelcol.Toolset{}, opts.Otelcol, opts.toolMetrics)
+		err := addToolset(mcpServer, mgr, cfg, &otelcol.Toolset{}, opts.Otelcol, opts)
 		if err != nil {
 			return err
 		}
@@ -132,7 +156,18 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 
 	if slices.Contains(opts.Toolsets, logs.ToolsetName) {
 		opts.Logs.ClientMetrics = opts.clientMetrics
-		err := addToolset(mcpServer, mgr, cfg, &logs.Toolset{}, opts.Logs, opts.toolMetrics)
+		err := addToolset(mcpServer, mgr, cfg, &logs.Toolset{}, opts.Logs, opts)
+		if err != nil {
+			return err
+		}
+	}
+
+	if slices.Contains(opts.Toolsets, alertmanagement.ToolsetName) {
+		if opts.AlertManagement == nil {
+			return fmt.Errorf("configuration for %s toolset is missing", alertmanagement.ToolsetName)
+		}
+		opts.AlertManagement.ClientMetrics = opts.clientMetrics
+		err := addToolset(mcpServer, mgr, cfg, &alertmanagement.Toolset{}, opts.AlertManagement, opts)
 		if err != nil {
 			return err
 		}
@@ -140,18 +175,35 @@ func SetupTools(mcpServer *mcp.Server, opts ObsMCPOptions) error {
 	return nil
 }
 
-func addToolset(mcpServer *mcp.Server, mgr *kubernetes.Manager, cfg *config.Config, toolset api.Toolset, toolsetConfig config.ExtendedConfig, toolMetrics *instrumentation.ToolMetrics) error {
+// requireOAuth is true when any present toolset config uses header auth.
+func requireOAuth(opts ObsMCPOptions) bool {
+	if opts.Metrics != nil && opts.Metrics.GetAuthMode() == auth.AuthModeHeader {
+		return true
+	}
+	if opts.Logs != nil && opts.Logs.GetAuthMode() == auth.AuthModeHeader {
+		return true
+	}
+	if opts.Traces != nil && opts.Traces.GetAuthMode() == auth.AuthModeHeader {
+		return true
+	}
+	return opts.AlertManagement != nil && opts.AlertManagement.GetAuthMode() == auth.AuthModeHeader
+}
+
+func addToolset(mcpServer *mcp.Server, mgr *kubernetes.Manager, cfg *config.Config, toolset api.Toolset, toolsetConfig config.ExtendedConfig, opts ObsMCPOptions) error {
 	if toolsetConfig == nil {
 		return fmt.Errorf("configuration for %s toolset is missing", toolset.GetName())
 	}
 
 	serverTools := toolset.GetTools(context.Background(), api.ToolsetContext{Inspector: clusterinspector.New()})
 	for i := range serverTools {
+		if !isToolApplicable(serverTools[i], opts.ReadOnly, opts.DisableDestructive) {
+			continue
+		}
 		goSdkTool, goSdkHandler, err := ServerToolToGoSdkTool(mgr, cfg, toolset.GetName(), toolsetConfig, serverTools[i])
 		if err != nil {
 			return err
 		}
-		mcpServer.AddTool(goSdkTool, instrumentation.ToolHandlerUntyped(goSdkTool.Name, toolMetrics, goSdkHandler))
+		mcpServer.AddTool(goSdkTool, instrumentation.ToolHandlerUntyped(goSdkTool.Name, opts.toolMetrics, goSdkHandler))
 	}
 	return nil
 }

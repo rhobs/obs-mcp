@@ -5,6 +5,7 @@ import (
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/alertmanagement"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/logs"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/metrics"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/otelcol"
@@ -26,7 +27,7 @@ func GroupedTools() []ToolGroup {
 	var promTools, alertTools []api.ServerTool
 	for i := range allMetricsTools {
 		switch allMetricsTools[i].Tool.Name {
-		case "get_alerts", "get_silences":
+		case "get_alerts", "get_silences", "create_silence", "update_silence", "delete_silence":
 			alertTools = append(alertTools, allMetricsTools[i])
 		default:
 			promTools = append(promTools, allMetricsTools[i])
@@ -39,5 +40,6 @@ func GroupedTools() []ToolGroup {
 		{Name: "Tempo (Distributed Tracing)", Icon: "🔍", Tools: (&traces.Toolset{}).GetTools(context.Background(), api.ToolsetContext{Inspector: clusterinspector.New()})},
 		{Name: "Loki (Log Management)", Icon: "📋", Tools: (&logs.Toolset{}).GetTools(context.Background(), api.ToolsetContext{Inspector: clusterinspector.New()})},
 		{Name: "OpenTelemetry Collector", Icon: "⚙️", Tools: (&otelcol.Toolset{}).GetTools(context.Background(), api.ToolsetContext{Inspector: clusterinspector.New()})},
+		{Name: "Alert Management", Icon: "🛡️", Tools: (&alertmanagement.Toolset{}).GetTools(context.Background(), api.ToolsetContext{Inspector: clusterinspector.New()})},
 	}
 }

@@ -50,8 +50,8 @@ func TestInspectorImplementsContracts(t *testing.T) {
 		_ api.AggregateDiscovery = New()
 		_ api.TargetProvider     = New()
 	)
-	if New().Unstructured() != nil {
-		t.Fatal("expected Unstructured() to return nil")
+	if New().Unstructured() == nil {
+		t.Fatal("expected a catalog unstructured inspector")
 	}
 	targets, err := New().GetTargets(context.Background())
 	if err != nil {

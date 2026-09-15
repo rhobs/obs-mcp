@@ -17,7 +17,10 @@ import (
 	"context"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // Inspector is an api.ClusterInspector that reports empty discovery results.
@@ -34,9 +37,8 @@ func New() *Inspector { return &Inspector{} }
 // Discovery returns the inspector itself as an api.AggregateDiscovery.
 func (i *Inspector) Discovery() api.AggregateDiscovery { return i }
 
-// Unstructured returns nil. obs-mcp compatibility filters only use Discovery
-// (via api.AnyTargetHasGVK), so no unstructured access is needed.
-func (i *Inspector) Unstructured() api.AggregateUnstructured { return nil }
+// Unstructured supplies catalog inspection without accessing a cluster.
+func (i *Inspector) Unstructured() api.AggregateUnstructured { return i }
 
 // ServerResourcesForGroupVersion returns an empty APIResourceList for every
 // group/version, so api.AnyTargetHasGVK reports false for all GVKs.
@@ -63,3 +65,35 @@ var (
 	_ api.AggregateDiscovery = (*Inspector)(nil)
 	_ api.TargetProvider     = (*Inspector)(nil)
 )
+
+// BearerToken returns no credentials; catalog inspection never contacts a backend.
+func (i *Inspector) BearerToken(ctx context.Context) api.Results[string] {
+	return api.NewResults(ctx, i, func(context.Context, string) (string, error) { return "", nil })
+}
+
+func (i *Inspector) Resource(resource schema.GroupVersionResource) api.AggregateNamespaceableResourceInterface {
+	return &catalogResource{Inspector: i, resource: resource}
+}
+
+type catalogResource struct {
+	*Inspector
+	resource schema.GroupVersionResource
+}
+
+func (r *catalogResource) Namespace(string) api.AggregateResourceInterface { return r }
+func (r *catalogResource) Get(ctx context.Context, name string, _ metav1.GetOptions, _ ...string) api.Results[*unstructured.Unstructured] {
+	return api.NewResults(ctx, r, func(context.Context, string) (*unstructured.Unstructured, error) {
+		return nil, apierrors.NewNotFound(r.resource.GroupResource(), name)
+	})
+}
+func (r *catalogResource) List(ctx context.Context, _ metav1.ListOptions) api.Results[*unstructured.UnstructuredList] {
+	return api.NewResults(ctx, r, func(context.Context, string) (*unstructured.UnstructuredList, error) {
+		result := &unstructured.UnstructuredList{}
+		// The standalone client renders charts itself. Keep show_timeseries available
+		// without requiring an in-cluster Perses installation.
+		if r.resource.Group == "perses.dev" && r.resource.Resource == "perses" {
+			result.Items = []unstructured.Unstructured{{}}
+		}
+		return result, nil
+	})
+}

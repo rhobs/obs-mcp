@@ -1,0 +1,27 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "create-silence"
+  difficulty: easy
+  parallel: false
+  runs: 1
+  labels:
+    category: alerts
+    suite: observability
+    toolType: alertmanager
+    mutates: "true"
+  description: |
+    Tests if the agent uses create_silence to mute a non-existent alert
+    rather than deleting or dropping a rule, then expires the silence.
+    Uses a unique alertname so Watchdog is not silenced.
+    Not part of the default eval.yaml (see eval-writes.yaml).
+spec:
+  verify:
+    - llmJudge:
+        contains: "delete_silence"
+  prompt:
+    inline: |
+      Do not ask for confirmation. Create a 1 hour Alertmanager silence for
+      alertname=obs-mcp-eval-nonexistent with comment mcpchecker-eval.
+      Do not silence Watchdog. Use create_silence. Then expire it with
+      delete_silence using the returned silence_id so it is not left active.
