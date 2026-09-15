@@ -33,7 +33,7 @@ func main() {
 			fmt.Printf("      - %s\n", g.Tools[i].Tool.Name)
 		}
 	}
-	fmt.Println("\n💡 Tool definitions belong to kubernetes-mcp-server/pkg/toolsets/{metrics,logs,traces,otelcol}; pkg/mcp/tools.go GroupedTools() merges the pinned upstream definitions.")
+	fmt.Println("\n💡 Tool definitions belong to kubernetes-mcp-server/pkg/toolsets/{metrics,logs,traces,otelcol,alertmanagement}; pkg/mcp/tools.go GroupedTools() merges the pinned upstream definitions.")
 }
 
 type fieldInfo struct {

@@ -5,8 +5,15 @@ metadata:
   namespace: obs-mcp
 data:
   auth-mode: "header"
-  toolsets: "observability/metrics,observability/traces,observability/otelcol"
+  toolsets: "observability/metrics,observability/traces,observability/otelcol,observability/alert-management"
+  # Default matches OpenShift Lightspeed: list and preview only.
+  # Set to "false" to register silence writes and alert-rule create/update/delete.
+  read-only: "true"
   # this is the default prometheus url for kube-prometheus stack
   prometheus-url: "http://prometheus-k8s.monitoring.svc:9090"
   # this is the default alertmanager url for kube-prometheus stack
   alertmanager-url: "http://alertmanager-main.monitoring.svc:9093"
+  # Header mode requires a URL when alert-management is enabled. Kind does not
+  # install monitoring-plugin; use HTTPS so tokens are eligible to be sent.
+  # Calls fail until a plugin serving /api/v1/alerting/* is present.
+  alert-mgmt-api-url: "https://monitoring-plugin.monitoring.svc:9443"
