@@ -119,6 +119,26 @@ func TestBuildRoundTripper(t *testing.T) {
 	}
 }
 
+func TestBuildRoundTripper_PlainHTTPForwardsToken(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Received-Auth", r.Header.Get("Authorization"))
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+
+	rt, err := BuildRoundTripper(t.Context(), &rest.Config{BearerToken: "kubeconfig-token"}, AuthModeKubeConfig, false, false)
+	require.NoError(t, err)
+
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/test", http.NoBody)
+	require.NoError(t, err)
+
+	resp, err := rt.RoundTrip(req)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = resp.Body.Close() })
+
+	require.Equal(t, "Bearer kubeconfig-token", resp.Header.Get("X-Received-Auth"))
+}
+
 func TestCreateHeaderAPIConfig(t *testing.T) {
 	// This test validates the complete flow: context -> token extraction -> RoundTripper adds Authorization header
 	token := "test-bearer-token-12345"

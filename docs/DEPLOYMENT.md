@@ -39,7 +39,7 @@ the test cluster.
 
 ## Authentication Modes
 
-The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Prometheus/Thanos**, **Alertmanager**, and (when enabled) **Loki** and **Tempo** endpoints:
+The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Prometheus/Thanos**, **Alertmanager**, and (when enabled) **Loki**, **Tempo**, and **monitoring-plugin alert management API** endpoints:
 
 | Mode             | Token Source                                                                 | Use Case                                                  |
 | ---------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------- |
@@ -59,6 +59,7 @@ The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Promethe
 - If no header is provided, connects without authentication
 - Requires explicit `PROMETHEUS_URL` (no auto-discovery)
 - If `observability/logs` toolset is enabled, either set `LOKI_URL`/`--loki-url` or use LokiStack discovery parameters (`lokiNamespace`, `lokiName`)
+- If `observability/alert-management` toolset is enabled, set `ALERT_MGMT_API_URL`/`--alert-mgmt-api-url` (required in `header` mode; kubeconfig mode falls back to `http://localhost:9443`). Tool workflow and GitOps behavior: [ALERT_MANAGEMENT.md](ALERT_MANAGEMENT.md).
 - Best for: **Pass-through auth** scenarios or **Prometheus without authentication** (e.g., port-forwarded, local kube-prometheus)
 
 ## Deploying on a Cluster

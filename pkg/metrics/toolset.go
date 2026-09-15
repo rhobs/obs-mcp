@@ -16,7 +16,7 @@ func (t *Toolset) GetName() string {
 
 // GetDescription returns a human-readable description of the toolset.
 func (t *Toolset) GetDescription() string {
-	return "Toolset for querying Prometheus and Alertmanager endpoints in efficient ways."
+	return "Toolset for querying Prometheus and Alertmanager, including listing, creating, updating, and deleting silences."
 }
 
 // GetTools returns all tools provided by this toolset.
@@ -31,6 +31,9 @@ func (t *Toolset) GetTools(_ api.FilteringProvider) []api.ServerTool {
 		initGetSeries(),
 		initGetAlerts(),
 		initGetSilences(),
+		initCreateSilence(),
+		initUpdateSilence(),
+		initDeleteSilence(),
 	}
 }
 

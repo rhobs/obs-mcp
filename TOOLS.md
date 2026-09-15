@@ -18,6 +18,9 @@ This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager,
 | [`get_series`](#get_series) | 📈 Prometheus / Thanos | Get time series matching selectors and preview cardinality. |
 | [`get_alerts`](#get_alerts) | 🔔 Alertmanager | Get alerts from Alertmanager. |
 | [`get_silences`](#get_silences) | 🔔 Alertmanager | Get silences from Alertmanager. |
+| [`create_silence`](#create_silence) | 🔔 Alertmanager | Create an Alertmanager silence that mutes matching alerts. |
+| [`update_silence`](#update_silence) | 🔔 Alertmanager | Update an existing Alertmanager silence (POST /api/v2/silences with silence_id). |
+| [`delete_silence`](#delete_silence) | 🔔 Alertmanager | Expire (delete) an Alertmanager silence by UUID. |
 | [`tempo_list_instances`](#tempo_list_instances) | 🔍 Tempo (Distributed Tracing) | List all Tempo instances available in the Kubernetes cluster. |
 | [`tempo_get_trace_by_id`](#tempo_get_trace_by_id) | 🔍 Tempo (Distributed Tracing) | Retrieve a single distributed trace by its trace ID from Tempo. |
 | [`tempo_search_traces`](#tempo_search_traces) | 🔍 Tempo (Distributed Tracing) | Search for distributed traces in Tempo using TraceQL. |
@@ -31,6 +34,11 @@ This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager,
 | [`otelcol_get_component_schema`](#otelcol_get_component_schema) | ⚙️ OpenTelemetry Collector | Get the JSON schema for an OpenTelemetry Collector component's configuration options. |
 | [`otelcol_validate_config`](#otelcol_validate_config) | ⚙️ OpenTelemetry Collector | Validate an OpenTelemetry Collector component configuration against its JSON schema. |
 | [`otelcol_get_versions`](#otelcol_get_versions) | ⚙️ OpenTelemetry Collector | List available OpenTelemetry Collector versions and identify the latest. |
+| [`list_alert_rules`](#list_alert_rules) | 🛡️ Alert Management | List managed OpenShift alert rules from the monitoring-plugin management API. |
+| [`preview_alert_rule`](#preview_alert_rule) | 🛡️ Alert Management | Dry-run a create or update without persisting cluster changes via POST /api/v1/alerting/rules/preview. |
+| [`create_alert_rule`](#create_alert_rule) | 🛡️ Alert Management | Create an OpenShift alert rule via POST /api/v1/alerting/rules. |
+| [`update_alert_rule`](#update_alert_rule) | 🛡️ Alert Management | Update alert rule labels, severity, classification, or drop/restore (alerting_rule_enabled) via PATCH /api/v1/alerting/rules. |
+| [`delete_alert_rules`](#delete_alert_rules) | 🛡️ Alert Management | Delete alert rules by stable ID via DELETE /api/v1/alerting/rules. |
 
 > [!NOTE]
 > **Types in the tables** follow JSON Schema: `object` is a JSON object (string keys with JSON values); `object[]` is an array of those objects. Scalar types use their usual names (`string`, `number`, `boolean`, and so on). When a field has no explicit schema type (for example a Go `any` payload), this document shows `object` as shorthand for "structured JSON," not a guarantee that only objects are returned at runtime.
@@ -45,9 +53,12 @@ This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager,
   - [`get_label_names`](#get_label_names)
   - [`get_label_values`](#get_label_values)
   - [`get_series`](#get_series)
-- **🔔 [Alertmanager](#alertmanager)** (2 tools)
+- **🔔 [Alertmanager](#alertmanager)** (5 tools)
   - [`get_alerts`](#get_alerts)
   - [`get_silences`](#get_silences)
+  - [`create_silence`](#create_silence)
+  - [`update_silence`](#update_silence)
+  - [`delete_silence`](#delete_silence)
 - **🔍 [Tempo (Distributed Tracing)](#tempo-distributed-tracing)** (5 tools)
   - [`tempo_list_instances`](#tempo_list_instances)
   - [`tempo_get_trace_by_id`](#tempo_get_trace_by_id)
@@ -64,6 +75,12 @@ This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager,
   - [`otelcol_get_component_schema`](#otelcol_get_component_schema)
   - [`otelcol_validate_config`](#otelcol_validate_config)
   - [`otelcol_get_versions`](#otelcol_get_versions)
+- **🛡️ [Alert Management](#alert-management)** (5 tools)
+  - [`list_alert_rules`](#list_alert_rules)
+  - [`preview_alert_rule`](#preview_alert_rule)
+  - [`create_alert_rule`](#create_alert_rule)
+  - [`update_alert_rule`](#update_alert_rule)
+  - [`delete_alert_rules`](#delete_alert_rules)
 
 ---
 
@@ -414,7 +431,7 @@ This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager,
 
 - WHEN TO USE: - To see which alerts are currently silenced - To check active, pending, or expired silences - To investigate why certain alerts are not firing notifications
 - FILTERING: - Use 'filter' to apply label matchers to find specific silences
-- Silences are used to temporarily mute alerts based on label matchers. This tool helps you understand what is currently silenced in your environment.
+- Silences are used to temporarily mute alerts based on label matchers. This tool helps you understand what is currently silenced in your environment. To create, change, or expire a silence, use create_silence, update_silence, or delete_silence.
 
 </details>
 
@@ -435,6 +452,129 @@ This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager,
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `silences` | `object[]` | List of silences from Alertmanager |
+
+</details>
+
+---
+
+### `create_silence`
+
+> Create an Alertmanager silence that mutes matching alerts.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- WHEN TO USE: - The user asks to silence or mute an alert or set of alerts - Operator-managed or GitOps-managed rules cannot be edited; mute notifications with a silence instead
+- BEFORE CALLING: - Call get_alerts (and get_silences) so matchers are specific. Prefer alertname plus namespace and other labels from the firing alert. - Tell the user which label matchers will apply and for how long. Wait for explicit agreement. - alertname alone silences every instance of that alert name.
+- PARAMETERS: - comment is required. - Provide labels (equality map) and/or matchers. At least one matcher is required after combining them. - duration defaults to 2h when endsAt is omitted. Do not set both duration and endsAt. - createdBy defaults to obs-mcp if omitted.
+
+</details>
+
+**Parameters:**
+
+**Required:**
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `comment` | `string` | Reason for the silence. Required on create; optional on update (keeps the existing comment). |
+
+<details>
+<summary><strong>Optional Parameters</strong></summary>
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `createdBy` | `string` | Who created the silence. Defaults to obs-mcp if omitted. |
+| `duration` | `string` | How long the silence lasts from startsAt (for example 2h). Default 2h when endsAt is omitted. Do not set together with endsAt. |
+| `endsAt` | `string` | Silence end time. Do not set together with duration. |
+| `labels` | `object` | Equality matchers as a label map (for example alertname=Watchdog, namespace=app). Combined with matchers. |
+| `matchers` | `object[]` | Alertmanager matchers. Use with or instead of labels. alertname alone mutes every instance of that alert. |
+| `startsAt` | `string` | Silence start time (RFC3339, Unix, NOW, or NOW±duration). Defaults to now. |
+
+</details>
+
+<details>
+<summary><strong>Output Schema</strong></summary>
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `silence_id` | `string` | Alertmanager silence ID |
+
+</details>
+
+---
+
+### `update_silence`
+
+> Update an existing Alertmanager silence (POST /api/v2/silences with silence_id).
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- WHEN TO USE: - Extend, shorten, or retarget a silence returned by get_silences - silence_id is required (UUID)
+- Omitted comment, createdBy, matchers/labels, and times keep the existing silence values. duration replaces endsAt relative to startsAt. Explain the change and wait for the user to agree before calling.
+
+</details>
+
+**Parameters:**
+
+**Required:**
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `silence_id` | `string` | Alertmanager silence UUID from get_silences or create_silence. |
+
+<details>
+<summary><strong>Optional Parameters</strong></summary>
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `comment` | `string` | Reason for the silence. Required on create; optional on update (keeps the existing comment). |
+| `createdBy` | `string` | Who created the silence. Defaults to obs-mcp if omitted. |
+| `duration` | `string` | How long the silence lasts from startsAt (for example 2h). Default 2h when endsAt is omitted. Do not set together with endsAt. |
+| `endsAt` | `string` | Silence end time. Do not set together with duration. |
+| `labels` | `object` | Equality matchers as a label map (for example alertname=Watchdog, namespace=app). Combined with matchers. |
+| `matchers` | `object[]` | Alertmanager matchers. Use with or instead of labels. alertname alone mutes every instance of that alert. |
+| `startsAt` | `string` | Silence start time (RFC3339, Unix, NOW, or NOW±duration). Defaults to now. |
+
+</details>
+
+<details>
+<summary><strong>Output Schema</strong></summary>
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `silence_id` | `string` | Alertmanager silence ID |
+
+</details>
+
+---
+
+### `delete_silence`
+
+> Expire (delete) an Alertmanager silence by UUID.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- WHEN TO USE: - The user asks to un-silence, expire, or remove a silence - silence_id is required (from get_silences)
+- Explain which silence will be removed and wait for the user to agree. This calls DELETE /api/v2/silence/{id}.
+
+</details>
+
+**Parameters:**
+
+**Required:**
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `silence_id` | `string` | Alertmanager silence UUID to expire (delete). |
+
+<details>
+<summary><strong>Output Schema</strong></summary>
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `silence_id` | `string` | Alertmanager silence ID |
 
 </details>
 
@@ -892,6 +1032,239 @@ _No parameters._
 | :--- | :--- | :--- |
 | `latest_version` | `string` | The latest available version |
 | `versions` | `string[]` | List of available OpenTelemetry Collector versions |
+
+</details>
+
+---
+
+<a id="alert-management"></a>
+
+## 🛡️ Alert Management
+
+### `list_alert_rules`
+
+> List managed OpenShift alert rules from the monitoring-plugin management API.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- Returns each rule's stable ID, PromQL expression, severity, namespace, source (platform or user), and management_status (user-created, gitops, or operator). This is rule definitions, not firing instances (use get_alerts for those). Use this before create (to detect the same expr) and before update/delete (to resolve names to ids). Alert name is not unique: if several rows share a name, present them to the user and wait; do not pick one or change all of them. If id is empty, do not invent an id. Surface warnings from the response. GitOps-managed and operator-managed rules cannot be updated or deleted through this API; explain that and point GitOps users at editing the rule in Git.
+- Optional filters: namespace, severity, state (pending, firing, silenced), source, cluster, cluster_labels, matchers, and extra label equality filters.
+
+</details>
+
+**Parameters:**
+
+<details>
+<summary><strong>Optional Parameters</strong></summary>
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `cluster` | `string` | Optional cluster name filter (query parameter cluster). |
+| `cluster_labels` | `object` | Optional cluster label filters, forwarded as cluster_labels=<key>=<value>. |
+| `labels` | `object` | Additional label equality filters forwarded as query parameters. |
+| `matchers` | `string[]` | Prometheus-style match[] selectors (for example severity="critical"). |
+| `namespace` | `string` | Filter by namespace label (Thanos tenancy for user-workload rules). |
+| `severity` | `string` | Alert severity: critical, warning, info, or none. |
+| `source` | `string` | Filter by openshift_io_alert_source: platform or user. |
+| `state` | `string` | Filter by alert state: pending, firing, or silenced. Omit for all states. |
+
+</details>
+
+<details>
+<summary><strong>Output Schema</strong></summary>
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `rules` | `object[]` | Managed alert rules matching the filters |
+| `warnings` | `string[]` | Non-fatal backend warnings from the management API |
+
+</details>
+
+---
+
+### `preview_alert_rule`
+
+> Dry-run a create or update without persisting cluster changes via POST /api/v1/alerting/rules/preview.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- Create preview: set alert and expr. Include prometheus_rule_name and namespace for a user-defined rule; omit prometheus_rule_name for a platform rule. Do not invent a PrometheusRule name. Update preview: set rule_id plus labels, severity, classification, or alerting_rule_enabled. Update cannot preview expr, alert name, for, or annotation changes. Do not pass cluster or cluster_labels on this operation.
+- Required before create_alert_rule or update_alert_rule. After preview, explain the plan (writable, managedBy, resources, desiredRule) and wait for the user to agree. If writable is false, do not call create_alert_rule or update_alert_rule. If managedBy is gitops, tell the user to make the change in Git (PrometheusRule or AlertingRule source of truth). If managedBy is operator, explain that the operator owns the rule and this API will not persist the spec change.
+
+</details>
+
+**Parameters:**
+
+<details>
+<summary><strong>Optional Parameters</strong></summary>
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `alert` | `string` | Alert name for create preview. |
+| `alerting_rule_enabled` | `boolean` | When false, drop a platform alert rule via AlertRelabelConfig. When true, restore a previously dropped rule. Cannot be combined with labels or classification. |
+| `annotations` | `object` | Annotations for create preview. |
+| `classification_component` | `string` | Set openshift_io_alert_rule_component. Empty or null clears the override. |
+| `classification_component_from` | `string` | Set openshift_io_alert_rule_component_from. Empty or null clears the override. |
+| `classification_layer` | `string` | Set openshift_io_alert_rule_layer. Empty or null clears the override. |
+| `classification_layer_from` | `string` | Set openshift_io_alert_rule_layer_from. Empty or null clears the override. |
+| `cluster` | `string` | Not supported on this operation; omit this field. |
+| `cluster_labels` | `object` | Not supported on this operation; omit this field. |
+| `expr` | `string` | PromQL expression for create preview. |
+| `for` | `string` | Pending duration for create preview (for example 5m). |
+| `group_name` | `string` | Optional rule group name for user-defined create preview. |
+| `labels` | `object` | Label key/value pairs to set. |
+| `labels_to_remove` | `string[]` | Label keys to remove (sent as null values on the management API). |
+| `namespace` | `string` | PrometheusRule namespace for user-defined create preview. |
+| `prometheus_rule_name` | `string` | PrometheusRule name for user-defined create preview. Omit for platform rules. |
+| `rule_id` | `string` | Single stable alert rule ID. |
+| `severity` | `string` | Alert severity: critical, warning, info, or none. |
+
+</details>
+
+<details>
+<summary><strong>Output Schema</strong></summary>
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `desiredRule` | `object` | Desired alerting rule after the planned change |
+| `managedBy` | `string` | gitops or operator when the target is not writable |
+| `resources` | `object[]` | Kubernetes resources that would be created or modified |
+| `writable` | `boolean` | Whether the management API can persist this change |
+
+</details>
+
+---
+
+### `create_alert_rule`
+
+> Create an OpenShift alert rule via POST /api/v1/alerting/rules.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- Set prometheus_rule_name and namespace for a user-defined rule in that PrometheusRule. Omit prometheus_rule_name to create a platform alerting rule. Do not invent a PrometheusRule name; if the target is unclear, ask before calling. Do not put secrets in labels or annotations. Do not pass cluster or cluster_labels on this operation.
+- Before calling this tool: 1. list_alert_rules and check whether any rule already has the same PromQL expression. If one does, ask the user whether to update that rule instead of creating a duplicate. 2. If observability/metrics is enabled, verify expr metric names with list_metrics. 3. preview_alert_rule for the create payload. 4. Explain the planned create (user-defined vs platform) and wait for the user to agree.
+- Do not retry a 409/405 GitOps or operator-managed conflict. If the target PrometheusRule is GitOps-managed, tell the user to add the alert in Git instead. Do not retry 400, 404, or 413.
+
+</details>
+
+**Parameters:**
+
+**Required:**
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `alert` | `string` | Alert name (PrometheusRule alert field). |
+| `expr` | `string` | PromQL expression to evaluate. |
+
+<details>
+<summary><strong>Optional Parameters</strong></summary>
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `annotations` | `object` | Annotations to attach to alerts produced by the rule. |
+| `cluster` | `string` | Not supported on this operation; omit this field. |
+| `cluster_labels` | `object` | Not supported on this operation; omit this field. |
+| `for` | `string` | Duration the condition must be true before firing (for example 5m). |
+| `group_name` | `string` | Optional rule group name within the PrometheusRule. |
+| `labels` | `object` | Labels to attach to the rule. severity is merged from the severity parameter when set. |
+| `namespace` | `string` | PrometheusRule namespace for user-defined rules. Required with prometheus_rule_name. Otherwise stored as a namespace label on a platform rule. |
+| `prometheus_rule_name` | `string` | PrometheusRule resource name for a user-defined rule. Omit to create a platform rule. |
+| `severity` | `string` | Alert severity: critical, warning, info, or none. |
+
+</details>
+
+<details>
+<summary><strong>Output Schema</strong></summary>
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `id` | `string` | Computed stable ID for the created alert rule |
+
+</details>
+
+---
+
+### `update_alert_rule`
+
+> Update alert rule labels, severity, classification, or drop/restore (alerting_rule_enabled) via PATCH /api/v1/alerting/rules.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- Cannot change expr, alert name, for, or annotations. If the user wants a new expression, do not call this tool. Provide rule_id or rule_ids (1-100) of rules the user has confirmed. At least one mutation field is required. alerting_rule_enabled cannot be combined with labels, severity, or classification in the same request. Drop/restore (alerting_rule_enabled) is platform-only. Do not set it on source=user rules. Do not use this tool to silence an alert; use create_silence. Do not pass cluster or cluster_labels on this operation.
+- Never resolve an alert name to every matching id. If list_alert_rules returns more than one rule with that name, ask which id to use. Do not update all matches unless the user explicitly asks for that and confirms. Call preview_alert_rule, explain the change, and wait for agreement before this call. Read each per-rule statusCode. After a label update, use the returned id; it may differ from the id you sent.
+- management_status gitops: do not call this tool; tell the user to edit the PrometheusRule or AlertingRule in Git. management_status operator or preview writable=false: do not retry; explain operator ownership. Silences may mute notifications. Do not retry 400, 404, or 413.
+
+</details>
+
+**Parameters:**
+
+<details>
+<summary><strong>Optional Parameters</strong></summary>
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `alerting_rule_enabled` | `boolean` | When false, drop a platform alert rule via AlertRelabelConfig. When true, restore a previously dropped rule. Cannot be combined with labels or classification. |
+| `classification_component` | `string` | Set openshift_io_alert_rule_component. Empty or null clears the override. |
+| `classification_component_from` | `string` | Set openshift_io_alert_rule_component_from. Empty or null clears the override. |
+| `classification_layer` | `string` | Set openshift_io_alert_rule_layer. Empty or null clears the override. |
+| `classification_layer_from` | `string` | Set openshift_io_alert_rule_layer_from. Empty or null clears the override. |
+| `cluster` | `string` | Not supported on this operation; omit this field. |
+| `cluster_labels` | `object` | Not supported on this operation; omit this field. |
+| `labels` | `object` | Label key/value pairs to set. |
+| `labels_to_remove` | `string[]` | Label keys to remove (sent as null values on the management API). |
+| `rule_id` | `string` | Single stable alert rule ID. |
+| `rule_ids` | `string[]` | Stable alert rule IDs (at most 100 combined with rule_id). |
+| `severity` | `string` | Alert severity: critical, warning, info, or none. |
+
+</details>
+
+<details>
+<summary><strong>Output Schema</strong></summary>
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `rules` | `object[]` | Per-rule update results |
+
+</details>
+
+---
+
+### `delete_alert_rules`
+
+> Delete alert rules by stable ID via DELETE /api/v1/alerting/rules.
+
+<details>
+<summary><strong>Usage Tips</strong></summary>
+
+- Use this to remove a user-created rule, not to mute notifications (create_silence) and not to drop a platform rule (alerting_rule_enabled=false). Provide rule_id or rule_ids (1-100) the user has confirmed. The response always includes per-rule statusCode and optional message so partial success is visible; report each failure. GitOps-managed and operator-managed rules cannot be deleted. Do not pass cluster or cluster_labels on this operation.
+- If the user asked by name and several rules share that name, ask which id to delete. Do not delete all matches unless the user explicitly asks for that and confirms. If management_status is gitops, tell the user to remove the rule in Git instead of calling this tool. Do not retry 400, 404, or 413.
+
+</details>
+
+**Parameters:**
+
+<details>
+<summary><strong>Optional Parameters</strong></summary>
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `cluster` | `string` | Not supported on this operation; omit this field. |
+| `cluster_labels` | `object` | Not supported on this operation; omit this field. |
+| `rule_id` | `string` | Single stable alert rule ID to delete. |
+| `rule_ids` | `string[]` | Stable alert rule IDs to delete (at most 100 combined with rule_id). |
+
+</details>
+
+<details>
+<summary><strong>Output Schema</strong></summary>
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `rules` | `object[]` | Per-rule deletion results |
 
 </details>
 

@@ -55,6 +55,12 @@ spec:
                 configMapKeyRef:
                   name: obs-mcp-config
                   key: alertmanager-url
+            - name: ALERT_MGMT_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: obs-mcp-config
+                  key: alert-mgmt-api-url
+                  optional: true
           ports:
             - containerPort: 9100
               name: mcp

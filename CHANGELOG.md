@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Alert management toolset (`observability/alert-management`) with MCP tools for listing, creating, updating, deleting, and previewing OpenShift alert rules via the monitoring-plugin management API ([#171](https://github.com/rhobs/obs-mcp/pull/171))
+- Alertmanager silence write tools: `create_silence`, `update_silence`, and `delete_silence` (alongside existing `get_silences`)
+- Sample ConfigMaps enable `observability/alert-management`
+
+### Fixed
+
+- Forward bearer tokens on non-TLS HTTP backend connections. Tokens were previously dropped when the backend URL used `http://`.
+
 ## [v0.7.1] - 2026-07-30
 
 ### Fixed

@@ -5,7 +5,7 @@ metadata:
   namespace: obs-mcp
 data:
   config.toml: |
-    toolsets = ["observability/metrics", "observability/logs", "observability/traces", "observability/otelcol"]
+    toolsets = ["observability/metrics", "observability/logs", "observability/traces", "observability/otelcol", "observability/alert-management"]
     experimental_enable_target_compatibility_tool_filters = true
 
     [toolset_configs."observability/metrics"]
@@ -20,3 +20,7 @@ data:
 
     [toolset_configs."observability/traces"]
     auth_mode = "kubeconfig"
+
+    [toolset_configs."observability/alert-management"]
+    auth_mode = "kubeconfig"
+    management_api_url = "https://monitoring-plugin.openshift-monitoring.svc:9443"

@@ -5,7 +5,7 @@
 [![e2e](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml)
 [![docs](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml)
 
-obs-mcp is an [MCP](https://modelcontextprotocol.io/introduction) server that lets LLMs query [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) in Kubernetes. It optionally supports [Loki](https://grafana.com/oss/loki/) for logs, [Grafana Tempo](https://grafana.com/docs/tempo/latest/) for traces, and [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration assistance. Enable additional toolsets with `--toolsets` (e.g., `--toolsets observability/metrics,observability/logs,observability/traces,observability/otelcol`).
+obs-mcp is an [MCP](https://modelcontextprotocol.io/introduction) server that lets LLMs query [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) in Kubernetes, including listing, creating, updating, and deleting Alertmanager silences. It optionally supports [Loki](https://grafana.com/oss/loki/) for logs, [Grafana Tempo](https://grafana.com/docs/tempo/latest/) for traces, [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration assistance, and OpenShift alert-rule management via the monitoring-plugin management API. Enable additional toolsets with `--toolsets` (e.g., `--toolsets observability/metrics,observability/logs,observability/traces,observability/otelcol,observability/alert-management`).
 
 > [!NOTE]
 > This project is moved from [jhadvig/genie-plugin](https://github.com/jhadvig/genie-plugin/tree/main/obs-mcp) preserving the history of commits.
@@ -172,8 +172,9 @@ You can test the MCP server using curl. The server uses `JSON-RPC 2.0` over `HTT
 > - `observability/logs` - Loki log query tools (requires Loki URL or LokiStack discovery)
 > - `observability/traces` - Tempo tracing tools (requires Tempo configuration)
 > - `observability/otelcol` - OpenTelemetry Collector configuration assistance (no external dependencies)
+> - `observability/alert-management` - Create, list, update, delete, and preview OpenShift alert rules via the monitoring-plugin management API (`--alert-mgmt-api-url` / `ALERT_MGMT_API_URL`). See [ALERT_MANAGEMENT.md](docs/ALERT_MANAGEMENT.md).
 >
-> Example: `--toolsets observability/metrics,observability/logs,observability/traces,observability/otelcol`
+> Example: `--toolsets observability/metrics,observability/logs,observability/traces,observability/otelcol,observability/alert-management`
 
 ```shell
 curl -X POST http://localhost:9100/mcp \
@@ -258,6 +259,7 @@ Use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to vi
 | Document | Description |
 |----------|-------------|
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Authentication modes, in-cluster deployment, configuration |
+| [ALERT_MANAGEMENT.md](docs/ALERT_MANAGEMENT.md) | Alert-rule toolset and Alertmanager silence create/update/delete |
 | [TOOLS.md](TOOLS.md) | Available MCP tools |
 | [TESTING.md](TESTING.md) | Testing guide |
 | [RELEASE.md](RELEASE.md) | Release process and versioning guidelines |
