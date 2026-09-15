@@ -4,11 +4,16 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
 	promapi "github.com/prometheus/client_golang/api"
@@ -29,6 +34,13 @@ const (
 
 const (
 	serviceCAFile = "/var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt"
+	maxRedirects  = 10
+)
+
+var (
+	errHTTPSToHTTPRedirect       = errors.New("refusing HTTPS to HTTP redirect")
+	errNonTLSCredentials         = errors.New("refusing to send credentials over non-TLS")
+	errInsecureRemoteCredentials = errors.New("refusing to send credentials with TLS verification disabled to a non-loopback host")
 )
 
 // ParseAuthMode validates and converts a string to AuthMode
@@ -68,6 +80,8 @@ func createRoundTripperWithToken(restConfig *rest.Config, token string, useTLS, 
 	}
 	rt := defaultRt.Clone()
 
+	// Do not attach credentials to plaintext HTTP. Tokens stay on TLS.
+	// --insecure HTTPS may send the token only to loopback (port-forward).
 	if !useTLS {
 		slog.Warn("Connecting without TLS")
 		return rt, nil
@@ -90,11 +104,66 @@ func createRoundTripperWithToken(restConfig *rest.Config, token string, useTLS, 
 	}
 
 	if token != "" {
-		return promcfg.NewAuthorizationCredentialsRoundTripper(
-			"Bearer", promcfg.NewInlineSecret(token), rt), nil
+		return &httpsOnlyCredentialsRoundTripper{
+			next:     promcfg.NewAuthorizationCredentialsRoundTripper("Bearer", promcfg.NewInlineSecret(token), rt),
+			insecure: insecure,
+		}, nil
 	}
 
 	return rt, nil
+}
+
+// CheckRedirect rejects HTTPS-to-HTTP redirects so a bearer token attached
+// for TLS is not forwarded onto plaintext. Same-scheme redirects are allowed
+// up to maxRedirects.
+func CheckRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= maxRedirects {
+		return fmt.Errorf("stopped after %d redirects", maxRedirects)
+	}
+	if req.URL != nil && req.URL.Scheme == "http" &&
+		slices.ContainsFunc(via, func(prev *http.Request) bool {
+			return prev != nil && prev.URL != nil && prev.URL.Scheme == "https"
+		}) {
+		return errHTTPSToHTTPRedirect
+	}
+	return nil
+}
+
+// NewHTTPClient returns a client that uses rt and refuses HTTPS-to-HTTP
+// redirects.
+func NewHTTPClient(rt http.RoundTripper, timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout:       timeout,
+		Transport:     rt,
+		CheckRedirect: CheckRedirect,
+	}
+}
+
+type httpsOnlyCredentialsRoundTripper struct {
+	next     http.RoundTripper
+	insecure bool
+}
+
+func (t *httpsOnlyCredentialsRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL == nil || req.URL.Scheme != "https" {
+		return nil, errNonTLSCredentials
+	}
+	if t.insecure && !isLoopbackURL(req.URL) {
+		return nil, errInsecureRemoteCredentials
+	}
+	return t.next.RoundTrip(req)
+}
+
+func isLoopbackURL(u *url.URL) bool {
+	if u == nil {
+		return false
+	}
+	host := u.Hostname()
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // createCertPoolFromRESTConfig creates a cert pool from Kubernetes REST config.

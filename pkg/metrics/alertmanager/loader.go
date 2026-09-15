@@ -10,17 +10,23 @@ import (
 	"time"
 
 	httptransport "github.com/go-openapi/runtime/client"
+	"github.com/go-openapi/strfmt"
 	"github.com/prometheus/alertmanager/api/v2/client"
 	"github.com/prometheus/alertmanager/api/v2/client/alert"
 	"github.com/prometheus/alertmanager/api/v2/client/silence"
 	"github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/client_golang/api"
+
+	"github.com/rhobs/obs-mcp/pkg/auth"
 )
 
 // Loader defines the interface for querying Alertmanager
 type Loader interface {
 	GetAlerts(ctx context.Context, active, silenced, inhibited, unprocessed *bool, filter []string, receiver string) (models.GettableAlerts, error)
 	GetSilences(ctx context.Context, filter []string) (models.GettableSilences, error)
+	GetSilence(ctx context.Context, id string) (*models.GettableSilence, error)
+	PostSilence(ctx context.Context, silence *models.PostableSilence) (string, error)
+	DeleteSilence(ctx context.Context, id string) error
 }
 
 // RealLoader implements Loader
@@ -55,7 +61,7 @@ func NewAlertmanagerClient(apiConfig api.Config) (*RealLoader, error) {
 	if rt == nil {
 		rt = http.DefaultTransport
 	}
-	httpClient := &http.Client{Transport: rt}
+	httpClient := auth.NewHTTPClient(rt, 0)
 	transport := httptransport.NewWithClient(cfg.Host, cfg.BasePath, cfg.Schemes, httpClient)
 	c := client.New(transport, nil)
 
@@ -119,4 +125,55 @@ func (a *RealLoader) GetSilences(ctx context.Context, filter []string) (models.G
 		"duration_ms", duration.Milliseconds(), "result_count", len(resp.Payload))
 
 	return resp.Payload, nil
+}
+
+func (a *RealLoader) GetSilence(ctx context.Context, id string) (*models.GettableSilence, error) {
+	params := silence.NewGetSilenceParams().WithContext(ctx).WithSilenceID(strfmt.UUID(id))
+	start := time.Now()
+	resp, err := a.client.Silence.GetSilence(params)
+	duration := time.Since(start)
+	if err != nil {
+		slog.Error("Backend call failed", "backend", "alertmanager", "operation", "get_silence",
+			"duration_ms", duration.Milliseconds(), "error", err)
+		return nil, fmt.Errorf("error fetching silence %s: %w", id, err)
+	}
+	if resp == nil || resp.Payload == nil {
+		return nil, fmt.Errorf("alertmanager returned an empty silence for %s", id)
+	}
+	slog.Debug("Backend call completed", "backend", "alertmanager", "operation", "get_silence",
+		"duration_ms", duration.Milliseconds())
+	return resp.Payload, nil
+}
+
+func (a *RealLoader) PostSilence(ctx context.Context, body *models.PostableSilence) (string, error) {
+	params := silence.NewPostSilencesParams().WithContext(ctx).WithSilence(body)
+	start := time.Now()
+	resp, err := a.client.Silence.PostSilences(params)
+	duration := time.Since(start)
+	if err != nil {
+		slog.Error("Backend call failed", "backend", "alertmanager", "operation", "post_silence",
+			"duration_ms", duration.Milliseconds(), "error", err)
+		return "", fmt.Errorf("error posting silence: %w", err)
+	}
+	if resp == nil || resp.Payload == nil || resp.Payload.SilenceID == "" {
+		return "", fmt.Errorf("alertmanager returned an empty silence id")
+	}
+	slog.Debug("Backend call completed", "backend", "alertmanager", "operation", "post_silence",
+		"duration_ms", duration.Milliseconds(), "silence_id", resp.Payload.SilenceID)
+	return resp.Payload.SilenceID, nil
+}
+
+func (a *RealLoader) DeleteSilence(ctx context.Context, id string) error {
+	params := silence.NewDeleteSilenceParams().WithContext(ctx).WithSilenceID(strfmt.UUID(id))
+	start := time.Now()
+	_, err := a.client.Silence.DeleteSilence(params)
+	duration := time.Since(start)
+	if err != nil {
+		slog.Error("Backend call failed", "backend", "alertmanager", "operation", "delete_silence",
+			"duration_ms", duration.Milliseconds(), "error", err)
+		return fmt.Errorf("error deleting silence %s: %w", id, err)
+	}
+	slog.Debug("Backend call completed", "backend", "alertmanager", "operation", "delete_silence",
+		"duration_ms", duration.Milliseconds(), "silence_id", id)
+	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/go-openapi/strfmt"
 	"github.com/prometheus/alertmanager/api/v2/models"
+	"k8s.io/utils/ptr"
 
 	"github.com/rhobs/obs-mcp/pkg/metrics/alertmanager"
 	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
@@ -77,8 +78,11 @@ var _ prometheus.Loader = (*MockedLoader)(nil)
 
 // MockedAlertmanagerLoader is a mock implementation of alertmanager.Loader for testing
 type MockedAlertmanagerLoader struct {
-	GetAlertsFunc   func(ctx context.Context, active, silenced, inhibited, unprocessed *bool, filter []string, receiver string) (models.GettableAlerts, error)
-	GetSilencesFunc func(ctx context.Context, filter []string) (models.GettableSilences, error)
+	GetAlertsFunc     func(ctx context.Context, active, silenced, inhibited, unprocessed *bool, filter []string, receiver string) (models.GettableAlerts, error)
+	GetSilencesFunc   func(ctx context.Context, filter []string) (models.GettableSilences, error)
+	GetSilenceFunc    func(ctx context.Context, id string) (*models.GettableSilence, error)
+	PostSilenceFunc   func(ctx context.Context, silence *models.PostableSilence) (string, error)
+	DeleteSilenceFunc func(ctx context.Context, id string) error
 }
 
 func (m *MockedAlertmanagerLoader) GetAlerts(ctx context.Context, active, silenced, inhibited, unprocessed *bool, filter []string, receiver string) (models.GettableAlerts, error) {
@@ -93,6 +97,27 @@ func (m *MockedAlertmanagerLoader) GetSilences(ctx context.Context, filter []str
 		return m.GetSilencesFunc(ctx, filter)
 	}
 	return models.GettableSilences{}, nil
+}
+
+func (m *MockedAlertmanagerLoader) GetSilence(ctx context.Context, id string) (*models.GettableSilence, error) {
+	if m.GetSilenceFunc != nil {
+		return m.GetSilenceFunc(ctx, id)
+	}
+	return nil, nil
+}
+
+func (m *MockedAlertmanagerLoader) PostSilence(ctx context.Context, silence *models.PostableSilence) (string, error) {
+	if m.PostSilenceFunc != nil {
+		return m.PostSilenceFunc(ctx, silence)
+	}
+	return "", nil
+}
+
+func (m *MockedAlertmanagerLoader) DeleteSilence(ctx context.Context, id string) error {
+	if m.DeleteSilenceFunc != nil {
+		return m.DeleteSilenceFunc(ctx, id)
+	}
+	return nil
 }
 
 // Ensure MockedAlertmanagerLoader implements alertmanager.Loader at compile time
@@ -1043,5 +1068,126 @@ func TestGetSilencesHandler_ClientError(t *testing.T) {
 	}
 	if result.Error.Error() != "failed to get silences: connection refused" {
 		t.Errorf("expected error message 'failed to get silences: connection refused', got %q", result.Error.Error())
+	}
+}
+
+const testSilenceID = "11111111-1111-1111-1111-111111111111"
+
+func TestCreateSilenceHandler(t *testing.T) {
+	posted := false
+	mockClient := &MockedAlertmanagerLoader{
+		PostSilenceFunc: func(ctx context.Context, silence *models.PostableSilence) (string, error) {
+			posted = true
+			if silence == nil || ptr.Deref(silence.Comment, "") != "maintenance" {
+				t.Errorf("unexpected silence: %+v", silence)
+			}
+			if len(silence.Matchers) != 1 || ptr.Deref(silence.Matchers[0].Name, "") != "alertname" {
+				t.Errorf("unexpected matchers: %+v", silence.Matchers)
+			}
+			return testSilenceID, nil
+		},
+	}
+	params := newAlertmanagerParams(t, mockClient, map[string]any{
+		"comment": "maintenance",
+		"labels":  map[string]any{"alertname": "Watchdog"},
+	})
+	result, err := createSilenceHandler(params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != nil {
+		t.Fatalf("unexpected error: %v", result.Error)
+	}
+	if !posted {
+		t.Fatal("expected PostSilence to be called")
+	}
+}
+
+func TestCreateSilenceHandler_RequiresComment(t *testing.T) {
+	params := newAlertmanagerParams(t, &MockedAlertmanagerLoader{}, map[string]any{
+		"labels": map[string]any{"alertname": "Watchdog"},
+	})
+	result, err := createSilenceHandler(params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error == nil || result.Error.Error() != "comment is required" {
+		t.Fatalf("got %v", result.Error)
+	}
+}
+
+func TestUpdateSilenceHandler(t *testing.T) {
+	now := strfmt.DateTime(time.Now())
+	later := strfmt.DateTime(time.Now().Add(time.Hour))
+	mockClient := &MockedAlertmanagerLoader{
+		GetSilenceFunc: func(ctx context.Context, id string) (*models.GettableSilence, error) {
+			if id != testSilenceID {
+				t.Errorf("got id %q", id)
+			}
+			return &models.GettableSilence{
+				ID: new(testSilenceID),
+				Silence: models.Silence{
+					Comment:   new("old"),
+					CreatedBy: new("bob"),
+					Matchers: models.Matchers{
+						equalityMatcher("alertname", "Watchdog"),
+					},
+					StartsAt: &now,
+					EndsAt:   &later,
+				},
+			}, nil
+		},
+		PostSilenceFunc: func(ctx context.Context, silence *models.PostableSilence) (string, error) {
+			if silence.ID != testSilenceID {
+				t.Errorf("posted id %q", silence.ID)
+			}
+			if ptr.Deref(silence.Comment, "") != "old" {
+				t.Errorf("comment %q", ptr.Deref(silence.Comment, ""))
+			}
+			return testSilenceID, nil
+		},
+	}
+	params := newAlertmanagerParams(t, mockClient, map[string]any{
+		"silence_id": testSilenceID,
+		"duration":   "4h",
+	})
+	result, err := updateSilenceHandler(params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != nil {
+		t.Fatalf("unexpected error: %v", result.Error)
+	}
+}
+
+func TestDeleteSilenceHandler(t *testing.T) {
+	deleted := ""
+	mockClient := &MockedAlertmanagerLoader{
+		DeleteSilenceFunc: func(ctx context.Context, id string) error {
+			deleted = id
+			return nil
+		},
+	}
+	params := newAlertmanagerParams(t, mockClient, map[string]any{"silence_id": testSilenceID})
+	result, err := deleteSilenceHandler(params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error != nil {
+		t.Fatalf("unexpected error: %v", result.Error)
+	}
+	if deleted != testSilenceID {
+		t.Errorf("deleted %q", deleted)
+	}
+}
+
+func TestDeleteSilenceHandler_InvalidID(t *testing.T) {
+	params := newAlertmanagerParams(t, &MockedAlertmanagerLoader{}, map[string]any{"silence_id": "not-a-uuid"})
+	result, err := deleteSilenceHandler(params)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Error == nil || result.Error.Error() != "silence_id must be a UUID" {
+		t.Fatalf("got %v", result.Error)
 	}
 }

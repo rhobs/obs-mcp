@@ -1,0 +1,65 @@
+kind: Eval
+metadata:
+  name: "obs-mcp-write-tools"
+
+config:
+  agent:
+    type: "builtin.llm-agent"
+    model: "openai:gpt-5-nano"
+
+  mcpConfigFile: mcp-config.yaml
+
+  llmJudge:
+    ref:
+      type: builtin.llm-agent
+      model: "openai:gpt-5-nano"
+
+  taskSets:
+    # Mutating Alertmanager / alert-rule tasks. Do not add these to eval.yaml;
+    # they change cluster state. Run with:
+    #   make run-mcpchecker-eval EVAL_CONFIG=eval-writes.yaml
+    - path: tasks/alerts/create-silence.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: create_silence
+          - server: obs
+            tool: delete_silence
+        minToolCalls: 2
+        maxToolCalls: 8
+
+    - path: tasks/alerts/mute-uses-silence.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: create_silence
+          - server: obs
+            tool: delete_silence
+        minToolCalls: 2
+        maxToolCalls: 8
+
+    - path: tasks/alerts/crud-alert-rule.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: preview_alert_rule
+          - server: obs
+            tool: create_alert_rule
+          - server: obs
+            tool: update_alert_rule
+          - server: obs
+            tool: delete_alert_rules
+        minToolCalls: 4
+        maxToolCalls: 12
+
+    - path: tasks/alerts/disable-platform-alert.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_alert_rules
+          - server: obs
+            tool: preview_alert_rule
+          - server: obs
+            tool: update_alert_rule
+        minToolCalls: 4
+        maxToolCalls: 10

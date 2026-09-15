@@ -1,0 +1,33 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "disable-platform-alert"
+  difficulty: medium
+  parallel: false
+  runs: 1
+  labels:
+    category: alerts
+    suite: observability
+    toolType: alert-management
+    mutates: "true"
+  description: |
+    Tests drop/restore of a platform alert via update_alert_rule
+    alerting_rule_enabled (AlertRelabelConfig), not delete or silence.
+    Requires observability/alert-management, a reachable management API,
+    and AlertRelabelConfig write RBAC in openshift-monitoring.
+    Not part of the default eval.yaml (see eval-writes.yaml).
+spec:
+  verify:
+    - llmJudge:
+        contains: "alerting_rule_enabled=true"
+  prompt:
+    inline: |
+      Do not ask for confirmation. Disable then restore a platform alert:
+      1. list_alert_rules with source=platform. Prefer a rule that is not
+         Watchdog. Use Watchdog only if it is the only platform rule with an id.
+      2. preview_alert_rule with alerting_rule_enabled=false.
+      3. update_alert_rule with alerting_rule_enabled=false.
+      4. Immediately update_alert_rule with alerting_rule_enabled=true
+         so the rule is not left dropped. If step 3 fails, still restore.
+      Do not call delete_alert_rules or create_silence. Name the tools
+      and the rule id. The final state must be restored (enabled).
