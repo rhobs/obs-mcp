@@ -39,7 +39,7 @@ the test cluster.
 
 ## Authentication Modes
 
-The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Prometheus/Thanos**, **Alertmanager**, and (when enabled) **Loki** and **Tempo** endpoints:
+The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Prometheus/Thanos**, **Alertmanager**, and (when enabled) **Loki**, **Tempo**, and **monitoring-plugin alert management API** endpoints:
 
 | Mode             | Token Source                                                                 | Use Case                                                  |
 | ---------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------- |
@@ -51,6 +51,7 @@ The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Promethe
 - Extracts the bearer token from your local kubeconfig or from the mounted service account token file
 - **Auto-discovers** Prometheus/Thanos routes in OpenShift (only mode with auto-discovery)
 - Requires token-based auth (`oc whoami -t` must return a token when running locally)
+- `--insecure` skips TLS verification. The bearer token is forwarded only to loopback HTTPS (`localhost` / `127.0.0.1` / `::1`), for port-forwards. OpenShift route hostnames need a trusted CA instead of `--insecure`.
 - Best for: **Local development** when logged into a cluster, or **in-cluster deployment** on OpenShift with RBAC-protected Thanos/Prometheus
 
 ### `header` mode
@@ -59,6 +60,8 @@ The `--auth-mode` flag controls how obs-mcp obtains bearer tokens for **Promethe
 - If no header is provided, connects without authentication
 - Requires explicit `PROMETHEUS_URL` (no auto-discovery)
 - If `observability/logs` toolset is enabled, either set `LOKI_URL`/`--loki-url` or use LokiStack discovery parameters (`lokiNamespace`, `lokiName`)
+- If `observability/alert-management` toolset is enabled, set `ALERT_MGMT_API_URL`/`--alert-mgmt-api-url` (required in `header` mode; kubeconfig mode falls back to `https://localhost:9443`). Use HTTPS so the caller's token is forwarded; `http://` backends never receive bearer tokens. `--insecure` HTTPS forwards the token only to loopback. Kind e2e does not install monitoring-plugin; alert-management calls skip when the API is missing. Tool workflow and GitOps behavior: [ALERT_MANAGEMENT.md](ALERT_MANAGEMENT.md).
+- OpenShift sample RBAC (`obs-mcp-monitoring-reader`) is metrics/Alertmanager **read** plus Prometheus query. Silence writes and `AlertRelabelConfig` (platform drop/restore) are not in that role; bind extra Roles to the caller (e2e does this for the obs-mcp service account).
 - Best for: **Pass-through auth** scenarios or **Prometheus without authentication** (e.g., port-forwarded, local kube-prometheus)
 
 ## Deploying on a Cluster
@@ -96,7 +99,7 @@ comma-separated list via `--stacks` (default: `prometheus,tempo,loki`):
 
 | Stack        | What it installs                                                       | Toolset enabled |
 | ------------ | ---------------------------------------------------------------------- | --------------- |
-| `prometheus` | kube-prometheus (k8s) or uses the built-in OpenShift monitoring stack  | `observability/metrics` |
+| `prometheus` | kube-prometheus (k8s) or uses the built-in OpenShift monitoring stack  | `observability/metrics` and `observability/alert-management` |
 | `tempo`      | Tempo + OpenTelemetry operators and a sample tracing app               | `observability/traces`  |
 | `loki`       | Loki Operator test stack                                               | `observability/logs`    |
 
@@ -104,6 +107,8 @@ The enabled stacks determine which `manifests/` subtrees are applied and which `
 value is passed to the obs-mcp deployment — no manual editing of manifests is needed.
 When deploying via `hack/e2e/setup.sh`, the `observability/otelcol` toolset is always included (it has no
 external backend dependency); stack selection adds `observability/metrics`, `observability/traces`, and/or `observability/logs` on top.
+The prometheus stack also enables `observability/alert-management`. Kind does not deploy monitoring-plugin;
+`list_alert_rules` and `list_alerts` e2e tests skip when that API is unreachable or returns 404 (stock monitoring-plugin). OpenShift uses the in-cluster monitoring-plugin service.
 
 **Phases** express what work to perform. The two top-level aliases cover the common cases:
 
@@ -142,7 +147,8 @@ When deploying in-cluster, you must configure:
 3. **`--auth-mode`**: Choose based on your backend authentication requirements:
    - `kubeconfig` if your Prometheus requires RBAC/token auth
    - `header` if your Prometheus doesn't require authentication
-4. **ServiceAccount RBAC**: If using `kubeconfig` mode in-cluster, ensure the ServiceAccount has permissions to query your metrics/logs endpoints
+4. **`read-only`**: Sample ConfigMaps set this to `true`. Silence writes and alert-rule create/update/delete stay unregistered until you set it to `false` (standalone `--read-only=false`, or openshift-mcp-server `read_only = false` and `disable_destructive = false`).
+5. **ServiceAccount RBAC**: If using `kubeconfig` mode in-cluster, ensure the ServiceAccount has permissions to query your metrics/logs endpoints
 
 ### Configuring the Prometheus URL
 

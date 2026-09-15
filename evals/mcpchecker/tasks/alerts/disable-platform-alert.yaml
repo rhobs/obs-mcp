@@ -1,0 +1,55 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "disable-platform-alert"
+  difficulty: medium
+  parallel: false
+  runs: 1
+  labels:
+    category: alerts
+    suite: observability
+    toolType: alert-management
+    mutates: "true"
+  description: |
+    Tests drop/restore of a platform alert via update_alert_rule
+    alerting_rule_enabled (AlertRelabelConfig), not delete or silence.
+    Requires observability/alert-management, a reachable management API,
+    and AlertRelabelConfig write RBAC in openshift-monitoring.
+    Not part of the default eval.yaml (see eval-writes.yaml).
+spec:
+  verify:
+    - llmJudge:
+        contains: |
+          A platform rule was verified enabled before mutation. The response
+          identifies its rule id and reports two successful update_alert_rule
+          results for that same id: disable with alerting_rule_enabled=false,
+          then restore with alerting_rule_enabled=true. Each per-rule result
+          has statusCode 200 or 204. A final preview_alert_rule requesting
+          alerting_rule_enabled=false confirms currentValue=true and
+          newValue=false for the alertingRuleEnabled change, proving the
+          rule is enabled again. Fail if restoration failed, was skipped,
+          or is only claimed without these results and the final preview.
+  prompt:
+    inline: |
+      Do not ask for confirmation. Disable then restore a platform alert:
+      1. list_alert_rules with source=platform. Prefer a rule that is not
+         Watchdog. Use Watchdog only if there is no other safe candidate.
+      2. preview_alert_rule with the candidate rule_id and
+         alerting_rule_enabled=false. Proceed only if writable=true and a
+         resources[].changes[] entry for field=alertingRuleEnabled has
+         currentValue=true and newValue=false. This verifies the rule is
+         initially enabled. Do not mutate a disabled or unknown-state rule.
+         If no safe candidate exists, report that the task cannot run and stop.
+      3. update_alert_rule with that rule_id and alerting_rule_enabled=false.
+         Check the per-rule statusCode, not just the tool's envelope.
+      4. Immediately update_alert_rule with the same rule_id and
+         alerting_rule_enabled=true so the rule is not left dropped. Attempt
+         restoration even if step 3 reports a failure. Check the per-rule
+         restore statusCode; only 200 or 204 counts as success.
+      5. preview_alert_rule again with the same rule_id and
+         alerting_rule_enabled=false. Verify an alertingRuleEnabled change
+         with currentValue=true and newValue=false, without applying it.
+      Do not call delete_alert_rules or create_silence. Name the tools
+      and the rule id. Include both update results (id and statusCode) and
+      the initial and final preview changes in your final response. Do not
+      claim success unless disable, restore, and final verification succeeded.

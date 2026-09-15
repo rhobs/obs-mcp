@@ -5,6 +5,7 @@ import (
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanagement"
 	"github.com/rhobs/obs-mcp/pkg/logs"
 	"github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
@@ -17,6 +18,7 @@ func TestAllToolsDeclareValidRBAC(t *testing.T) {
 		&logs.Toolset{},
 		&traces.Toolset{},
 		&otelcol.Toolset{},
+		&alertmanagement.Toolset{},
 	}
 
 	for _, ts := range toolsets {
