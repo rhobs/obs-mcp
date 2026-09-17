@@ -7,7 +7,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/containers/kubernetes-mcp-server v0.0.66
 	github.com/go-openapi/runtime v0.33.2
-	github.com/go-openapi/strfmt v0.27.1
+	github.com/go-openapi/strfmt v0.27.2
 	github.com/google/jsonschema-go v0.4.3
 	github.com/oklog/run v1.2.0
 	github.com/prometheus/alertmanager v0.34.0
@@ -21,7 +21,7 @@ require (
 )
 
 require (
-	github.com/modelcontextprotocol/go-sdk v1.7.0
+	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/pavolloffay/opentelemetry-mcp-server/modules/schemagen v0.0.0-20260710124846-8bb49fd6ccc7
 	github.com/stretchr/testify v1.12.1
 )
