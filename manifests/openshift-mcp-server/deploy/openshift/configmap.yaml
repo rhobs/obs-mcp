@@ -5,8 +5,12 @@ metadata:
   namespace: obs-mcp
 data:
   config.toml: |
-    toolsets = ["observability/metrics", "observability/logs", "observability/traces", "observability/otelcol"]
+    toolsets = ["observability/metrics", "observability/logs", "observability/traces", "observability/otelcol", "observability/alert-management"]
     experimental_enable_target_compatibility_tool_filters = true
+    # List and preview only. To register silence writes and alert-rule
+    # create/update/delete, set read_only = false (and disable_destructive =
+    # false if the host defaults that to true).
+    read_only = true
 
     [toolset_configs."observability/metrics"]
     auth_mode = "kubeconfig"
@@ -20,3 +24,7 @@ data:
 
     [toolset_configs."observability/traces"]
     auth_mode = "kubeconfig"
+
+    [toolset_configs."observability/alert-management"]
+    auth_mode = "kubeconfig"
+    management_api_url = "https://monitoring-plugin.openshift-monitoring.svc:9443"

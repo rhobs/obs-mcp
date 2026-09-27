@@ -29,11 +29,11 @@ spec:
             - ":9100"
             - --auth-mode
             - $(AUTH_MODE)
-            - --insecure
             - --log-level
             - debug
             - --toolsets
             - $(TOOLSETS)
+            - --read-only=$(READ_ONLY)
           env:
             - name: AUTH_MODE
               valueFrom:
@@ -45,6 +45,11 @@ spec:
                 configMapKeyRef:
                   name: obs-mcp-config
                   key: toolsets
+            - name: READ_ONLY
+              valueFrom:
+                configMapKeyRef:
+                  name: obs-mcp-config
+                  key: read-only
             - name: PROMETHEUS_URL
               valueFrom:
                 configMapKeyRef:
@@ -55,6 +60,12 @@ spec:
                 configMapKeyRef:
                   name: obs-mcp-config
                   key: alertmanager-url
+            - name: ALERT_MGMT_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: obs-mcp-config
+                  key: alert-mgmt-api-url
+                  optional: true
           ports:
             - containerPort: 9100
               name: mcp
