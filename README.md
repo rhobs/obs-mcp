@@ -263,6 +263,7 @@ Use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to vi
 | [RELEASE.md](RELEASE.md) | Release process and versioning guidelines |
 | [CHANGELOG.md](CHANGELOG.md) | Notable changes per release |
 | [MCPChecker Evals](evals/mcpchecker/README.md) | Automated eval framework for tool verification |
+| [KUBE_MCP_SYNC.md](docs/dev/KUBE_MCP_SYNC.md) | `/kube-mcp-sync` skill for kubernetes-mcp-server compatibility |
 
 ## License
 
