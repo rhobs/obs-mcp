@@ -1,0 +1,28 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "mute-uses-silence"
+  difficulty: medium
+  parallel: false
+  runs: 1
+  labels:
+    category: alerts
+    suite: observability
+    toolType: alertmanager
+    mutates: "true"
+  description: |
+    Tests that mute/stop-paging maps to create_silence (Alertmanager),
+    not delete_alert_rules or dropping a platform rule. The prompt asks
+    which tool to use, create a silence for a unique alertname, then expire it.
+    Not part of the default eval.yaml (see eval-writes.yaml).
+spec:
+  verify:
+    - llmJudge:
+        contains: "create_silence"
+  prompt:
+    inline: |
+      Do not ask for confirmation. I want to mute notifications for
+      alertname=obs-mcp-eval-nonexistent without deleting any alert rule.
+      Create a 1 hour silence with comment mcpchecker-eval-mute using
+      create_silence. Then expire it with delete_silence so it is not left
+      active. Name the tools you used.

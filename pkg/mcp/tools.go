@@ -3,6 +3,7 @@ package mcp
 import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 
+	"github.com/rhobs/obs-mcp/pkg/alertmanagement"
 	"github.com/rhobs/obs-mcp/pkg/logs"
 	"github.com/rhobs/obs-mcp/pkg/metrics"
 	"github.com/rhobs/obs-mcp/pkg/otelcol"
@@ -22,7 +23,7 @@ func GroupedTools() []ToolGroup {
 	var promTools, alertTools []api.ServerTool
 	for i := range allMetricsTools {
 		switch allMetricsTools[i].Tool.Name {
-		case "get_alerts", "get_silences":
+		case "get_alerts", "get_silences", "create_silence", "update_silence", "delete_silence":
 			alertTools = append(alertTools, allMetricsTools[i])
 		default:
 			promTools = append(promTools, allMetricsTools[i])
@@ -35,5 +36,6 @@ func GroupedTools() []ToolGroup {
 		{Name: "Tempo (Distributed Tracing)", Icon: "🔍", Tools: (&traces.Toolset{}).GetTools(nil)},
 		{Name: "Loki (Log Management)", Icon: "📋", Tools: (&logs.Toolset{}).GetTools(nil)},
 		{Name: "OpenTelemetry Collector", Icon: "⚙️", Tools: (&otelcol.Toolset{}).GetTools(nil)},
+		{Name: "Alert Management", Icon: "🛡️", Tools: (&alertmanagement.Toolset{}).GetTools(nil)},
 	}
 }

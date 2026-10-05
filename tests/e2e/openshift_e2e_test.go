@@ -13,6 +13,8 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/rhobs/obs-mcp/pkg/k8s"
+	"github.com/rhobs/obs-mcp/pkg/logs"
+	logsdiscovery "github.com/rhobs/obs-mcp/pkg/logs/discovery"
 	"github.com/rhobs/obs-mcp/pkg/openshift"
 	"github.com/stretchr/testify/require"
 )
@@ -181,10 +183,18 @@ func TestTempoListInstances(t *testing.T) {
 	t.Log("tempo_list_instances returned successfully")
 }
 
-// TestLokiListInstances_RouteURLs verifies loki_list_instances returns OpenShift
-// Route hosts (https, not *.svc) when use_route is enabled. This is the
-// embedder-visible signal that TOML/CLI use_route actually installed a Resolver.
-func TestLokiListInstances_RouteURLs(t *testing.T) {
+// TestLokiListInstances_GatewayURLs verifies that the server returns either the
+// in-cluster service URL (the deployment default) or the Route URL (local runs
+// with --loki.use-route). Explicit use_route discovery must still find a Route.
+func TestLokiListInstances_GatewayURLs(t *testing.T) {
+	kubeConfig, err := k8s.GetClientConfig()
+	require.NoError(t, err)
+	dynClient, err := dynamic.NewForConfig(kubeConfig)
+	require.NoError(t, err)
+	routeConfig := &logs.Config{UseRoute: true}
+	require.NoError(t, routeConfig.Validate())
+	require.NotNil(t, routeConfig.Resolver)
+
 	resp, err := mcpClient.CallTool(t, 101, "loki_list_instances", map[string]any{})
 	if err != nil {
 		t.Fatalf("Failed to call loki_list_instances: %v", err)
@@ -206,7 +216,17 @@ func TestLokiListInstances_RouteURLs(t *testing.T) {
 		require.True(t, ok, "instance %d: expected map", i)
 		urlStr, _ := inst["url"].(string)
 		require.NotEmpty(t, urlStr, "instance %d (%v/%v): missing url", i, inst["lokiNamespace"], inst["lokiName"])
-		assertValidRouteURL(t, urlStr)
+		namespace, _ := inst["lokiNamespace"].(string)
+		name, _ := inst["lokiName"].(string)
+		require.NotEmpty(t, namespace)
+		require.NotEmpty(t, name)
+		// The OpenShift Loki fixture uses openshift-network tenants mode.
+		const tenantsMode = "openshift-network"
+		routeURL, err := routeConfig.Resolver.ResolveGatewayURL(t.Context(), dynClient, namespace, name, tenantsMode)
+		require.NoError(t, err)
+		assertValidRouteURL(t, routeURL)
+		serviceURL := logsdiscovery.ServiceDNSGatewayURL(namespace, name, tenantsMode)
+		require.Contains(t, []string{serviceURL, routeURL}, urlStr, "expected the instance's service or Route gateway URL")
 		t.Logf("loki instance %s/%s url=%s", inst["lokiNamespace"], inst["lokiName"], urlStr)
 	}
 }

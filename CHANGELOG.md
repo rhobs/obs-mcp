@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Alert management toolset (`observability/alert-management`) with MCP tools for listing alerts and listing, creating, updating, deleting, and previewing OpenShift alert rules via the monitoring-plugin management API ([#171](https://github.com/rhobs/obs-mcp/pull/171))
+- Alertmanager silence write tools: `create_silence`, `update_silence`, and `delete_silence` (alongside existing `get_silences`)
+- Sample ConfigMaps enable `observability/alert-management`
+- E2E tests for silence writes, `list_alerts`, `list_alert_rules`, user-defined alert-rule create/update/delete, and platform drop/restore via `alerting_rule_enabled` (skipped when the management API is unreachable). Kind does not install monitoring-plugin.
+- mcpchecker evals for listing rules, listing alerts, and previewing (default `eval.yaml`). Mutating CRUD, platform drop/restore, and silence create/expire live in `evals/mcpchecker/eval-writes.yaml`
+
+### Changed
+
+- Standalone `--read-only` defaults to true (kubernetes-mcp `read_only` flag; OpenShift Lightspeed defaults that on). Silence writes and alert-rule create/update/delete are not registered until `--read-only=false`. `--disable-destructive` hides DestructiveHint tools. Sample ConfigMaps set `read-only: "true"` / `read_only = true`. E2E deploy and `make test-e2e-run` set `--read-only=false`.
+- `update_alert_rule` is annotated as destructive (`DestructiveHint`) because it can drop a platform alert
+- GitOps `preview_alert_rule` returns typed `resources` (kind, namespace, name, changes, `desiredObject`) and `gitApplyHint` as a Git recipe. This toolset does not open pull requests; a git or GitHub MCP or the host applies the manifest.
+- Delete user-created rules, or platform rules in a writable AlertingRule. CMO/operator platform rules are dropped (`alerting_rule_enabled=false`), not deleted. GitOps writes are 405. User-created rules can be fully edited in the plugin; this PATCH does not send expr/name/for/annotations. Platform updates are labels, classification, and drop/restore only.
+
+### Fixed
+
+- Read-only mode instructs the agent to tell the user to set `--read-only=false` (or openshift-mcp-server `read_only = false`) when they ask to change a rule, instead of calling a missing write tool
+- Skip `list_alert_rules` e2e only for transport failures and the stock-plugin `404 page not found` body, not every HTTP 404, generic `page not found`, or TLS error
+- Dedicated `namespace` on platform create/preview overrides `labels.namespace`
+- `update_silence` parameter docs no longer claim create-time defaults for omitted `createdBy`, `startsAt`, or `duration`
+- Refuse HTTPS-to-HTTP redirects so bearer tokens stay on TLS
+- `--insecure` HTTPS forwards the bearer token only to loopback hosts (port-forward); non-loopback hosts require verified TLS. Sample in-cluster Deployment and `make run` no longer pass `--insecure`. In-cluster kubeconfig uses Loki/Tempo service DNS (service CA) unless `--loki.use-route` / `--traces.use-route` is set.
+- Silence-write e2e skips when the runner cannot get namespaces or create Roles (Prow test SA)
+- Wait for e2e Deployments without `kubectl wait --for=create`, which older `oc` rejects
+
 ## [v0.8.1] - 2026-10-01
 
 ### Fixed

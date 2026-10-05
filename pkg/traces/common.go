@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"slices"
 	"strings"
 
@@ -67,11 +66,7 @@ func getTempoClient(params api.ToolHandlerParams) (tempoclient.Loader, error) {
 
 	rt = instrumentation.RoundTripper(rt, cfg.ClientMetrics, "tempo")
 
-	httpClient := &http.Client{
-		Timeout:   tempoclient.RequestTimeout,
-		Transport: rt,
-	}
-	return tempoclient.NewTempoLoader(httpClient, url), nil
+	return tempoclient.NewTempoLoader(auth.NewHTTPClient(rt, tempoclient.RequestTimeout), url), nil
 }
 
 func resolveTempoURL(params api.ToolHandlerParams) (string, error) {
