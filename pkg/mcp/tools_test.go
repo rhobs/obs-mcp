@@ -1,17 +1,19 @@
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 	"regexp"
 	"testing"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 
+	"github.com/rhobs/obs-mcp/pkg/clusterinspector"
 	tools "github.com/rhobs/obs-mcp/pkg/metrics"
 )
 
 func getToolByName(name string) api.Tool {
-	allTools := (&tools.Toolset{}).GetTools(nil)
+	allTools := (&tools.Toolset{}).GetTools(context.Background(), api.ToolsetContext{Inspector: clusterinspector.New()})
 	for i := range allTools {
 		if allTools[i].Tool.Name == name {
 			return allTools[i].Tool
@@ -327,7 +329,7 @@ func TestToolPatternValidation(t *testing.T) {
 }
 
 func TestToolsHaveOutputSchema(t *testing.T) {
-	allTools := (&tools.Toolset{}).GetTools(nil)
+	allTools := (&tools.Toolset{}).GetTools(context.Background(), api.ToolsetContext{Inspector: clusterinspector.New()})
 
 	if len(allTools) == 0 {
 		t.Fatal("expected at least one tool")

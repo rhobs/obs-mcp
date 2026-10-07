@@ -90,7 +90,7 @@ func ServerToolToGoSdkTool(mgr *kubernetes.Manager, cfg *config.Config, toolsetN
 			Context:          toolcfg.With(ctx, toolsetName, toolsetConfig),
 			Config:           cfg,
 			KubernetesClient: k,
-			ToolCallRequest:  toolCallRequest,
+			Request:          toolCallRequest,
 		})
 		if err != nil {
 			return nil, err
