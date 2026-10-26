@@ -12,12 +12,12 @@ import (
 
 	"k8s.io/client-go/dynamic"
 
+	"github.com/containers/kubernetes-mcp-server/pkg/obs/openshift"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
-	"github.com/rhobs/obs-mcp/pkg/openshift"
 	"github.com/stretchr/testify/require"
 )
 
-// Route discovery tests below exercise pkg/openshift directly using the kubeconfig
+// Route discovery tests below exercise upstream pkg/obs/openshift using the kubeconfig
 // available to the test runner. They validate the auto-discovery path used when
 // obs-mcp runs locally with --auth-mode kubeconfig. The deployed server in CI
 // uses --auth-mode kubeconfig with URLs hardcoded in the configmap instead.

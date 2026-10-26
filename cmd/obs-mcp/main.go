@@ -24,18 +24,20 @@ import (
 
 	"k8s.io/client-go/dynamic"
 
-	"github.com/rhobs/obs-mcp/pkg/auth"
+	"github.com/containers/kubernetes-mcp-server/pkg/obs/auth"
+	logsdiscovery "github.com/containers/kubernetes-mcp-server/pkg/obs/logs/discovery"
+	obsmetrics "github.com/containers/kubernetes-mcp-server/pkg/obs/metrics"
+	"github.com/containers/kubernetes-mcp-server/pkg/obs/metrics/prometheus"
+	"github.com/containers/kubernetes-mcp-server/pkg/obs/openshift"
+	tracesdiscovery "github.com/containers/kubernetes-mcp-server/pkg/obs/traces/discovery"
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/logs"
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/metrics"
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/otelcol"
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/traces"
+
 	"github.com/rhobs/obs-mcp/pkg/health"
 	"github.com/rhobs/obs-mcp/pkg/k8s"
-	"github.com/rhobs/obs-mcp/pkg/logs"
-	logsdiscovery "github.com/rhobs/obs-mcp/pkg/logs/discovery"
 	mcpserver "github.com/rhobs/obs-mcp/pkg/mcp"
-	"github.com/rhobs/obs-mcp/pkg/metrics"
-	"github.com/rhobs/obs-mcp/pkg/metrics/prometheus"
-	"github.com/rhobs/obs-mcp/pkg/openshift"
-	"github.com/rhobs/obs-mcp/pkg/otelcol"
-	"github.com/rhobs/obs-mcp/pkg/traces"
-	tracesdiscovery "github.com/rhobs/obs-mcp/pkg/traces/discovery"
 )
 
 const (
@@ -332,7 +334,7 @@ func parseToolsets(toolsets string) []string {
 type resolvers struct {
 	logs    logsdiscovery.GatewayResolver
 	traces  tracesdiscovery.EndpointResolver
-	metrics metrics.BackendResolver
+	metrics obsmetrics.BackendResolver
 }
 
 // buildResolvers returns a dynamic client and per-toolset resolvers for kubeconfig mode or
@@ -369,7 +371,7 @@ func parseMetricsBackend(backend string) (string, error) {
 
 // determineMetricsBackendURL determines the metrics backend URL based on auth mode and environment.
 // Returns the resolved URL, a source description for logging, and an error if the configuration is invalid.
-func determineMetricsBackendURL(ctx context.Context, authMode auth.AuthMode, backend string, dynClient dynamic.Interface, resolver metrics.BackendResolver) (url, source string, err error) {
+func determineMetricsBackendURL(ctx context.Context, authMode auth.AuthMode, backend string, dynClient dynamic.Interface, resolver obsmetrics.BackendResolver) (url, source string, err error) {
 	if prometheusURL := os.Getenv("PROMETHEUS_URL"); prometheusURL != "" {
 		return prometheusURL, "PROMETHEUS_URL env var", nil
 	}
@@ -395,7 +397,7 @@ func determineMetricsBackendURL(ctx context.Context, authMode auth.AuthMode, bac
 
 // determineAlertmanagerURL determines the Alertmanager URL based on auth mode and environment.
 // Returns the resolved URL, a source description for logging, and an error if the configuration is invalid.
-func determineAlertmanagerURL(ctx context.Context, authMode auth.AuthMode, dynClient dynamic.Interface, resolver metrics.BackendResolver) (url, source string, err error) {
+func determineAlertmanagerURL(ctx context.Context, authMode auth.AuthMode, dynClient dynamic.Interface, resolver obsmetrics.BackendResolver) (url, source string, err error) {
 	if alertmanagerURL := os.Getenv("ALERTMANAGER_URL"); alertmanagerURL != "" {
 		return alertmanagerURL, "ALERTMANAGER_URL env var", nil
 	}

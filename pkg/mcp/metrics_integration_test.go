@@ -14,7 +14,7 @@ import (
 	prom "github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 
-	"github.com/rhobs/obs-mcp/pkg/instrumentation"
+	"github.com/containers/kubernetes-mcp-server/pkg/obs/instrumentation"
 )
 
 // TestStreamableHTTPWithMetrics verifies that metrics are properly collected

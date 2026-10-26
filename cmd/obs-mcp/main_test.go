@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/rhobs/obs-mcp/pkg/auth"
+	"github.com/containers/kubernetes-mcp-server/pkg/obs/auth"
 )
 
 // TestParseMetricsBackend verifies the --metrics-backend flag parsing logic

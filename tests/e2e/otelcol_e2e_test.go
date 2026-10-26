@@ -9,7 +9,7 @@ import (
 )
 
 // runOtelcolToolsetTests verifies the otelcol toolset is registered on the deployed server.
-// Schema and validation logic are covered by unit tests in pkg/otelcol.
+// Schema and validation logic are covered upstream in pkg/toolsets/otelcol.
 func runOtelcolToolsetTests(t *testing.T, client *MCPClient) {
 	t.Helper()
 

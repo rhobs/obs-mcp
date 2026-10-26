@@ -253,6 +253,12 @@ Use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to vi
 
 4. Connect using **Streamable HTTP** transport to `http://obs-mcp:8080/mcp`
 
+## Development and code ownership
+
+- obs-mcp is a thin standalone host for the observability packages in [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server). Tool definitions/handlers live in upstream `pkg/toolsets/{metrics,logs,traces,otelcol}`; backend clients, discovery, authentication, and instrumentation live in upstream `pkg/obs/`.
+- This repository retains the CLI (`cmd/obs-mcp`), Go MCP SDK adapter (`pkg/mcp`), health server, kubeconfig helpers, and standalone cluster-inspector stub. Only explicitly selected observability toolsets are exposed; standalone registration does not apply target-compatibility filtering.
+- Change shared tool behavior and its unit tests upstream. Run `make generate-tools-doc` here to regenerate `TOOLS.md` from the pinned upstream definitions; standalone integration and cluster e2e tests stay here.
+
 ## Documentation
 
 | Document | Description |

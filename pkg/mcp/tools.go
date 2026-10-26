@@ -5,11 +5,12 @@ import (
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/logs"
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/metrics"
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/otelcol"
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/traces"
+
 	"github.com/rhobs/obs-mcp/pkg/clusterinspector"
-	"github.com/rhobs/obs-mcp/pkg/logs"
-	"github.com/rhobs/obs-mcp/pkg/metrics"
-	"github.com/rhobs/obs-mcp/pkg/otelcol"
-	"github.com/rhobs/obs-mcp/pkg/traces"
 )
 
 // ToolGroup holds a named category of tools for documentation generation.

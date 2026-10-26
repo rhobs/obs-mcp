@@ -17,6 +17,10 @@ make lint-fix    # auto-fix
 make test-unit
 ```
 
+Local tests cover the standalone CLI, inspector, SDK adapter, HTTP transport, upstream configuration injection, and selected-toolset registration. Shared tool/backend unit tests live in kubernetes-mcp-server under `pkg/toolsets/{metrics,logs,traces,otelcol}` and `pkg/obs/`, rather than being duplicated here.
+
+Cluster suites below still exercise standalone obs-mcp.
+
 ## Manual Testing
 
 **OpenShift — via kubeconfig (route auto-discovery):**
@@ -66,9 +70,9 @@ make test-e2e-teardown      # cleanup
 
 ## OpenShift E2E Tests
 
-Validates route auto-discovery (`pkg/openshift`) and tool correctness against OpenShift monitoring.
+Validates upstream route auto-discovery (`kubernetes-mcp-server/pkg/obs/openshift`) and tool correctness against OpenShift monitoring.
 
-`TestRouteDiscovery_*` exercises `pkg/openshift` directly using the kubeconfig — no running obs-mcp needed.
+`TestRouteDiscovery_*` exercises upstream `pkg/obs/openshift` directly using the kubeconfig — no running obs-mcp needed.
 `TestOpenShiftMetricsPresent` requires `OBS_MCP_URL` and is skipped when not set. In CI, `OBS_MCP_URL` is set automatically by the step registry to point at the deployed obs-mcp instance.
 
 **Authentication:** `TestRouteDiscovery_URLsAreReachable` queries monitoring routes directly. It uses `OPENSHIFT_TOKEN` if set (required in CI where the kubeconfig uses client certs that the OAuth proxy rejects), otherwise falls back to the kubeconfig bearer token (works with `oc login`).

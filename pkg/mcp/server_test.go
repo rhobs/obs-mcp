@@ -13,9 +13,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/rhobs/obs-mcp/pkg/auth"
-	"github.com/rhobs/obs-mcp/pkg/metrics"
-	"github.com/rhobs/obs-mcp/pkg/otelcol"
+	"github.com/containers/kubernetes-mcp-server/pkg/obs/auth"
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/metrics"
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/otelcol"
 )
 
 func TestRedactHeaders(t *testing.T) {

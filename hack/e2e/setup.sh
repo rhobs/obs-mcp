@@ -69,7 +69,7 @@ _relativepath() {
 PHASE_DEFAULT="up"
 PROFILE="kind"
 STACKS="prometheus,tempo,loki"
-SUPPORTED_PHASES=(provision prereqs extras upload deploy deploy-oms run clean unprovision)
+SUPPORTED_PHASES=(provision prereqs extras upload deploy run clean unprovision)
 SUPPORTED_PROFILES=(kind k8s openshift)
 SUPPORTED_STACKS=(prometheus tempo loki)
 
@@ -567,53 +567,6 @@ EOF
     _wait_rollout obs-mcp deployment/obs-mcp 3m
 }
 
-OPENSHIFT_MCP_SERVER_IMAGE_NAME="${OPENSHIFT_MCP_SERVER_IMAGE_NAME:-ghcr.io/rhobs/openshift-mcp-server}"
-OPENSHIFT_MCP_SERVER_IMAGE_REF="${OPENSHIFT_MCP_SERVER_IMAGE_REF:-${OPENSHIFT_MCP_SERVER_IMAGE_NAME}:${TAG:-latest}}"
-
-phase_deploy_oms() {
-    phase "deploy-oms"
-
-    step "Building openshift-mcp-server container image"
-    _run "${CONTAINER_CLI}" build --load \
-        -f "${ROOT_DIR}/Containerfile.openshift-mcp-server" \
-        -t "${OPENSHIFT_MCP_SERVER_IMAGE_REF}" "${ROOT_DIR}"
-
-    OPENSHIFT_MCP_SERVER_IMAGE_REF=$(_upload_image "openshift-mcp-server" "${OPENSHIFT_MCP_SERVER_IMAGE_REF}" "obs-mcp")
-    info "Image ref for deployment: ${OPENSHIFT_MCP_SERVER_IMAGE_REF}"
-    _run kubectl delete pod -n obs-mcp -l app.kubernetes.io/name=openshift-mcp-server --ignore-not-found=true
-
-    step "Deploying openshift-mcp-server"
-    case ${PROFILE} in
-        openshift) _profile=openshift ;;
-        *)         _profile=kubernetes ;;
-    esac
-    _overlay="${ROOT_DIR}/manifests/openshift-mcp-server/deploy/overlay"
-    mkdir -p "${_overlay}"
-    cat > "${_overlay}/kustomization.yaml" <<EOF
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - ../${_profile}
-patches:
-  - patch: |
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: openshift-mcp-server
-        namespace: obs-mcp
-      spec:
-        template:
-          spec:
-            containers:
-              - name: openshift-mcp-server
-                image: "${OPENSHIFT_MCP_SERVER_IMAGE_REF}"
-EOF
-    _run $KUBECTL apply -k "${_overlay}"
-
-    step "Waiting for openshift-mcp-server rollout"
-    _wait_rollout obs-mcp deployment/openshift-mcp-server 3m
-}
-
 phase_run() {
     phase "run"
 
@@ -744,7 +697,6 @@ for phase in "${PHASES[@]}"; do
         extras)      phase_extras ;;
         upload)      phase_upload ;;
         deploy)      phase_deploy ;;
-        deploy-oms)  phase_deploy_oms ;;
         run)         phase_run ;;
         clean)       phase_clean ;;
         unprovision) phase_unprovision ;;

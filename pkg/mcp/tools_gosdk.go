@@ -24,7 +24,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"k8s.io/utils/ptr"
 
-	"github.com/rhobs/obs-mcp/pkg/toolcfg"
+	"github.com/containers/kubernetes-mcp-server/pkg/obs/toolcfg"
 )
 
 func ServerToolToGoSdkTool(mgr *kubernetes.Manager, cfg *config.Config, toolsetName string, toolsetConfig config.ExtendedConfig, tool api.ServerTool) (*mcp.Tool, mcp.ToolHandler, error) {
