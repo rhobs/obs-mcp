@@ -5,7 +5,7 @@
 [![e2e](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/e2e.yaml)
 [![docs](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml/badge.svg)](https://github.com/rhobs/obs-mcp/actions/workflows/docs.yaml)
 
-obs-mcp is an [MCP](https://modelcontextprotocol.io/introduction) server that lets LLMs query [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) in Kubernetes. It optionally supports [Loki](https://grafana.com/oss/loki/) for logs, [Grafana Tempo](https://grafana.com/docs/tempo/latest/) for traces, and [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration assistance. Enable additional toolsets with `--toolsets` (e.g., `--toolsets observability/metrics,observability/logs,observability/traces,observability/otelcol`).
+obs-mcp is an [MCP](https://modelcontextprotocol.io/introduction) server that lets LLMs query [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) in Kubernetes, including listing, creating, updating, and deleting Alertmanager silences. It optionally supports [Loki](https://grafana.com/oss/loki/) for logs, [Grafana Tempo](https://grafana.com/docs/tempo/latest/) for traces, [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration assistance, and OpenShift alert-rule management via the monitoring-plugin management API. Enable additional toolsets with `--toolsets` (e.g., `--toolsets observability/metrics,observability/logs,observability/traces,observability/otelcol,observability/alert-management`).
 
 > [!NOTE]
 > This project is moved from [jhadvig/genie-plugin](https://github.com/jhadvig/genie-plugin/tree/main/obs-mcp) preserving the history of commits.
@@ -28,10 +28,13 @@ The easiest way to get the obs-mcp connected to the cluster is via a kubeconfig:
  Or directly:
 
  ```shell
- go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --insecure
+ go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig
  ```
 
 This will auto-discover the metrics backend in OpenShift. By default, it tries `thanos-querier` route first, then falls back to `prometheus-k8s` route. Use `--metrics-backend` to control which route is preferred.
+
+> [!WARNING]
+> `--insecure` skips TLS verification and forwards the bearer token only to loopback HTTPS (`localhost`, `127.0.0.1`, `::1`), for port-forwards. Do not use it against OpenShift route hostnames; omit the flag so the kubeconfig CA is used.
 
 > [!WARNING]
 > `kubeconfig` auth mode requires a bearer token.
@@ -45,7 +48,7 @@ This will auto-discover the metrics backend in OpenShift. By default, it tries `
 **Example using Prometheus as the preferred backend:**
 
 ```shell
-go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-backend prometheus --insecure
+go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-backend prometheus
 ```
 
 **Example using Thanos as the preferred backend:**
@@ -61,7 +64,7 @@ make run-no-guardrails
 Or directly:
 
 ```shell
-go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-backend thanos --insecure --guardrails=none
+go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-backend thanos --guardrails=none
 ```
 
 > [!IMPORTANT]
@@ -151,7 +154,7 @@ helm install local prometheus-community/prometheus
 # port-forward Prometheus server
 export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=prometheus,app.kubernetes.io/instance=local" -o jsonpath="{.items[0].metadata.name}") && kubectl --namespace default port-forward $POD_NAME 9090
 
-go run ./cmd/obs-mcp/ --auth-mode header --insecure --listen :9100 
+go run ./cmd/obs-mcp/ --auth-mode header --listen :9100
 ```
 
 ### Testing with curl
@@ -172,8 +175,11 @@ You can test the MCP server using curl. The server uses `JSON-RPC 2.0` over `HTT
 > - `observability/logs` - Loki log query tools (requires Loki URL or LokiStack discovery)
 > - `observability/traces` - Tempo tracing tools (requires Tempo configuration)
 > - `observability/otelcol` - OpenTelemetry Collector configuration assistance (no external dependencies)
+> - `observability/alert-management` - List OpenShift alerts and create, list, update, delete, and preview alert rules via the monitoring-plugin management API (`--alert-mgmt-api-url` / `ALERT_MGMT_API_URL`). See [ALERT_MANAGEMENT.md](docs/ALERT_MANAGEMENT.md).
 >
-> Example: `--toolsets observability/metrics,observability/logs,observability/traces,observability/otelcol`
+> `--read-only` defaults to `true` (kubernetes-mcp `read_only` flag; OpenShift Lightspeed also defaults that on). Silence writes and alert-rule create/update/delete are not registered until you pass `--read-only=false`.
+>
+> Example: `--toolsets observability/metrics,observability/logs,observability/traces,observability/otelcol,observability/alert-management`
 
 ```shell
 curl -X POST http://localhost:9100/mcp \
@@ -258,6 +264,7 @@ Use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to vi
 | Document | Description |
 |----------|-------------|
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Authentication modes, in-cluster deployment, configuration |
+| [ALERT_MANAGEMENT.md](docs/ALERT_MANAGEMENT.md) | Alert-rule toolset and Alertmanager silence create/update/delete |
 | [TOOLS.md](TOOLS.md) | Available MCP tools |
 | [TESTING.md](TESTING.md) | Testing guide |
 | [RELEASE.md](RELEASE.md) | Release process and versioning guidelines |

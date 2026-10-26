@@ -33,7 +33,7 @@ func main() {
 			fmt.Printf("      - %s\n", g.Tools[i].Tool.Name)
 		}
 	}
-	fmt.Println("\n💡 Reminder: When adding a new tool, register it in the relevant package GetTools() method (metrics, logs, traces); pkg/mcp/tools.go GroupedTools() merges them.")
+	fmt.Println("\n💡 Reminder: When adding a new tool, register it in the relevant package GetTools() method (metrics, logs, traces, alertmanagement); pkg/mcp/tools.go GroupedTools() merges them.")
 }
 
 type fieldInfo struct {

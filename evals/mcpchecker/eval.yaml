@@ -284,6 +284,31 @@ config:
         minToolCalls: 1
         maxToolCalls: 5
 
+    # Alert rule management (read/preview only). Mutating tasks live in eval-writes.yaml.
+    - path: tasks/alerts/list-alert-rules.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_alert_rules
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    - path: tasks/alerts/list-alerts.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: list_alerts
+        minToolCalls: 1
+        maxToolCalls: 5
+
+    - path: tasks/alerts/preview-alert-rule.yaml
+      assertions:
+        toolsUsed:
+          - server: obs
+            tool: preview_alert_rule
+        minToolCalls: 1
+        maxToolCalls: 5
+
     # Multi-step reasoning (hard)
     - path: tasks/queries/namespace-resource-usage.yaml
       assertions:

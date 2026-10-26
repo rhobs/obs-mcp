@@ -17,13 +17,48 @@ info()  { echo -e "    ${CYAN}i${NC} $1"; }
 warn()  { echo -e "    ${YELLOW}!${NC} $1"; }
 fail()  { echo -e "    ${RED}✗${NC} $1"; exit 1; }
 
+# Convert a kubectl-style duration (2m, 5m, 10m, 30s) to seconds.
+_duration_seconds() {
+    local spec="${1:-5m}"
+    local n="${spec%%[smh]}"
+    local unit="${spec#"$n"}"
+    case "${unit}" in
+        s|"") echo "${n}" ;;
+        m) echo $((n * 60)) ;;
+        h) echo $((n * 3600)) ;;
+        *) echo "${n}" ;;
+    esac
+}
+
+# Wait until a namespaced resource exists. Avoids `wait --for=create`, which
+# older oc/kubectl builds reject.
+_wait_exists() {
+    local namespace="$1"
+    local resource="$2"
+    local timeout="$3"
+    local seconds start now
+    seconds="$(_duration_seconds "${timeout}")"
+    start="$(date +%s)"
+    run_info "Waiting for ${resource} in ${namespace} to exist (timeout ${timeout})"
+    while true; do
+        if $KUBECTL -n "${namespace}" get "${resource}" >/dev/null 2>&1; then
+            return 0
+        fi
+        now="$(date +%s)"
+        if (( now - start >= seconds )); then
+            fail "timed out waiting for ${resource} to be created in ${namespace}"
+        fi
+        sleep 2
+    done
+}
+
 # Wait for a resource to be created by an operator, then wait for its rollout to complete.
 # Usage: _wait_rollout <namespace> <type/name> [timeout]
 _wait_rollout() {
     local namespace="$1"
     local resource="$2"
     local timeout="${3:-5m}"
-    _run $KUBECTL -n "${namespace}" wait --for=create "${resource}" --timeout="${timeout}"
+    _wait_exists "${namespace}" "${resource}" "${timeout}"
     _run $KUBECTL -n "${namespace}" rollout status "${resource}" --timeout="${timeout}"
 }
 
@@ -498,7 +533,7 @@ phase_deploy() {
 
     # Compute toolsets from enabled stacks
     _toolsets_parts=(observability/otelcol)
-    has_stack prometheus && _toolsets_parts+=(observability/metrics)
+    has_stack prometheus && _toolsets_parts+=(observability/metrics observability/alert-management)
     has_stack tempo      && _toolsets_parts+=(observability/traces)
     has_stack loki       && _toolsets_parts+=(observability/logs)
     _toolsets=$(IFS=,; echo "${_toolsets_parts[*]}")
@@ -526,6 +561,7 @@ patches:
         namespace: obs-mcp
       data:
         toolsets: "${_toolsets}"
+        read-only: "false"
 EOF
     if [ -n "${IMAGE_REF:-}" ]; then
         cat >> "${_overlay}/kustomization.yaml" <<EOF
@@ -628,8 +664,8 @@ phase_run() {
     local _flags=(
         --listen ":9100"
         --auth-mode kubeconfig
-        --insecure
         --log-level debug
+        --read-only=false
     )
 
     # Toolsets — always include otelcol.
@@ -637,7 +673,7 @@ phase_run() {
 
     # -- Prometheus & Alertmanager --
     if has_stack prometheus; then
-        _toolsets_parts+=(observability/metrics)
+        _toolsets_parts+=(observability/metrics observability/alert-management)
         case ${PROFILE} in
             openshift)
                 step "Port-forwarding Prometheus (openshift-monitoring)"
@@ -646,6 +682,15 @@ phase_run() {
                 step "Port-forwarding Alertmanager (openshift-monitoring)"
                 _run $KUBECTL port-forward -n openshift-monitoring pod/alertmanager-main-0 9093:9093 &
                 _pf_pids+=($!)
+                if $KUBECTL get svc -n openshift-monitoring monitoring-plugin >/dev/null 2>&1; then
+                    step "Port-forwarding monitoring-plugin (openshift-monitoring)"
+                    _run $KUBECTL port-forward -n openshift-monitoring svc/monitoring-plugin 9443:9443 &
+                    _pf_pids+=($!)
+                    _env_vars+=(ALERT_MGMT_API_URL=https://localhost:9443)
+                    _flags+=(--alert-mgmt-insecure)
+                else
+                    warn "monitoring-plugin service not found; Kind/k8s e2e does not install it, so list_alert_rules tests skip"
+                fi
                 ;;
             *)
                 step "Port-forwarding Prometheus (monitoring)"
