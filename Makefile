@@ -126,14 +126,14 @@ update-go-deps: ## Upgrade root Go module dependencies to latest and tidy
 	@echo "✓ Done. Run 'make test-unit' to verify."
 
 .PHONY: generate-tools-doc
-generate-tools-doc: ## Generate TOOLS.md from tool definitions
+generate-tools-doc: ## Generate TOOLS.md from pinned upstream toolsets
 	go run ./cmd/generate-tools-doc/main.go
 
 .PHONY: check-tools-doc
-check-tools-doc: generate-tools-doc ## Check if TOOLS.md is up to date
+check-tools-doc: generate-tools-doc ## Check if TOOLS.md matches pinned upstream toolsets
 	@git diff --exit-code TOOLS.md || { \
 		echo ""; \
-		echo "❌ TOOLS.md is out of sync with tool definitions!"; \
+		echo "❌ TOOLS.md is out of sync with pinned upstream toolsets!"; \
 		echo ""; \
 		echo "To fix, run: make generate-tools-doc"; \
 		echo "Then commit the updated TOOLS.md"; \
@@ -153,18 +153,18 @@ run: build ## Run obs-mcp in HTTP mode (use LOG_LEVEL=debug to see backend call 
 	@echo "Tip: Override backend URLs with PROMETHEUS_URL=https://... ALERTMANAGER_URL=https://... make run"
 	@echo "Tip: Override toolsets with TOOLSETS=observability/metrics,observability/traces,observability/otelcol make run"
 	@echo "Note: AUTH_MODE=serviceaccount or header requires PROMETHEUS_URL and ALERTMANAGER_URL to be set"
-	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --insecure --log-level $(LOG_LEVEL) --toolsets $(TOOLSETS) $(RUN_FLAGS)
+	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --log-level $(LOG_LEVEL) --toolsets $(TOOLSETS) $(RUN_FLAGS)
 
 .PHONY: run-no-guardrails
 run-no-guardrails: build ## Run obs-mcp in HTTP mode with guardrails disabled
 	@echo "Tip: Override backend URLs with PROMETHEUS_URL=https://... ALERTMANAGER_URL=https://... make run-no-guardrails"
 	@echo "Note: AUTH_MODE=serviceaccount or header requires PROMETHEUS_URL and ALERTMANAGER_URL to be set"
-	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --insecure --log-level $(LOG_LEVEL) --toolsets $(TOOLSETS) --guardrails none $(RUN_FLAGS)
+	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --log-level $(LOG_LEVEL) --toolsets $(TOOLSETS) --guardrails none $(RUN_FLAGS)
 
 .PHONY: run-prometheus
 run-prometheus: build ## Run obs-mcp with Prometheus as the metrics backend
 	@echo "Tip: Override backend URL with PROMETHEUS_URL=https://... make run-prometheus"
-	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --metrics-backend prometheus --insecure --log-level $(LOG_LEVEL) --toolsets $(TOOLSETS) $(RUN_FLAGS)
+	./obs-mcp --listen $(LISTEN_ADDR) --auth-mode $(AUTH_MODE) --metrics-backend prometheus --log-level $(LOG_LEVEL) --toolsets $(TOOLSETS) $(RUN_FLAGS)
 
 
 .PHONY: pf-alertmanager

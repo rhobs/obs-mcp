@@ -143,6 +143,7 @@ When deploying in-cluster, you must configure:
    - `kubeconfig` if your Prometheus requires RBAC/token auth
    - `header` if your Prometheus doesn't require authentication
 4. **ServiceAccount RBAC**: If using `kubeconfig` mode in-cluster, ensure the ServiceAccount has permissions to query your metrics/logs endpoints
+5. **TLS**: Observability backends must verify with a trusted CA (kubeconfig `certificate-authority-data`, in-cluster service CA, or system trust store). `--insecure` is rejected.
 
 ### Configuring the Prometheus URL
 

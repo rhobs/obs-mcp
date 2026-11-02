@@ -2,10 +2,24 @@ package main
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/obs/auth"
 )
+
+func TestRejectInsecure(t *testing.T) {
+	if err := rejectInsecure(false); err != nil {
+		t.Fatalf("expected nil when insecure is false, got %v", err)
+	}
+	err := rejectInsecure(true)
+	if err == nil {
+		t.Fatal("expected error when insecure is true")
+	}
+	if !strings.Contains(err.Error(), "--insecure is no longer supported") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
 
 // TestParseMetricsBackend verifies the --metrics-backend flag parsing logic
 func TestParseMetricsBackend(t *testing.T) {

@@ -51,7 +51,9 @@ func main() {
 	var listenInternal = flag.String("listen-internal", "", "Listen address for internal health server (metrics, pprof, health e.g., :8081, 127.0.0.1:8081). Off by default.")
 	var toolsets = flag.String("toolsets", metrics.ToolsetName, fmt.Sprintf("Comma-separated list of enabled toolsets: %s", strings.Join(mcpserver.AllToolsets, ", ")))
 	var authMode = flag.String("auth-mode", "", "Authentication mode: kubeconfig or header")
-	var insecure = flag.Bool("insecure", false, "Skip TLS certificate verification")
+	// Upstream observability clients reject Insecure=true; trust backend CAs via
+	// kubeconfig/REST CAData (and the OpenShift service CA) instead.
+	var insecure = flag.Bool("insecure", false, "DEPRECATED and rejected: skip TLS certificate verification (use a trusted CA)")
 	var logLevel = flag.String("log-level", "info", "Log level: debug, info, warn, error")
 	var metricsBackend = flag.String("metrics-backend", "thanos", "Metrics backend: thanos (default, with prometheus fallback) or prometheus (strict, no fallback)")
 	var guardrails = flag.String("guardrails", "all",
@@ -89,6 +91,10 @@ func main() {
 
 	// Configure slog with specified log level
 	configureLogging(*logLevel)
+
+	if err := rejectInsecure(*insecure); err != nil {
+		log.Fatalf("%v", err)
+	}
 
 	// Parse and validate auth mode
 	parsedAuthMode, err := auth.ParseAuthMode(*authMode)
@@ -154,7 +160,6 @@ func main() {
 		Toolsets: parsedToolsets,
 		Metrics: &metrics.Config{
 			AuthMode:               parsedAuthMode,
-			Insecure:               *insecure,
 			PrometheusURL:          metricsBackendURL,
 			AlertmanagerURL:        alertmanagerURL,
 			Guardrails:             *guardrails,
@@ -162,7 +167,6 @@ func main() {
 		},
 		Traces: &traces.Config{
 			AuthMode: parsedAuthMode,
-			Insecure: *insecure,
 			TempoURL: tempoResolvedURL,
 			UseRoute: *tracesUseRoute,
 			Resolver: routeResolvers.traces,
@@ -170,7 +174,6 @@ func main() {
 		Otelcol: otelcol.NewDefaultConfig(),
 		Logs: &logs.Config{
 			AuthMode: parsedAuthMode,
-			Insecure: *insecure,
 			LokiURL:  lokiResolvedURL,
 			UseRoute: *lokiUseRoute,
 			Resolver: routeResolvers.logs,
@@ -314,6 +317,14 @@ func validateConfigs(opts mcpserver.ObsMCPOptions) error {
 		}
 	}
 	return nil
+}
+
+func rejectInsecure(insecure bool) error {
+	if !insecure {
+		return nil
+	}
+	return fmt.Errorf("--insecure is no longer supported: observability backends require a trusted CA " +
+		"(kubeconfig CertificateAuthorityData / in-cluster service CA). Remove --insecure from the command line")
 }
 
 func parseToolsets(toolsets string) []string {

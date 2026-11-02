@@ -29,7 +29,6 @@ spec:
             - ":9100"
             - --auth-mode
             - $(AUTH_MODE)
-            - --insecure
             - --log-level
             - debug
             - --toolsets

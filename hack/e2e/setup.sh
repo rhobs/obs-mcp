@@ -581,7 +581,6 @@ phase_run() {
     local _flags=(
         --listen ":9100"
         --auth-mode kubeconfig
-        --insecure
         --log-level debug
     )
 
