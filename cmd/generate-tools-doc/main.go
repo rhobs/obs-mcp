@@ -218,10 +218,11 @@ func generateMarkdown(groups []mcp.ToolGroup, filename string) error {
 	var sb strings.Builder
 
 	sb.WriteString("<!-- This file is auto-generated. Do not edit manually. -->\n")
-	sb.WriteString("<!-- Run 'make generate-tools-doc' to regenerate. -->\n\n")
+	sb.WriteString("<!-- Sourced from pinned kubernetes-mcp-server toolsets. Run 'make generate-tools-doc' to regenerate. -->\n\n")
 
 	sb.WriteString("# Available Tools\n\n")
 	sb.WriteString("This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager, Loki, Tempo, and OpenTelemetry Collector configuration.\n\n")
+	sb.WriteString("Tool definitions come from the pinned [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server) dependency (`pkg/toolsets/{metrics,logs,traces,otelcol}`).\n\n")
 
 	// --- Quick-reference table ---
 	sb.WriteString("## Quick Reference\n\n")
