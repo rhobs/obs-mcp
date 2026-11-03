@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Move observability toolsets and shared `pkg/obs` packages into [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server); obs-mcp is now a thin standalone host ([#213](https://github.com/rhobs/obs-mcp/pull/213))
+- Remove openshift-mcp-server embed Containerfile, manifests, and registration e2e ([#213](https://github.com/rhobs/obs-mcp/pull/213))
+- Bump `kubernetes-mcp-server` to latest `main` (`v0.1.2-0.20261102043140-570177898e9f`)
+- Bump Go toolchain to 1.27.3
+- Forward upstream `ServerTool.RBAC` into MCP tool Meta and support `ContentBlocks` results in the standalone SDK adapter
+- Adapt cluster inspector stub to upstream `ClusterInspector.BearerToken` and non-nil `Unstructured` (keeps Perses-gated `show_timeseries` registered)
+- Document that tool/toolset contributions belong in kubernetes-mcp-server; retarget the kube-mcp-sync skill for host adapter audits
+- Broaden Containerfile OCI image description for current observability backends
+- Remove unused `GetKubeClient` helper
+
+### Breaking
+
+- Reject `--insecure`: observability backends now require a trusted CA (kubeconfig `CertificateAuthorityData` / in-cluster service CA). Remove `--insecure` from CLI, manifests, and local `make run` targets.
+
 ## [v0.8.1] - 2026-10-01
 
 ### Fixed

@@ -185,6 +185,11 @@ func formatTable(headers, alignments []string, rows [][]string) string {
 	return sb.String()
 }
 
+// mdCode wraps s in markdown backticks.
+func mdCode(s string) string {
+	return "`" + s + "`"
+}
+
 // toolAnchor returns the GitHub-compatible markdown anchor for a tool name.
 func toolAnchor(name string) string {
 	return name
@@ -218,10 +223,11 @@ func generateMarkdown(groups []mcp.ToolGroup, filename string) error {
 	var sb strings.Builder
 
 	sb.WriteString("<!-- This file is auto-generated. Do not edit manually. -->\n")
-	sb.WriteString("<!-- Run 'make generate-tools-doc' to regenerate. -->\n\n")
+	sb.WriteString("<!-- Sourced from pinned kubernetes-mcp-server toolsets. Run 'make generate-tools-doc' to regenerate. -->\n\n")
 
 	sb.WriteString("# Available Tools\n\n")
 	sb.WriteString("This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager, Loki, Tempo, and OpenTelemetry Collector configuration.\n\n")
+	sb.WriteString("Tool definitions come from the pinned [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server) dependency (`pkg/toolsets/{metrics,logs,traces,otelcol}`).\n\n")
 
 	// --- Quick-reference table ---
 	sb.WriteString("## Quick Reference\n\n")
@@ -232,8 +238,8 @@ func generateMarkdown(groups []mcp.ToolGroup, filename string) error {
 			tool := &g.Tools[i].Tool
 			paragraphs := strings.Split(strings.TrimSpace(tool.Description), "\n\n")
 			desc := firstSentence(paragraphs[0])
-			sb.WriteString(fmt.Sprintf("| [`%s`](#%s) | %s %s | %s |\n",
-				tool.Name, toolAnchor(tool.Name), g.Icon, g.Name, sanitizeTableCell(desc)))
+			fmt.Fprintf(&sb, "| [%s](#%s) | %s %s | %s |\n",
+				mdCode(tool.Name), toolAnchor(tool.Name), g.Icon, g.Name, sanitizeTableCell(desc))
 		}
 	}
 	sb.WriteString("\n")
@@ -245,10 +251,10 @@ func generateMarkdown(groups []mcp.ToolGroup, filename string) error {
 	// --- Table of Contents ---
 	sb.WriteString("## Table of Contents\n\n")
 	for _, g := range groups {
-		sb.WriteString(fmt.Sprintf("- **%s [%s](#%s)** (%d tools)\n",
-			g.Icon, g.Name, categoryAnchor(g.Name), len(g.Tools)))
+		fmt.Fprintf(&sb, "- **%s [%s](#%s)** (%d tools)\n",
+			g.Icon, g.Name, categoryAnchor(g.Name), len(g.Tools))
 		for i := range g.Tools {
-			sb.WriteString(fmt.Sprintf("  - [`%s`](#%s)\n", g.Tools[i].Tool.Name, toolAnchor(g.Tools[i].Tool.Name)))
+			fmt.Fprintf(&sb, "  - [%s](#%s)\n", mdCode(g.Tools[i].Tool.Name), toolAnchor(g.Tools[i].Tool.Name))
 		}
 	}
 	sb.WriteString("\n---\n\n")
@@ -256,16 +262,16 @@ func generateMarkdown(groups []mcp.ToolGroup, filename string) error {
 	// --- Tool sections by category ---
 	for gi, g := range groups {
 		id := categoryAnchor(g.Name)
-		sb.WriteString(fmt.Sprintf("<a id=%q></a>\n\n", id))
-		sb.WriteString(fmt.Sprintf("## %s %s\n\n", g.Icon, g.Name))
+		fmt.Fprintf(&sb, "<a id=%q></a>\n\n", id)
+		fmt.Fprintf(&sb, "## %s %s\n\n", g.Icon, g.Name)
 
 		for ti := range g.Tools {
 			tool := &g.Tools[ti].Tool
-			sb.WriteString(fmt.Sprintf("### `%s`\n\n", tool.Name))
+			fmt.Fprintf(&sb, "### %s\n\n", mdCode(tool.Name))
 
 			paragraphs := strings.Split(strings.TrimSpace(tool.Description), "\n\n")
 			mainDesc := strings.ReplaceAll(strings.TrimSpace(paragraphs[0]), "\n", "\n> ")
-			sb.WriteString(fmt.Sprintf("> %s\n\n", mainDesc))
+			fmt.Fprintf(&sb, "> %s\n\n", mainDesc)
 
 			// Usage tips in a collapsible section
 			if len(paragraphs) > 1 {
@@ -280,7 +286,7 @@ func generateMarkdown(groups []mcp.ToolGroup, filename string) error {
 						}
 					}
 					if len(joined) > 0 {
-						sb.WriteString(fmt.Sprintf("- %s\n", strings.Join(joined, " ")))
+						fmt.Fprintf(&sb, "- %s\n", strings.Join(joined, " "))
 					}
 				}
 				sb.WriteString("\n</details>\n\n")
@@ -296,8 +302,8 @@ func generateMarkdown(groups []mcp.ToolGroup, filename string) error {
 				var requiredRows, optionalRows [][]string
 				for _, p := range params {
 					row := []string{
-						fmt.Sprintf("`%s`", p.Name),
-						fmt.Sprintf("`%s`", p.Type),
+						mdCode(p.Name),
+						mdCode(p.Type),
 						p.Description,
 					}
 					if p.Required {
@@ -330,7 +336,7 @@ func generateMarkdown(groups []mcp.ToolGroup, filename string) error {
 				for _, p := range params {
 					if p.Pattern != "" {
 						sb.WriteString("> [!NOTE]\n")
-						sb.WriteString(fmt.Sprintf("> Parameters with patterns must match: `%s`\n\n", p.Pattern))
+						fmt.Fprintf(&sb, "> Parameters with patterns must match: %s\n\n", mdCode(p.Pattern))
 						break
 					}
 				}
@@ -343,8 +349,8 @@ func generateMarkdown(groups []mcp.ToolGroup, filename string) error {
 				var rows [][]string
 				for _, f := range outputFields {
 					rows = append(rows, []string{
-						fmt.Sprintf("`%s`", f.Name),
-						fmt.Sprintf("`%s`", f.Type),
+						mdCode(f.Name),
+						mdCode(f.Type),
 						f.Description,
 					})
 				}

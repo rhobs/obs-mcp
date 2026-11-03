@@ -1,4 +1,4 @@
-ARG GOLANG_BUILDER=1.26
+ARG GOLANG_BUILDER=1.27
 
 FROM golang:${GOLANG_BUILDER} AS builder
 
@@ -44,7 +44,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
 LABEL org.opencontainers.image.source="https://github.com/rhobs/obs-mcp" \
-      org.opencontainers.image.description="Observability MCP server for Prometheus and Alertmanager" \
+      org.opencontainers.image.description="Observability MCP server for Prometheus/Thanos, Alertmanager, Loki, Tempo, and OpenTelemetry Collector" \
       org.opencontainers.image.licenses="Apache-2.0"
 
 WORKDIR /app

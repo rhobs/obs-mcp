@@ -2,6 +2,8 @@
 
 This document describes how to run tests for obs-mcp. Run `make help` to see all available targets.
 
+> Tool / backend unit tests belong in [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server). This repo tests the standalone host. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Linting
 
 Run golangci-lint to check code quality:

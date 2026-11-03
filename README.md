@@ -7,8 +7,8 @@
 
 obs-mcp is an [MCP](https://modelcontextprotocol.io/introduction) server that lets LLMs query [Prometheus](https://prometheus.io/) or [Thanos Querier](https://thanos.io/) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) in Kubernetes. It optionally supports [Loki](https://grafana.com/oss/loki/) for logs, [Grafana Tempo](https://grafana.com/docs/tempo/latest/) for traces, and [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) configuration assistance. Enable additional toolsets with `--toolsets` (e.g., `--toolsets observability/metrics,observability/logs,observability/traces,observability/otelcol`).
 
-> [!NOTE]
-> This project is moved from [jhadvig/genie-plugin](https://github.com/jhadvig/genie-plugin/tree/main/obs-mcp) preserving the history of commits.
+> [!IMPORTANT]
+> **Observability toolsets live upstream.** Tool definitions, handlers, and shared backend clients were moved into [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server) (`pkg/toolsets/{metrics,logs,traces,otelcol}` and `pkg/obs/`). **Contribute toolset changes there** — not in this repo. obs-mcp is a thin standalone host (CLI, MCP adapter, deployment, evals). See [Contributing](CONTRIBUTING.md).
 
 ## Quickstart
 
@@ -28,10 +28,13 @@ The easiest way to get the obs-mcp connected to the cluster is via a kubeconfig:
  Or directly:
 
  ```shell
- go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --insecure
+ go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig
  ```
 
 This will auto-discover the metrics backend in OpenShift. By default, it tries `thanos-querier` route first, then falls back to `prometheus-k8s` route. Use `--metrics-backend` to control which route is preferred.
+
+> [!NOTE]
+> TLS to observability backends must verify with a trusted CA (kubeconfig `certificate-authority-data`, in-cluster service CA, or system trust store). `--insecure` is rejected.
 
 > [!WARNING]
 > `kubeconfig` auth mode requires a bearer token.
@@ -45,7 +48,7 @@ This will auto-discover the metrics backend in OpenShift. By default, it tries `
 **Example using Prometheus as the preferred backend:**
 
 ```shell
-go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-backend prometheus --insecure
+go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-backend prometheus
 ```
 
 **Example using Thanos as the preferred backend:**
@@ -61,7 +64,7 @@ make run-no-guardrails
 Or directly:
 
 ```shell
-go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-backend thanos --insecure --guardrails=none
+go run ./cmd/obs-mcp/ --listen 127.0.0.1:9100 --auth-mode kubeconfig --metrics-backend thanos --guardrails=none
 ```
 
 > [!IMPORTANT]
@@ -151,7 +154,7 @@ helm install local prometheus-community/prometheus
 # port-forward Prometheus server
 export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=prometheus,app.kubernetes.io/instance=local" -o jsonpath="{.items[0].metadata.name}") && kubectl --namespace default port-forward $POD_NAME 9090
 
-go run ./cmd/obs-mcp/ --auth-mode header --insecure --listen :9100 
+go run ./cmd/obs-mcp/ --auth-mode header --listen :9100 
 ```
 
 ### Testing with curl
@@ -255,14 +258,22 @@ Use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to vi
 
 ## Development and code ownership
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for where to open PRs.
+
+| Change type | Where to contribute |
+|-------------|---------------------|
+| Tool behavior, schemas, handlers, backend clients (`pkg/obs`) | [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server) |
+| Standalone CLI, MCP SDK adapter, inspector stub, manifests, evals | This repo (`obs-mcp`) |
+
 - obs-mcp is a thin standalone host for the observability packages in [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server). Tool definitions/handlers live in upstream `pkg/toolsets/{metrics,logs,traces,otelcol}`; backend clients, discovery, authentication, and instrumentation live in upstream `pkg/obs/`.
 - This repository retains the CLI (`cmd/obs-mcp`), Go MCP SDK adapter (`pkg/mcp`), health server, kubeconfig helpers, and standalone cluster-inspector stub. Only explicitly selected observability toolsets are exposed; standalone registration does not apply target-compatibility filtering.
-- Change shared tool behavior and its unit tests upstream. Run `make generate-tools-doc` here to regenerate `TOOLS.md` from the pinned upstream definitions; standalone integration and cluster e2e tests stay here.
+- After an upstream tool change lands, bump the pin here (`/kube-mcp-sync` or `go get github.com/containers/kubernetes-mcp-server@main`) and run `make generate-tools-doc` to refresh `TOOLS.md`.
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Where to contribute (toolsets upstream vs host here) |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Authentication modes, in-cluster deployment, configuration |
 | [TOOLS.md](TOOLS.md) | Available MCP tools |
 | [TESTING.md](TESTING.md) | Testing guide |

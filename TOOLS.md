@@ -1,9 +1,11 @@
 <!-- This file is auto-generated. Do not edit manually. -->
-<!-- Run 'make generate-tools-doc' to regenerate. -->
+<!-- Sourced from pinned kubernetes-mcp-server toolsets. Run 'make generate-tools-doc' to regenerate. -->
 
 # Available Tools
 
 This MCP server exposes the following tools for Prometheus/Thanos, Alertmanager, Loki, Tempo, and OpenTelemetry Collector configuration.
+
+Tool definitions come from the pinned [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server) dependency (`pkg/toolsets/{metrics,logs,traces,otelcol}`).
 
 ## Quick Reference
 

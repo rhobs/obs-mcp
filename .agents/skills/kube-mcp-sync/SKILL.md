@@ -12,6 +12,10 @@ Bump upstream → audit → report → ask before each fix → verify
 (`go build ./...`, `go test ./...`) → ask before commit
 (`git commit -s -S`, conventional commit).
 
+Observability tool definitions live upstream under
+`pkg/toolsets/{metrics,logs,traces,otelcol}` and `pkg/obs/`.
+obs-mcp only hosts/adapts them (`pkg/mcp`, `pkg/clusterinspector`).
+
 ## 1. Bump kubernetes-mcp-server
 
 Record the current pin, then update to latest `main` and tidy:
@@ -51,32 +55,39 @@ rg -n -B2 -A5 'Deprecated:' "$MOD"
 
 Report each obs-mcp hit with file:line and the upstream-suggested replacement.
 
-## 3. New struct fields / conventions
+## 3. Adapter / host parity
 
-Upstream may add new fields to types obs-mcp uses (e.g. `RBAC` on `ServerTool`).
-These don't break the build but obs-mcp should adopt them.
-
-Check key types for fields obs-mcp never sets:
-
-```bash
-# Extract fields from upstream ServerTool and ServerPrompt structs
-rg 'type (ServerTool|ServerPrompt) struct' -A30 "$MOD/pkg/api/"
-
-# Check which fields obs-mcp actually populates
-rg 'ServerTool\{' --glob '*.go' -A15 pkg/
-rg 'ServerPrompt\{' --glob '*.go' -A15 pkg/
-```
-
-For each field defined upstream, search obs-mcp for usage. Flag any field
-that appears in zero obs-mcp definitions — it may be a new convention to adopt.
-Cross-check with upstream in-tree toolsets to confirm it's expected:
+Tool definitions are no longer authored in obs-mcp. Audit whether the
+**standalone adapter and inspector** keep up with upstream `ServerTool` /
+`ClusterInspector` / result APIs:
 
 ```bash
-# How upstream toolsets set this field (e.g. RBAC, Annotations, etc.)
-rg 'RBAC:|Annotations:' "$MOD/pkg/" --glob '*.go' | head -20
+# Upstream adapter + result helpers the fork must track
+rg -n 'RBACMetadataKey|ContentBlocks|NewMultiContentResult|BearerToken' \
+  "$MOD/pkg/mcp/tools_gosdk.go" "$MOD/pkg/mcp/multi_content_result.go" "$MOD/pkg/api/"
+
+# Local adapter / registration / inspector
+rg -n 'RBACMetadataKey|ContentBlocks|NewMultiContentResult|BearerToken|ServerToolToGoSdkTool|addToolset' \
+  --glob '*.go' pkg/mcp pkg/clusterinspector
+
+# Diff key adapter files against upstream for missed merges
+diff -u "$MOD/pkg/mcp/tools_gosdk.go" pkg/mcp/tools_gosdk.go || true
+diff -u "$MOD/pkg/mcp/multi_content_result.go" pkg/mcp/multi_content_result.go || true
 ```
 
-Report each missing field with the upstream pattern to follow.
+Flag gaps such as:
+
+- `ServerTool.RBAC` not merged into tool `Meta`
+- `ToolCallResult.ContentBlocks` not converted
+- New `ClusterInspector` methods missing on `pkg/clusterinspector`
+- New `api.Toolset` methods (`GetPrompts` / `GetResources` / …) the host ignores
+
+Also regenerate docs after a successful bump:
+
+```bash
+make generate-tools-doc
+make check-tools-doc
+```
 
 ## 4. Shared dependencies
 
