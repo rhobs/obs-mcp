@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/obs/auth"
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/alertmanagement"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/logs"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/metrics"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/otelcol"
@@ -27,10 +29,11 @@ import (
 
 func standaloneTestOptions() ObsMCPOptions {
 	return ObsMCPOptions{
-		Metrics: &metrics.Config{AuthMode: auth.AuthModeKubeConfig},
-		Logs:    &logs.Config{AuthMode: auth.AuthModeKubeConfig},
-		Traces:  &traces.Config{AuthMode: auth.AuthModeKubeConfig},
-		Otelcol: otelcol.NewDefaultConfig(),
+		Metrics:         &metrics.Config{AuthMode: auth.AuthModeKubeConfig},
+		Logs:            &logs.Config{AuthMode: auth.AuthModeKubeConfig},
+		Traces:          &traces.Config{AuthMode: auth.AuthModeKubeConfig},
+		Otelcol:         otelcol.NewDefaultConfig(),
+		AlertManagement: &alertmanagement.Config{AuthMode: auth.AuthModeKubeConfig},
 		KubernetesClientConfig: clientcmd.NewDefaultClientConfig(clientcmdapi.Config{
 			Clusters:       map[string]*clientcmdapi.Cluster{"test": {Server: "https://localhost", InsecureSkipTLSVerify: true}},
 			AuthInfos:      map[string]*clientcmdapi.AuthInfo{"test": {Token: "kubeconfig-token"}},
@@ -44,16 +47,18 @@ func standaloneTestOptions() ObsMCPOptions {
 // filter out Loki/Tempo tools just because the standalone inspector has no CRDs.
 func TestUpstreamToolsetRegistration(t *testing.T) {
 	toolNames := map[string][]string{
-		metrics.ToolsetName: {"list_metrics", "execute_instant_query", "execute_range_query", "show_timeseries", "get_label_names", "get_label_values", "get_series", "get_alerts", "get_silences"},
-		logs.ToolsetName:    {"loki_list_instances", "loki_label_names", "loki_label_values", "loki_query_range"},
-		traces.ToolsetName:  {"tempo_list_instances", "tempo_get_trace_by_id", "tempo_search_traces", "tempo_search_tags", "tempo_search_tag_values"},
-		otelcol.ToolsetName: {"otelcol_list_components", "otelcol_get_component_schema", "otelcol_validate_config", "otelcol_get_versions"},
+		alertmanagement.ToolsetName: {"list_alerts", "list_alert_rules", "preview_alert_rule", "create_alert_rule", "update_alert_rule", "delete_alert_rules"},
+		metrics.ToolsetName:         {"list_metrics", "execute_instant_query", "execute_range_query", "show_timeseries", "get_label_names", "get_label_values", "get_series", "get_alerts", "get_silences", "create_silence", "update_silence", "delete_silence"},
+		logs.ToolsetName:            {"loki_list_instances", "loki_label_names", "loki_label_values", "loki_query_range"},
+		traces.ToolsetName:          {"tempo_list_instances", "tempo_get_trace_by_id", "tempo_search_traces", "tempo_search_tags", "tempo_search_tag_values"},
+		otelcol.ToolsetName:         {"otelcol_list_components", "otelcol_get_component_schema", "otelcol_validate_config", "otelcol_get_versions"},
 	}
 	prompts := map[string]string{
-		metrics.ToolsetName: metrics.ServerPrompt,
-		logs.ToolsetName:    logs.ServerPrompt,
-		traces.ToolsetName:  traces.ServerPrompt,
-		otelcol.ToolsetName: otelcol.ServerPrompt,
+		alertmanagement.ToolsetName: alertmanagement.ServerPrompt,
+		metrics.ToolsetName:         metrics.ServerPrompt,
+		logs.ToolsetName:            logs.ServerPrompt,
+		traces.ToolsetName:          traces.ServerPrompt,
+		otelcol.ToolsetName:         otelcol.ServerPrompt,
 	}
 	var allNames []string
 	for _, name := range AllToolsets {
@@ -84,7 +89,7 @@ func TestUpstreamToolsetRegistration(t *testing.T) {
 	}
 	require.ElementsMatch(t, allNames, documented)
 
-	for _, enabled := range [][]string{nil, {metrics.ToolsetName}, {logs.ToolsetName}, {traces.ToolsetName}, {otelcol.ToolsetName}, AllToolsets} {
+	for _, enabled := range [][]string{nil, {metrics.ToolsetName}, {logs.ToolsetName}, {traces.ToolsetName}, {otelcol.ToolsetName}, {alertmanagement.ToolsetName}, AllToolsets} {
 		t.Run(strings.Join(enabled, ","), func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
@@ -118,7 +123,7 @@ func TestUpstreamToolsetRegistration(t *testing.T) {
 				expected = append(expected, toolNames[name]...)
 			}
 			// Match the existing standalone instruction ordering.
-			for _, name := range []string{metrics.ToolsetName, traces.ToolsetName, logs.ToolsetName, otelcol.ToolsetName} {
+			for _, name := range []string{metrics.ToolsetName, traces.ToolsetName, logs.ToolsetName, otelcol.ToolsetName, alertmanagement.ToolsetName} {
 				if slices.Contains(enabled, name) {
 					instructions = append(instructions, prompts[name])
 				}
@@ -159,13 +164,18 @@ func TestUpstreamConfigurationOverHTTP(t *testing.T) {
 	defer backend.Close()
 
 	opts := standaloneTestOptions()
+	clientConfig, err := opts.KubernetesClientConfig.RawConfig()
+	require.NoError(t, err)
+	clientConfig.Clusters["test"].CertificateAuthorityData = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: backend.Certificate().Raw})
+	clientConfig.Clusters["test"].InsecureSkipTLSVerify = false
+	opts.KubernetesClientConfig = clientcmd.NewDefaultClientConfig(clientConfig, &clientcmd.ConfigOverrides{})
 	opts.Toolsets = AllToolsets
 	opts.Metrics = &metrics.Config{
-		AuthMode: auth.AuthModeHeader, Insecure: true, Guardrails: "none",
+		AuthMode: auth.AuthModeHeader, Guardrails: "none",
 		PrometheusURL: backend.URL + "/prometheus", AlertmanagerURL: backend.URL,
 	}
-	opts.Logs = &logs.Config{AuthMode: auth.AuthModeHeader, Insecure: true, LokiURL: backend.URL + "/loki"}
-	opts.Traces = &traces.Config{AuthMode: auth.AuthModeHeader, Insecure: true, TempoURL: backend.URL + "/tempo"}
+	opts.Logs = &logs.Config{AuthMode: auth.AuthModeHeader, LokiURL: backend.URL + "/loki"}
+	opts.Traces = &traces.Config{AuthMode: auth.AuthModeHeader, TempoURL: backend.URL + "/tempo"}
 	opts.Otelcol = &otelcol.Config{SchemaFS: fstest.MapFS{
 		"schemas/0.999.0/receivers/test.json": {Data: []byte(`{}`)},
 	}}

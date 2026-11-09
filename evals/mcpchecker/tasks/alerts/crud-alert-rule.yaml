@@ -1,0 +1,35 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "crud-alert-rule"
+  difficulty: medium
+  parallel: false
+  runs: 1
+  labels:
+    category: alerts
+    suite: observability
+    toolType: alert-management
+    mutates: "true"
+  description: |
+    Tests create, update, and delete of a user-defined OpenShift alert
+    rule via the monitoring-plugin management API. Requires
+    observability/alert-management, a reachable management API, and
+    PrometheusRule RBAC for the MCP caller in namespace obs-mcp-eval.
+    Not part of the default eval.yaml (see eval-writes.yaml).
+spec:
+  verify:
+    - llmJudge:
+        contains: "delete_alert_rules"
+  prompt:
+    inline: |
+      Do not ask for confirmation. Immediately manage this user-defined
+      alert rule in namespace obs-mcp-eval:
+      1. preview_alert_rule then create_alert_rule named ObsMCPEvalCrudCanary
+         with expr absent(obs_mcp_eval_crud_canary), severity warning,
+         prometheus_rule_name obs-mcp-eval-alerts, namespace obs-mcp-eval.
+      2. update_alert_rule on the returned id: set severity to info.
+      3. delete_alert_rules using the id from the update result (or create
+         if update did not return a new id).
+      If any step fails after create, still call delete_alert_rules for that
+      id so the rule is not left behind.
+      Name each tool you used and the rule id.

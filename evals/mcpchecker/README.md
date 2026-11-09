@@ -6,6 +6,7 @@ Evaluations for obs-mcp using [mcpchecker](https://github.com/mcpchecker/mcpchec
 
 - [mcpchecker](https://github.com/mcpchecker/mcpchecker#install) installed (v0.0.16+) — run `make install-mcpchecker` from the repo root
 - **Metrics / alerts / traces / otelcol:** Kubernetes or OpenShift cluster with Prometheus and Alertmanager (see [Setup the cluster](#setup-the-cluster)). Toolsets are namespaced as `observability/metrics`, `observability/traces`, `observability/logs`, `observability/otelcol`.
+- **Alert rule management:** `list-alert-rules`, `list-alerts`, and `preview-alert-rule` require `--toolsets` to include `observability/alert-management` and a reachable monitoring-plugin management API. Kind does not install that plugin. Mutating tasks (`crud-alert-rule`, `disable-platform-alert`, `create-silence`, `mute-uses-silence`) are **not** in the default `eval.yaml`; run `make run-mcpchecker-eval EVAL_CONFIG=eval-writes.yaml` against a server with writes enabled (`--read-only=false`, which `make test-e2e-deploy` sets). CRUD needs PrometheusRule write RBAC in namespace `obs-mcp-eval`. Platform drop/restore needs AlertRelabelConfig write RBAC in `openshift-monitoring`. Silence create/expire uses Alertmanager (`observability/metrics`) only.
 - **obs-mcp** running at `http://localhost:9100/mcp` before any mcpchecker run
 
 ## Environment Variables
@@ -62,6 +63,7 @@ make run-mcpchecker-eval                       # run all tasks in parallel
 make run-mcpchecker-eval TASK=cpu-usage        # single task, verbose
 make run-mcpchecker-eval TASK="alert|silence"  # regex match
 make run-mcpchecker-eval CATEGORY=alerts       # all alert tasks
+make run-mcpchecker-eval EVAL_CONFIG=eval-writes.yaml  # mutating silence/rule tasks
 ```
 
 ### Triaging evals results
