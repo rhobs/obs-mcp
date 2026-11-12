@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"github.com/containers/kubernetes-mcp-server/pkg/obs/auth"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/logs"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets/metrics"
@@ -107,6 +109,10 @@ func TestUpstreamToolsetRegistration(t *testing.T) {
 			for _, tool := range listed.Tools {
 				names = append(names, tool.Name)
 				require.NotEmpty(t, tool.Description, "tool %s must have a description", tool.Name)
+				require.Contains(t, tool.Meta, api.RBACMetadataKey,
+					"tool %s: standalone adapter must forward ServerTool.RBAC into Meta", tool.Name)
+				require.NotNil(t, tool.Meta[api.RBACMetadataKey],
+					"tool %s: RBAC metadata must not be nil", tool.Name)
 				for name, schema := range map[string]any{"input": tool.InputSchema, "output": tool.OutputSchema} {
 					data, err := json.Marshal(schema)
 					require.NoError(t, err)
@@ -158,14 +164,25 @@ func TestUpstreamConfigurationOverHTTP(t *testing.T) {
 	}))
 	defer backend.Close()
 
+	// Upstream rejects toolset Insecure=true; trust the httptest cert via kubeconfig CAData.
+	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: backend.Certificate().Raw})
 	opts := standaloneTestOptions()
+	opts.KubernetesClientConfig = clientcmd.NewDefaultClientConfig(clientcmdapi.Config{
+		Clusters: map[string]*clientcmdapi.Cluster{"test": {
+			Server:                   "https://localhost",
+			CertificateAuthorityData: caPEM,
+		}},
+		AuthInfos:      map[string]*clientcmdapi.AuthInfo{"test": {Token: "kubeconfig-token"}},
+		Contexts:       map[string]*clientcmdapi.Context{"test": {Cluster: "test", AuthInfo: "test"}},
+		CurrentContext: "test",
+	}, &clientcmd.ConfigOverrides{})
 	opts.Toolsets = AllToolsets
 	opts.Metrics = &metrics.Config{
-		AuthMode: auth.AuthModeHeader, Insecure: true, Guardrails: "none",
+		AuthMode: auth.AuthModeHeader, Guardrails: "none",
 		PrometheusURL: backend.URL + "/prometheus", AlertmanagerURL: backend.URL,
 	}
-	opts.Logs = &logs.Config{AuthMode: auth.AuthModeHeader, Insecure: true, LokiURL: backend.URL + "/loki"}
-	opts.Traces = &traces.Config{AuthMode: auth.AuthModeHeader, Insecure: true, TempoURL: backend.URL + "/tempo"}
+	opts.Logs = &logs.Config{AuthMode: auth.AuthModeHeader, LokiURL: backend.URL + "/loki"}
+	opts.Traces = &traces.Config{AuthMode: auth.AuthModeHeader, TempoURL: backend.URL + "/tempo"}
 	opts.Otelcol = &otelcol.Config{SchemaFS: fstest.MapFS{
 		"schemas/0.999.0/receivers/test.json": {Data: []byte(`{}`)},
 	}}

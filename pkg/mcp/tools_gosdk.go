@@ -1,12 +1,13 @@
 // This file is adapted from
-// https://github.com/containers/kubernetes-mcp-server/blob/3d4a06dcfdfc1c558c83d15902ebc899bb231ca6/pkg/mcp/tools_gosdk.go
-// https://github.com/containers/kubernetes-mcp-server/blob/3d4a06dcfdfc1c558c83d15902ebc899bb231ca6/pkg/mcp/mcp.go
+// https://github.com/containers/kubernetes-mcp-server/blob/main/pkg/mcp/tools_gosdk.go
+// https://github.com/containers/kubernetes-mcp-server/blob/main/pkg/mcp/mcp.go
 // Original code is licensed under the Apache License, Version 2.0.
 //
 // The copy changes ServerToolToGoSdkTool to accept plain arguments
 // (kubernetes.Manager, *config.Config, toolset name/config) instead of *Server,
 // decoupling it from the kubernetes-mcp-server infrastructure (config hot reload,
 // multi-cluster targeting, confirmation rules) and its transitive dependencies.
+// Keep RBAC Meta merging and ContentBlocks handling in sync with upstream.
 
 package mcp
 
@@ -15,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
@@ -29,7 +31,7 @@ import (
 
 func ServerToolToGoSdkTool(mgr *kubernetes.Manager, cfg *config.Config, toolsetName string, toolsetConfig config.ExtendedConfig, tool api.ServerTool) (*mcp.Tool, mcp.ToolHandler, error) {
 	// Validate the input schema upfront to mirror the SDK's AddTool panic
-	// surface. This keeps applyToolsets' two-phase model panic-free at commit
+	// surface. This keeps SetupTools/addToolset panic-free at registration
 	// time even if a misconfigured tool slips through the toolset boundary.
 	inputSchema := tool.Tool.InputSchema
 	if inputSchema == nil {
@@ -43,11 +45,28 @@ func ServerToolToGoSdkTool(mgr *kubernetes.Manager, cfg *config.Config, toolsetN
 	if inputSchema.Properties == nil {
 		inputSchema.Properties = make(map[string]*jsonschema.Schema)
 	}
+
+	meta := tool.Tool.Meta
+	if _, exists := meta[api.RBACMetadataKey]; exists {
+		return nil, nil, fmt.Errorf("tool %q: %q metadata must be declared through ServerTool.RBAC", tool.Tool.Name, api.RBACMetadataKey)
+	}
+
+	if tool.RBAC != nil {
+		if err := tool.RBAC.Validate(); err != nil {
+			return nil, nil, fmt.Errorf("tool %q: invalid RBAC metadata: %w", tool.Tool.Name, err)
+		}
+		meta = maps.Clone(meta)
+		if meta == nil {
+			meta = make(map[string]any)
+		}
+		meta[api.RBACMetadataKey] = tool.RBAC
+	}
+
 	goSdkTool := &mcp.Tool{
 		Name:        tool.Tool.Name,
 		Description: tool.Tool.Description,
 		Title:       tool.Tool.Annotations.Title,
-		Meta:        mcp.Meta(tool.Tool.Meta),
+		Meta:        mcp.Meta(meta),
 		Annotations: &mcp.ToolAnnotations{
 			Title:           tool.Tool.Annotations.Title,
 			ReadOnlyHint:    ptr.Deref(tool.Tool.Annotations.ReadOnlyHint, false),
@@ -95,9 +114,35 @@ func ServerToolToGoSdkTool(mgr *kubernetes.Manager, cfg *config.Config, toolsetN
 		if err != nil {
 			return nil, err
 		}
+		// If result has multi-content blocks, use the multi-content converter;
+		// otherwise fall back to legacy Content field.
+		if len(result.ContentBlocks) > 0 {
+			return NewMultiContentResult(result.ContentBlocks, result.StructuredContent, result.Error), nil
+		}
 		return NewStructuredResult(result.Content, result.StructuredContent, result.Error), nil
 	}
 	return goSdkTool, goSdkHandler, nil
+}
+
+// NewTextResult creates an MCP CallToolResult with plain text content.
+func NewTextResult(content string, err error) *mcp.CallToolResult {
+	if err != nil {
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{
+				&mcp.TextContent{
+					Text: err.Error(),
+				},
+			},
+		}
+	}
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: content,
+			},
+		},
+	}
 }
 
 // NewStructuredResult creates an MCP CallToolResult with structured content.

@@ -145,7 +145,9 @@ Then add a corresponding `taskSet` entry in `eval.yaml` pointing to the new file
 
 ## Keeping Evals in Sync with openshift-mcp-server
 
-The observability eval tasks in this repo (`evals/mcpchecker/tasks/`) are the **source of truth** for task definitions. The same tasks are mirrored in [openshift-mcp-server](https://github.com/openshift/openshift-mcp-server/tree/main/evals/tasks/observability) under `evals/tasks/observability/`.
+Tool implementations live in [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server) (`pkg/toolsets/*`, `pkg/obs/*`). Fix tool bugs and schemas there, then bump the pin in obs-mcp.
+
+The observability **eval tasks** in this repo (`evals/mcpchecker/tasks/`) are the **source of truth** for agent evaluation prompts. The same tasks are mirrored in [openshift-mcp-server](https://github.com/openshift/openshift-mcp-server/tree/main/evals/tasks/observability) under `evals/tasks/observability/`.
 
 When updating eval tasks, changes must be synced between both repos to avoid config drift:
 
